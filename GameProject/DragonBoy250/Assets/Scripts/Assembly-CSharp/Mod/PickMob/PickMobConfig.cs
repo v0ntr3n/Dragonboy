@@ -1,11 +1,10 @@
 using System.Collections.Generic;
+using Mod.PickMob.Services;
 
 namespace Mod.PickMob
 {
 	internal static class PickMobConfig
 	{
-		const int ID_ITEM_GEM = 77;
-		const int ID_ITEM_GEM_LOCK = 861;
 		static readonly sbyte[] IdSkillsBase =
 		{
 			2, 9, 17, 0, 4, 13, 19, 6 //21, 24, 25
@@ -34,10 +33,17 @@ namespace Mod.PickMob
 		internal static bool IsSkipPickEventItems { get; set; } = true;
 		internal static bool IsAutoChangeZone { get; set; } = true;
 		internal static bool IsAutoFusion { get; set; } = true;
+		internal static bool IsPriorityZone { get; set; } = true;
 
 		internal static void SetAutoChangeZone(bool newState)
 		{
 			IsAutoChangeZone = newState;
+		}
+
+		internal static void SetPriorityZone(bool newState)
+		{
+			IsPriorityZone = newState;
+			ZoneService.ResetPriorityZoneTimer();
 		}
 
 		internal static void SetAutoFusion(bool newState)

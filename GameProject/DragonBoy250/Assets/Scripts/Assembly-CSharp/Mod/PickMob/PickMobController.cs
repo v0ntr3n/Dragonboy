@@ -13,6 +13,11 @@ namespace Mod.PickMob
 
 		protected override IEnumerator OnUpdate()
 		{
+			if (GameCanvas.currentScreen is not GameScr)
+			{
+				yield break;
+			}
+
 			if (XmapController.gI.IsActing)
 			{
 				yield break;
@@ -24,8 +29,6 @@ namespace Mod.PickMob
 			{
 				yield break;
 			}
-
-			MovementService.EnsureGroundCache();
 
 			bool isUseTDLT = ItemTime.isExistItem(ID_ICON_ITEM_TDLT);
 			bool isTanSatTDLT = PickMobConfig.IsTanSat && isUseTDLT;

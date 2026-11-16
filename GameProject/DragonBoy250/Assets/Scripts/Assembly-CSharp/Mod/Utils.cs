@@ -528,18 +528,7 @@ namespace Mod
 		/// <returns></returns>
 		internal static int GetPetGender()
 		{
-			string skill1Pet = Char.myPetz()?.arrPetSkill[0]?.template?.name;
-			if (skill1Pet == null)
-			{
-				return -1;
-			}
-			if (skill1Pet == GameScr.nClasss[0].skillTemplates[0].name)
-				return GameScr.nClasss[0].classId;
-			if (skill1Pet == GameScr.nClasss[1].skillTemplates[0].name)
-				return GameScr.nClasss[1].classId;
-			if (skill1Pet == GameScr.nClasss[2].skillTemplates[0].name)
-				return GameScr.nClasss[2].classId;
-			return 3;
+			return Char.myPetz()?.cgender ?? -1;
 		}
 
 		internal static string TrimUntilFit(string str, GUIStyle style, int width)

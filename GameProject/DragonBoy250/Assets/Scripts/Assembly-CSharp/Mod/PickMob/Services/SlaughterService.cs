@@ -13,7 +13,7 @@ namespace Mod.PickMob.Services
 
 		public static IEnumerator DoSlaughter(Char myChar, bool isUseTDLT)
 		{
-			if (myChar.isCharge || myChar.stone || myChar.isFreez)
+			if (myChar.isCharge || myChar.stone)
 			{
 				yield return new WaitForSecondsRealtime(ATTACK_DELAY);
 				yield break;
@@ -24,6 +24,12 @@ namespace Mod.PickMob.Services
 			if (HasBossInMap())
 			{
 				yield return ZoneService.ChangeToLowestPlayerZone();
+				yield break;
+			}
+
+			if (ZoneService.ShouldChangeZoneByPriority())
+			{
+				yield return ZoneService.ChangeToEmptyZone();
 				yield break;
 			}
 

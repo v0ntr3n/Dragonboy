@@ -4,9 +4,6 @@ namespace Mod.PickMob.Services
 	{
 		const int ID_ICON_ITEM_TDLT = 4387;
 
-		static int[] _groundYCache;
-		static int _groundYCacheMapId = -1;
-
 		public static void Move(Char myChar, int x, int y)
 		{
 			int[] vs = GetPointYsdMax(myChar.cx, x);
@@ -23,58 +20,6 @@ namespace Mod.PickMob.Services
 			}
 
 			myChar.currentMovePoint = new MovePoint(vs[0], vs[1]);
-		}
-
-		public static void EnsureGroundCache()
-		{
-			if (_groundYCache != null && _groundYCacheMapId == TileMap.mapID)
-			{
-				return;
-			}
-
-			int cols = TileMap.pxw / 24 + 2;
-			_groundYCache = new int[cols];
-
-			for (int xi = 0; xi < cols; xi++)
-			{
-				int x = xi * 24;
-				_groundYCache[xi] = ComputeGroundY(x);
-			}
-
-			_groundYCacheMapId = TileMap.mapID;
-		}
-
-		static int ComputeGroundY(int x)
-		{
-			int dmin = TileMap.pxh;
-			int ysdBest = -1;
-			int myCharY = Char.myCharz().cy;
-
-			for (int i = 24; i < TileMap.pxh; i += 24)
-			{
-				if (!TileMap.tileTypeAt(x, i, 2))
-					continue;
-
-				int d = Res.abs(i - myCharY);
-				if (d < dmin)
-				{
-					dmin = d;
-					ysdBest = i;
-				}
-			}
-
-			return ysdBest;
-		}
-
-		static int GetYsd(int xsd)
-		{
-			int xi = xsd / 24;
-			if (_groundYCache == null || xi < 0 || xi >= _groundYCache.Length)
-			{
-				return ComputeGroundY(xsd);
-			}
-
-			return _groundYCache[xi];
 		}
 
 		static int[] GetPointYsdMax(int xStart, int xEnd)
@@ -106,11 +51,32 @@ namespace Mod.PickMob.Services
 					}
 				}
 			}
-
-			return new[]
+			int[] vs =
 			{
 				x, ysdMin
 			};
+			return vs;
+		}
+
+		static int GetYsd(int xsd)
+		{
+			Char myChar = Char.myCharz();
+			int dmin = TileMap.pxh;
+			int d;
+			int ysdBest = -1;
+			for (int i = 24; i < TileMap.pxh; i += 24)
+			{
+				if (TileMap.tileTypeAt(xsd, i, 2))
+				{
+					d = Res.abs(i - myChar.cy);
+					if (d < dmin)
+					{
+						dmin = d;
+						ysdBest = i;
+					}
+				}
+			}
+			return ysdBest;
 		}
 	}
 }

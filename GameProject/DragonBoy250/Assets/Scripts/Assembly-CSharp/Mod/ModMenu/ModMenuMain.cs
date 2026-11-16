@@ -11,7 +11,6 @@ using Mod.Graphics;
 using Mod.ListChar;
 using Mod.PickMob;
 using Mod.R;
-using Mod.TeleportMenu;
 using Mod.Xmap;
 using Mod.Yardat;
 using UnityEngine;
@@ -359,13 +358,6 @@ namespace Mod.ModMenu
 				}),
 				new ModMenuItemFunction(new ModMenuItemFunctionConfig
 				{
-					ID = "OpenTeleportMenu",
-					Title = Strings.openTeleportMenuTitle,
-					Description = Strings.openTeleportMenuDescription,
-					Action = TeleportMenuMain.ShowMenu
-				}),
-				new ModMenuItemFunction(new ModMenuItemFunctionConfig
-				{
 					ID = "AutoBeans",
 					Title = "Auto Beans",
 					Description = "Auto Beans",
@@ -477,7 +469,7 @@ namespace Mod.ModMenu
 			SetTabPanelTemplates.setTabListTemplate(panel, modMenuItemBools, modMenuItemValues, modMenuItemFunctions, modMenuItemDeveloperFunctions);
 		}
 
-		internal static void DoFireModMenu(Panel panel)
+		static void DoFireModMenu(Panel panel)
 		{
 			if (panel.currentTabIndex == 0)
 				DoFireModMenuBool(panel);

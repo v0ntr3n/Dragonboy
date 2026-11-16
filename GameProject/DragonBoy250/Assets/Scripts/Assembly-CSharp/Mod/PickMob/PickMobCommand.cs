@@ -31,6 +31,13 @@ namespace Mod.PickMob
 			GameScr.info1.addInfo("Auto đổi khu: " + Strings.OnOffStatus(PickMobConfig.IsAutoChangeZone), 0);
 		}
 
+		[ChatCommand("pz")]
+		internal static void TogglePriorityZone()
+		{
+			PickMobConfig.SetPriorityZone(!PickMobConfig.IsPriorityZone);
+			GameScr.info1.addInfo("Priority zone: " + Strings.OnOffStatus(PickMobConfig.IsPriorityZone), 0);
+		}
+
 		[ChatCommand("ts")]
 		internal static void ToggleSlaughter()
 		{

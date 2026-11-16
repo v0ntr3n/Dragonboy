@@ -25,6 +25,11 @@ namespace Mod.CSKB
 
 		protected override IEnumerator OnUpdate()
 		{
+			if (GameCanvas.currentScreen is not GameScr)
+			{
+				yield break;
+			}
+
 			UpdateNotUsingMdTime();
 
 			Item capsuleInBag = Utils.getItemInBag(CskbConstants.IdCapsuleKb);
