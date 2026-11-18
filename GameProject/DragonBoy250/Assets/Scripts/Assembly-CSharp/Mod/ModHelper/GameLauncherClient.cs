@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -15,7 +16,10 @@ namespace Mod.ModHelper
 		static readonly string pathLog = ModStorage.GetCommonDataPath("log_launcher_client.txt");
 
 		static GameLauncherClient _instance;
+		readonly SemaphoreSlim _sendLock = new SemaphoreSlim(1, 1);
 		bool _autoLoginDone;
+		bool _hasCliPassword;
+		volatile bool _credentialsReady;
 		CancellationTokenSource _cts;
 		Thread _receiveThread;
 
@@ -26,6 +30,8 @@ namespace Mod.ModHelper
 
 		public string Username { get; private set; } = "";
 		public string Password { get; private set; } = "";
+		public string Server { get; private set; } = "";
+		public string IpcToken { get; private set; } = "";
 		public int WsPort { get; private set; } = -1;
 
 		public event Action<string, JObject> OnLauncherEvent;
@@ -40,17 +46,28 @@ namespace Mod.ModHelper
 					switch (args[i])
 					{
 					case "-port":
-						if (i + 1 < args.Length) WsPort = int.Parse(args[++i]);
+						if (i + 1 < args.Length && int.TryParse(args[++i], out int parsedPort))
+							WsPort = parsedPort;
 						break;
 					case "-username":
 						if (i + 1 < args.Length) Username = args[++i];
 						break;
 					case "-password":
-						if (i + 1 < args.Length) Password = args[++i];
+						if (i + 1 < args.Length)
+						{
+							Password = args[++i];
+							_hasCliPassword = true;
+							_credentialsReady = true;
+						}
+						break;
+					case "-ipcToken":
+						if (i + 1 < args.Length) IpcToken = args[++i];
+						break;
+					case "-server":
+						if (i + 1 < args.Length) Server = args[++i];
 						break;
 					}
 				}
-
 			}
 			catch (Exception ex)
 			{
@@ -82,32 +99,35 @@ namespace Mod.ModHelper
 
 		void ConnectAndListen()
 		{
+			CancellationTokenSource cts = _cts;
+			ClientWebSocket ws = new ClientWebSocket();
+			_ws = ws;
+
 			try
 			{
-				_ws = new ClientWebSocket();
 				Uri uri = new Uri($"ws://127.0.0.1:{WsPort}");
 
 				Stopwatch sw = Stopwatch.StartNew();
 
 				const int timeoutMs = 10_000;
-				System.Threading.Tasks.Task connectTask = _ws.ConnectAsync(uri, _cts.Token);
+				Task connectTask = ws.ConnectAsync(uri, cts.Token);
 				bool completed = connectTask.Wait(timeoutMs);
 				sw.Stop();
 
 				if (!completed)
 				{
 					WriteLog($"Connection timed out after {sw.ElapsedMilliseconds}ms. Launcher may not be running or not completing WebSocket handshake on port {WsPort}.");
-					try { _ws.Abort(); }
+					try { ws.Abort(); }
 					catch
 					{
 						// Ignore abort errors
 					}
-					try { _ws.Dispose(); }
+					try { ws.Dispose(); }
 					catch
 					{
 						// Ignore dispose errors
 					}
-					_ws = null;
+					Interlocked.CompareExchange(ref _ws, null, ws);
 					MainThreadDispatcher.Dispatch(() =>
 					{
 						GameCanvas.startOKDlg($"Không thể kết nối tới Launcher (timeout sau {sw.ElapsedMilliseconds / 1000}s).\nKiểm tra Launcher đang chạy WebSocket server trên port {WsPort}.");
@@ -122,18 +142,49 @@ namespace Mod.ModHelper
 
 				IsConnected = true;
 
-				SendMessage(new
+				if (string.IsNullOrEmpty(IpcToken))
 				{
-					action = "connected",
-					id = Process.GetCurrentProcess().Id,
-					username = Username
-				});
+					SendMessage(new
+					{
+						action = "connected",
+						id = Process.GetCurrentProcess().Id,
+						username = Username
+					});
+				}
+				else
+				{
+					SendMessage(new
+					{
+						action = "connected",
+						id = Process.GetCurrentProcess().Id,
+						username = Username,
+						token = IpcToken
+					});
+				}
+
+				if (!_hasCliPassword)
+				{
+					_credentialsReady = false;
+					SendMessage(new
+					{
+						action = "get_credentials",
+						token = IpcToken
+					});
+				}
+				else
+				{
+					_credentialsReady = true;
+				}
 
 				MainThreadDispatcher.Dispatch(() =>
 				{
 					Utils.IsOpenedByExternalAccountManager = true;
 					Utils.username = Username;
-					Utils.password = Password;
+					if (_hasCliPassword)
+					{
+						Utils.password = Password;
+					}
+					ApplyServerSelection(Server);
 				});
 
 				// Wait 5 seconds for the game to fully boot before auto-login (separate thread to not block receive loop)
@@ -147,68 +198,97 @@ namespace Mod.ModHelper
 				}.Start();
 
 				byte[] buffer = new byte[4096];
-				while (!_cts.IsCancellationRequested && _ws.State == WebSocketState.Open)
+				using (MemoryStream ms = new MemoryStream(4096))
 				{
-					try
+					while (!cts.IsCancellationRequested && ws.State == WebSocketState.Open)
 					{
-						MemoryStream ms = new MemoryStream();
-						WebSocketReceiveResult result;
-						do
+						try
 						{
-							result = _ws.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token).GetAwaiter().GetResult();
-							if (result.MessageType == WebSocketMessageType.Close)
-								break;
-							ms.Write(buffer, 0, result.Count);
-						} while (!result.EndOfMessage);
-
-						if (result.MessageType == WebSocketMessageType.Close)
-						{
-							WriteLog("Launcher closed the WebSocket connection.");
-							IsConnected = false;
-							break;
-						}
-
-						byte[] raw = ms.ToArray();
-						string message = Encoding.UTF8.GetString(raw);
-
-						if (message.StartsWith("42"))
-						{
-							string json = message.Substring(2);
-
-							JArray arr = JArray.Parse(json);
-
-							string eventName = arr[0].ToString();
-							JObject data = arr[1] as JObject;
-
-							WriteLog($"Event: {eventName}");
-
-							if (data != null)
+							ms.SetLength(0);
+							WebSocketReceiveResult result;
+							do
 							{
+								result = ws.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token).GetAwaiter().GetResult();
+								if (result.MessageType == WebSocketMessageType.Close)
+									break;
+								ms.Write(buffer, 0, result.Count);
+							} while (!result.EndOfMessage);
+
+							if (result.MessageType == WebSocketMessageType.Close)
+							{
+								WriteLog("Launcher closed the WebSocket connection.");
+								IsConnected = false;
+								break;
+							}
+
+							string message = Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
+
+							if (message == "2" || (message.Length > 1 && message[0] == '2' && !char.IsDigit(message[1])))
+							{
+								string pong = message.Length == 1 ? "3" : "3" + message.Substring(1);
+								SendRawText(pong);
+								continue;
+							}
+
+							if (message == "0" || message.StartsWith("0{") || message == "40" || message.StartsWith("40{") || message == "3")
+							{
+								continue;
+							}
+
+							if (message.StartsWith("42"))
+							{
+								string json = message.Substring(2);
+								JArray arr = JArray.Parse(json);
+								if (arr.Count >= 1)
+								{
+									string eventName = arr[0]?.ToString() ?? "";
+									JObject data = arr.Count >= 2 ? arr[1] as JObject : null;
+									if (data == null)
+									{
+										data = new JObject();
+									}
+									if (data["action"] == null && !string.IsNullOrEmpty(eventName))
+									{
+										data["action"] = eventName;
+									}
+
+									WriteLog($"Event: {eventName}");
+									MainThreadDispatcher.Dispatch(() => HandleMessage(data));
+								}
+							}
+							else if (message.StartsWith("{"))
+							{
+								JObject data = JObject.Parse(message);
 								MainThreadDispatcher.Dispatch(() => HandleMessage(data));
 							}
+							else
+							{
+								WriteLog("Received non-42 message: " + message);
+							}
 						}
-						else
+						catch (OperationCanceledException)
 						{
-							WriteLog("Received non-42 message: " + message);
+							break;
 						}
-					}
-					catch (OperationCanceledException)
-					{
-						break;
-					}
-					catch (Exception ex)
-					{
-						WriteLog("Receive error: " + ex);
+						catch (Exception ex)
+						{
+							if (cts.IsCancellationRequested || _ws == null)
+								break;
+							WriteLog("Receive error: " + ex);
+						}
 					}
 				}
 			}
 			catch (Exception ex)
 			{
-				WriteLog("Connection error: " + ex);
-				MainThreadDispatcher.Dispatch(() =>
+				if (!cts.IsCancellationRequested && _ws != null)
 				{
-					GameCanvas.startOKDlg("Mất kết nối với Launcher");
-				});
+					WriteLog("Connection error: " + ex);
+					MainThreadDispatcher.Dispatch(() =>
+					{
+						GameCanvas.startOKDlg("Mất kết nối với Launcher");
+					});
+				}
 			}
 			finally
 			{
@@ -229,6 +309,32 @@ namespace Mod.ModHelper
 
 			switch (action)
 			{
+			case "credentials":
+			{
+				string receivedUser = (string)msg["username"];
+				string receivedPass = (string)msg["password"];
+				string receivedServer = (string)msg["server"];
+
+				if (!string.IsNullOrEmpty(receivedUser))
+				{
+					Username = receivedUser;
+					Utils.username = receivedUser;
+				}
+				if (receivedPass != null)
+				{
+					Password = receivedPass;
+					Utils.password = receivedPass;
+				}
+				if (!string.IsNullOrEmpty(receivedServer))
+				{
+					Server = receivedServer;
+				}
+
+				ApplyServerSelection(Server);
+				_credentialsReady = true;
+				TryAutoLogin();
+				break;
+			}
 			case "stop":
 			{
 				WriteLog("Launcher requested stop game.");
@@ -245,6 +351,52 @@ namespace Mod.ModHelper
 			OnLauncherEvent?.Invoke(action, msg);
 		}
 
+		static void ApplyServerSelection(string serverSpec)
+		{
+			if (string.IsNullOrWhiteSpace(serverSpec))
+				return;
+
+			string trimmed = serverSpec.Trim();
+			string[] colonParts = trimmed.Split(':');
+			if ((colonParts.Length == 2 || colonParts.Length == 3) &&
+			    ushort.TryParse(colonParts[colonParts.Length - 1], out ushort customPort))
+			{
+				string host = colonParts[colonParts.Length - 2].Trim();
+				if (!string.IsNullOrEmpty(host))
+				{
+					Utils.server = new JObject
+					{
+						["ip"] = host,
+						["port"] = (int)customPort
+					};
+					return;
+				}
+			}
+
+			if (ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0)
+			{
+				for (int i = 0; i < ServerListScreen.nameServer.Length; i++)
+				{
+					string candidate = ServerListScreen.nameServer[i];
+					if (!string.IsNullOrEmpty(candidate) &&
+					    string.Equals(candidate.Trim(), trimmed, StringComparison.OrdinalIgnoreCase))
+					{
+						Utils.server = null;
+						ServerListScreen.ipSelect = i;
+						Rms.saveRMSInt("svselect", i);
+						return;
+					}
+				}
+
+				if (int.TryParse(trimmed, out int index) && index >= 0 && index < ServerListScreen.nameServer.Length)
+				{
+					Utils.server = null;
+					ServerListScreen.ipSelect = index;
+					Rms.saveRMSInt("svselect", index);
+				}
+			}
+		}
+
 		void SendCharacterInfo()
 		{
 			try
@@ -257,7 +409,11 @@ namespace Mod.ModHelper
 					return;
 				}
 
-				SendMessage(CharacterInfoMessage.Create(myChar, myPet));
+				CharacterInfoMessage message = CharacterInfoMessage.Create(myChar, myPet);
+				if (message != null)
+				{
+					SendMessage(message);
+				}
 			}
 			catch (Exception ex)
 			{
@@ -270,12 +426,13 @@ namespace Mod.ModHelper
 		/// </summary>
 		internal void TryAutoLogin()
 		{
-			if (_autoLoginDone)
+			if (_autoLoginDone || !_credentialsReady)
 				return;
 
 			if (GameCanvas.currentScreen is ServerListScreen && GameCanvas.serverScreen != null)
 			{
 				_autoLoginDone = true;
+				ApplyServerSelection(Server);
 				Rms.saveRMSString("acc", Utils.username);
 				if (!string.IsNullOrEmpty(Utils.password))
 				{
@@ -288,15 +445,17 @@ namespace Mod.ModHelper
 
 		public void SendMessage(object obj)
 		{
-			if (_ws == null || _ws.State != WebSocketState.Open)
+			if (obj == null)
+				return;
+
+			ClientWebSocket ws = _ws;
+			if (ws == null || ws.State != WebSocketState.Open)
 				return;
 
 			try
 			{
 				string json = JsonConvert.SerializeObject(obj);
-				byte[] bytes = Encoding.UTF8.GetBytes(json);
-				_ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None)
-					.GetAwaiter().GetResult();
+				SendRawText(json);
 			}
 			catch (Exception ex)
 			{
@@ -304,29 +463,102 @@ namespace Mod.ModHelper
 			}
 		}
 
-		public void Close()
+		void SendRawText(string text)
 		{
+			ClientWebSocket ws = _ws;
+			if (ws == null || ws.State != WebSocketState.Open)
+				return;
+
+			byte[] bytes = Encoding.UTF8.GetBytes(text);
+			CancellationToken token = _cts?.Token ?? CancellationToken.None;
+			_ = SendBytesAsync(ws, bytes, token);
+		}
+
+		async Task SendBytesAsync(ClientWebSocket ws, byte[] bytes, CancellationToken cancellationToken)
+		{
+			bool acquired = false;
 			try
 			{
-				_cts?.Cancel();
-				if (_ws != null && _ws.State == WebSocketState.Open)
-				{
-					SendMessage(new
-					{
-						action = "close-socket"
-					});
-					_ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closing", CancellationToken.None)
-						.GetAwaiter().GetResult();
-				}
-				_ws?.Dispose();
-				_ws = null;
-				IsConnected = false;
-				WriteLog("WebSocket connection closed.");
+				await _sendLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+				acquired = true;
+
+				if (ws == null || ws.State != WebSocketState.Open)
+					return;
+
+				await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cancellationToken)
+					.ConfigureAwait(false);
+			}
+			catch (OperationCanceledException)
+			{
+				// Expected on shutdown
 			}
 			catch (Exception ex)
 			{
-				WriteLog("Error closing: " + ex);
+				WriteLog("Send error: " + ex);
 			}
+			finally
+			{
+				if (acquired)
+				{
+					_sendLock.Release();
+				}
+			}
+		}
+
+		public void Close()
+		{
+			ClientWebSocket ws = Interlocked.Exchange(ref _ws, null);
+			CancellationTokenSource cts = Interlocked.Exchange(ref _cts, null);
+			IsConnected = false;
+
+			if (ws == null)
+			{
+				try { cts?.Cancel(); cts?.Dispose(); } catch { }
+				return;
+			}
+
+			string closeJson = JsonConvert.SerializeObject(
+				string.IsNullOrEmpty(IpcToken)
+					? (object)new { action = "close-socket" }
+					: new { action = "close-socket", token = IpcToken }
+			);
+			byte[] closeBytes = Encoding.UTF8.GetBytes(closeJson);
+
+			_ = Task.Run(async () =>
+			{
+				bool acquired = false;
+				try
+				{
+					using (CancellationTokenSource closeTimeout = new CancellationTokenSource(1500))
+					{
+						await _sendLock.WaitAsync(closeTimeout.Token).ConfigureAwait(false);
+						acquired = true;
+
+						if (ws.State == WebSocketState.Open)
+						{
+							await ws.SendAsync(new ArraySegment<byte>(closeBytes), WebSocketMessageType.Text, true, closeTimeout.Token)
+								.ConfigureAwait(false);
+							await ws.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Client closing", closeTimeout.Token)
+								.ConfigureAwait(false);
+						}
+					}
+				}
+				catch (Exception ex)
+				{
+					WriteLog("Error closing: " + ex);
+				}
+				finally
+				{
+					if (acquired)
+					{
+						_sendLock.Release();
+					}
+					try { cts?.Cancel(); } catch { }
+					try { cts?.Dispose(); } catch { }
+					try { ws.Dispose(); } catch { }
+					WriteLog("WebSocket connection closed.");
+				}
+			});
 		}
 
 		void WriteLog(string log)

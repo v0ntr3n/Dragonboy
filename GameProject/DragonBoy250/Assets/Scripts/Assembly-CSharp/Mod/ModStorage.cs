@@ -70,14 +70,38 @@ namespace Mod
 					}
 				}
 			}
-			windowsSharedDataMutex.WaitOne();
+			bool lockTaken = false;
 			try
 			{
+				try
+				{
+					lockTaken = windowsSharedDataMutex.WaitOne(5000);
+				}
+				catch (AbandonedMutexException)
+				{
+					lockTaken = true;
+				}
+
+				if (!lockTaken)
+				{
+					Debug.LogWarning("[ModStorage] Timed out waiting for cross-process data mutex; proceeding unlocked.");
+				}
+
 				action();
 			}
 			finally
 			{
-				windowsSharedDataMutex.ReleaseMutex();
+				if (lockTaken)
+				{
+					try
+					{
+						windowsSharedDataMutex.ReleaseMutex();
+					}
+					catch (ApplicationException ex)
+					{
+						Debug.LogException(ex);
+					}
+				}
 			}
 		}
 

@@ -60,6 +60,13 @@ namespace Mod.ModHelper
 
 		internal static CharacterInfoMessage Create(Char myChar, Char myPet)
 		{
+			if (myChar == null)
+			{
+				return null;
+			}
+
+			bool hasPet = myChar.havePet && myPet != null;
+
 			return new CharacterInfoMessage
 			{
 				status = Utils.status,
@@ -85,16 +92,16 @@ namespace Mod.ModHelper
 				cDamFull = myChar.cDamFull,
 				cDefull = myChar.cDefull,
 				cCriticalFull = myChar.cCriticalFull,
-				cPetHP = myPet.cHP,
-				cPetHPFull = myPet.cHPFull,
-				cPetMP = myPet.cMP,
-				cPetMPFull = myPet.cMPFull,
-				cPetStamina = myPet.cStamina,
-				cPetPower = myPet.cPower,
-				cPetTiemNang = myPet.cTiemNang,
-				cPetDamFull = myPet.cDamFull,
-				cPetDefull = myPet.cDefull,
-				cPetCriticalFull = myPet.cCriticalFull,
+				cPetHP = hasPet ? myPet.cHP : 0,
+				cPetHPFull = hasPet ? myPet.cHPFull : 0,
+				cPetMP = hasPet ? myPet.cMP : 0,
+				cPetMPFull = hasPet ? myPet.cMPFull : 0,
+				cPetStamina = hasPet ? myPet.cStamina : 0,
+				cPetPower = hasPet ? myPet.cPower : 0,
+				cPetTiemNang = hasPet ? myPet.cTiemNang : 0,
+				cPetDamFull = hasPet ? myPet.cDamFull : 0,
+				cPetDefull = hasPet ? myPet.cDefull : 0,
+				cPetCriticalFull = hasPet ? myPet.cCriticalFull : 0,
 				xu = myChar.xu,
 				luong = myChar.luong,
 				luongKhoa = myChar.luongKhoa
