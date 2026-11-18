@@ -6,7 +6,11 @@ Guide to adding features to the mod: https://youtu.be/9sCof2eQH3Q
 Discord Q&A server: https://discord.gg/zdvBdVxRh6
 
 ## Compilation
-Use Visual Studio to compile the Account Manager and Unity Editor version `2023.2.20f1` to compile the game. If you are unable to compile it yourself, you can download pre-compiled versions of the game and Account Manager from [Dragonboy-CommunityMod-Builds](https://github.com/ElectroHeavenVN/Dragonboy-CommunityMod-Builds) hosted by [@ElectroHeavenVN](https://github.com/ElectroHeavenVN).
+- **Game (`GameProject/DragonBoy250`)**: Use Unity Editor version `6000.3.9f1` (or run `./GameProject/build.sh` on macOS) to compile the game.
+- **Account Manager (`AccountManager/AccountManager.xcodeproj`)**: Use Xcode on macOS to compile the Account Manager app.
+- **Windows x64 CI**: See [docs/WINDOWS_CI.md](./docs/WINDOWS_CI.md) for automated Windows x64 builds via GitHub Actions.
+
+If you are unable to compile it yourself, you can download pre-compiled community builds from [Dragonboy-CommunityMod-Builds](https://github.com/ElectroHeavenVN/Dragonboy-CommunityMod-Builds) hosted by [@ElectroHeavenVN](https://github.com/ElectroHeavenVN).
 
 ## License
 The source code is released under the [GNU Affero General Public License version 3](https://www.gnu.org/licenses/agpl-3.0.en.html). Please read the license content carefully before using the source code for personal or commercial purposes to avoid license violation.

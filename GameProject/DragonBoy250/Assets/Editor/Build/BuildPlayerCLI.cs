@@ -236,8 +236,12 @@ namespace DragonBoy.Build
 			for (int i = 0; i < args.Length; i++)
 			{
 				if (!string.Equals(args[i], key, StringComparison.OrdinalIgnoreCase)) continue;
-				if (i + 1 >= args.Length) return null;
-				return args[i + 1];
+				if (i + 1 < args.Length && !args[i + 1].StartsWith("-", StringComparison.Ordinal))
+				{
+					return args[i + 1];
+				}
+
+				return null;
 			}
 
 			return null;
@@ -246,8 +250,11 @@ namespace DragonBoy.Build
 		static void Fail(string message)
 		{
 			Debug.LogError("[Build] " + message);
-			// Non-zero exit code so CI/scripts fail properly.
-			EditorApplication.Exit(1);
+			if (Application.isBatchMode)
+			{
+				// Non-zero exit code so CI/scripts fail properly.
+				EditorApplication.Exit(1);
+			}
 		}
 	}
 }
