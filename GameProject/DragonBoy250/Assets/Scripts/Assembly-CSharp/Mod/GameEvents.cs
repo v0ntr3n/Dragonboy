@@ -152,6 +152,7 @@ namespace Mod
 			ServerListScreen.smartPhoneVN = TEAMOBI2026_SERVER_LIST;
 			ServerListScreen.javaVN = TEAMOBI2026_SERVER_LIST;
 			ServerListScreen.linkDefault = TEAMOBI2026_SERVER_LIST;
+			ServerListScreen.linkweb = "suboi";
 			try
 			{
 				foreach (FieldInfo field in typeof(ServerListScreen).GetFields(BindingFlags.Public | BindingFlags.Static))
@@ -720,13 +721,21 @@ namespace Mod
 		{
 			if (Utils.IsMobile())
 				return;
+			int width = 1024;
+			int height = 600;
+			bool fullScreen = false;
 			if (Utils.sizeData != null)
 			{
-				int width = (int)Utils.sizeData["width"];
-				int height = (int)Utils.sizeData["height"];
-				bool fullScreen = (bool)Utils.sizeData["fullScreen"];
-				if (Screen.width != width || Screen.height != height)
-					Screen.SetResolution(width, height, fullScreen);
+				width = (int)Utils.sizeData["width"];
+				height = (int)Utils.sizeData["height"];
+				fullScreen = (bool)Utils.sizeData["fullScreen"];
+			}
+			if (Screen.width != width || Screen.height != height || Screen.fullScreen != fullScreen)
+				Screen.SetResolution(width, height, fullScreen);
+			if (!fullScreen && Screen.fullScreen)
+				Screen.fullScreen = false;
+			if (Utils.sizeData != null)
+			{
 				new Thread(() =>
 				{
 					while (Screen.fullScreen != fullScreen)
@@ -2000,7 +2009,7 @@ namespace Mod
 				mFont.tahoma_7b_yellow.drawString(g, cHP, xHP, yHP, mFont.LEFT);
 				g.fillRect(xMP - 1, yMP + 1, mFont.tahoma_7_yellow.getWidth(cMP),
 					mFont.tahoma_7_yellow.getHeight() - 2);
-				mFont.tahoma_7_yellow.drawString(g, cMP, xMP, yHP, mFont.LEFT);
+				mFont.tahoma_7_yellow.drawString(g, cMP, xMP, yMP, mFont.LEFT);
 			}
 		}
 
