@@ -35,7 +35,7 @@ namespace Mod.Xmap
 			startMapId = _startMapId;
 			endMapId = _endMapId;
 			forceNotUseCapsuleLinks = _forceNotUseCapsuleLinks;
-			graph = graphService.CloneGraph(sourceGraph);
+			graph = graphService.CloneGraphForStartMap(sourceGraph, _startMapId);
 			Route = null;
 			IsInitializing = true;
 			IsWaitingForCapsuleLinks = false;
@@ -140,10 +140,10 @@ namespace Mod.Xmap
 
 		static void PrepareCapsuleProbe()
 		{
-			GameCanvas.panel.mapNames = null;
 			Char.chatPopup = null;
 			if (GameCanvas.panel != null)
 			{
+				GameCanvas.panel.mapNames = null;
 				GameCanvas.panel.hide();
 			}
 

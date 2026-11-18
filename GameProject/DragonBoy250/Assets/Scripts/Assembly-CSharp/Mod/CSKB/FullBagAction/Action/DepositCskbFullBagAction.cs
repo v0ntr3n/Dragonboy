@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Linq;
 using Mod.Xmap;
 using UnityEngine;
 
@@ -7,6 +6,9 @@ namespace Mod.CSKB
 {
 	internal sealed class DepositCskbFullBagAction : ICskbFullBagAction
 	{
+		const float OpenDepositMenuTimeoutSeconds = 5f;
+		const float OpenDepositMenuRetrySeconds = 2.5f;
+
 		public IEnumerator Execute(CskbFullBagActionContext context)
 		{
 			if (!XmapController.gI.IsActing && TileMap.mapID != CskbConstants.MapMarketId)
@@ -21,6 +23,11 @@ namespace Mod.CSKB
 			}
 
 			Npc npc = Utils.findNpc(CskbConstants.DepositNpcId);
+			if (npc == null)
+			{
+				yield break;
+			}
+
 			if (!CskbNpcHelper.IsMyCharInNpcPosition(npc))
 			{
 				Utils.teleToNpc(CskbConstants.DepositNpcId);
@@ -41,14 +48,35 @@ namespace Mod.CSKB
 
 		static IEnumerator OpenDepositMenu(Npc npc)
 		{
-			yield return CskbNpcHelper.OpenShopMenu(npc, CskbConstants.DepositNpcId, 1);
-			yield return new WaitUntil(() =>
+			float deadline = Time.realtimeSinceStartup + OpenDepositMenuTimeoutSeconds;
+			while (Time.realtimeSinceStartup < deadline)
 			{
-				Char c = Char.myCharz();
-				return c is { arrItemShop: { Length: > 4 } arr } && arr[4] != null;
-			});
+				yield return CskbNpcHelper.OpenShopMenu(npc, CskbConstants.DepositNpcId, 1);
+				float retryDeadline = Mathf.Min(deadline, Time.realtimeSinceStartup + OpenDepositMenuRetrySeconds);
+				while (!IsDepositShopReady() && Time.realtimeSinceStartup < retryDeadline)
+				{
+					yield return null;
+				}
+
+				if (IsDepositShopReady())
+				{
+					break;
+				}
+			}
+
+			if (!IsDepositShopReady() && GameCanvas.panel != null && GameCanvas.panel.isShow)
+			{
+				GameCanvas.panel.hide();
+			}
+
 			GameCanvas.menu.doCloseMenu();
 			Char.chatPopup = null;
+		}
+
+		static bool IsDepositShopReady()
+		{
+			Char c = Char.myCharz();
+			return c is { arrItemShop: { Length: > 4 } arr } && arr[4] != null;
 		}
 
 		static bool TryGetDepositItem(out Item itemCSKBForDeposit)
@@ -65,8 +93,18 @@ namespace Mod.CSKB
 				return false;
 			}
 
-			itemCSKBForDeposit = itemShops[4].FirstOrDefault(i => i.template.id == CskbConstants.IdCapsuleKb && i.buyType == 0);
-			return itemCSKBForDeposit is not null;
+			Item[] consignmentItems = itemShops[4];
+			for (int i = 0; i < consignmentItems.Length; i++)
+			{
+				Item candidate = consignmentItems[i];
+				if (candidate?.template != null && candidate.template.id == CskbConstants.IdCapsuleKb && candidate.buyType == 0)
+				{
+					itemCSKBForDeposit = candidate;
+					return true;
+				}
+			}
+
+			return false;
 		}
 	}
 }

@@ -20,6 +20,8 @@ namespace Mod.TeleportMenu
 		static bool isDataLoaded, isAutoTeleportTo;
 		static TeleportChar charAutoTeleportTo;
 
+		const int MaxDisguiseEquipRetries = 10;
+
 		static long lastTimeAutoTeleportTo;
 		static bool isChangeDisguise;
 		static int previousDisguiseId = -1;
@@ -52,10 +54,10 @@ namespace Mod.TeleportMenu
 			if (focus != null && focus.IsNormalChar())
 			{
 				TeleportChar teleportChar = new TeleportChar(focus);
-				menuBuilder.addItem(listTeleportChars.Contains(teleportChar) && (isAutoTeleportTo && charAutoTeleportTo != teleportChar || !isAutoTeleportTo),
+				menuBuilder.addItem(listTeleportChars.Contains(teleportChar) && (!isAutoTeleportTo || !teleportChar.Equals(charAutoTeleportTo)),
 					$"{Strings.delete}\n{teleportChar.Name}\n[{teleportChar.ID}]", new MenuAction(() =>
 					{
-						if (!isAutoTeleportTo || teleportChar == charAutoTeleportTo)
+						if (isAutoTeleportTo && (teleportChar == charAutoTeleportTo || teleportChar.Equals(charAutoTeleportTo)))
 						{
 							GameScr.info1.addInfo(Strings.teleportMenuCantRemoveTargetChar + '!', 0);
 							return;
@@ -108,7 +110,7 @@ namespace Mod.TeleportMenu
 					{
 						for (int i = listTeleportChars.Count - 1; i >= 0; i--)
 						{
-							if (listTeleportChars[i] != charAutoTeleportTo)
+							if (!isAutoTeleportTo || !listTeleportChars[i].Equals(charAutoTeleportTo))
 								listTeleportChars.RemoveAt(i);
 						}
 						SaveData();
@@ -157,13 +159,13 @@ namespace Mod.TeleportMenu
 			MenuBuilder menuBuilder = new MenuBuilder();
 			int i = 0;
 			int count = listTeleportChars.Count;
-			while (menuBuilder.menuItems.Count < (count < 5 ? count : 5))
+			while (i < listTeleportChars.Count && menuBuilder.menuItems.Count < (count < 5 ? count : 5))
 			{
-				TeleportChar teleportChar = listTeleportChars.ElementAt(i);
+				TeleportChar teleportChar = listTeleportChars[i];
 				i++;
 				if (status == TeleportStatus.Delete)
 				{
-					if (teleportChar.Equals(charAutoTeleportTo))
+					if (isAutoTeleportTo && teleportChar.Equals(charAutoTeleportTo))
 					{
 						count--;
 						continue;
@@ -173,6 +175,15 @@ namespace Mod.TeleportMenu
 						listTeleportChars.Remove(teleportChar);
 						SaveData();
 						GameScr.info1.addInfo(string.Format(Strings.teleportMenuCharacterRemoved, teleportChar) + '!', 0);
+					}));
+				}
+				else if (status == TeleportStatus.AutoTeleportTo)
+				{
+					menuBuilder.addItem($"{teleportChar.Name}\n[{teleportChar.ID}]", new MenuAction(() =>
+					{
+						charAutoTeleportTo = teleportChar;
+						isAutoTeleportTo = true;
+						GameScr.info1.addInfo($"{Strings.teleportMenuAutoTeleportTo}: {teleportChar}!", 0);
 					}));
 				}
 				else
@@ -208,79 +219,137 @@ namespace Mod.TeleportMenu
 			});
 		}
 
+		static short GetEquippedDisguiseId()
+		{
+			Item[] bodyItems = Char.myCharz()?.arrItemBody;
+			if (bodyItems == null || bodyItems.Length <= 5)
+			{
+				return -1;
+			}
+
+			Item disguise = bodyItems[5];
+			return disguise?.template != null ? disguise.template.id : (short)-1;
+		}
+
+		static bool IsYardratDisguise(short templateId)
+		{
+			return templateId >= 592 && templateId <= 594;
+		}
+
 		internal static void Update()
 		{
-			if (GameCanvas.gameTick % (60 * Time.timeScale) == 0)
+			int nameUpdateInterval = (int)(60 * Time.timeScale);
+			if (nameUpdateInterval > 0 && (GameCanvas.gameTick % nameUpdateInterval) == 0)
 			{
-				foreach (TeleportChar teleportChar in listTeleportChars.Where(tC => tC.Name == "no name"))
+				for (int i = 0; i < listTeleportChars.Count; i++)
 				{
+					TeleportChar teleportChar = listTeleportChars[i];
+					if (teleportChar.Name != "no name")
+						continue;
 					Char c = GameScr.findCharInMap(teleportChar.ID);
 					if (c == null)
 						continue;
 					teleportChar.Name = c.cName;
 				}
 			}
-			if (isAutoTeleportTo)
+			if (isAutoTeleportTo && charAutoTeleportTo != null)
 			{
+				TeleportChar targetChar = charAutoTeleportTo;
 				bool isCharInMap = false;
 				for (int i = 0; i < GameScr.vCharInMap.size(); i++)
 				{
 					Char c = (Char)GameScr.vCharInMap.elementAt(i);
-					if (c.charID == charAutoTeleportTo.ID)
+					if (c != null && c.charID == targetChar.ID)
 					{
 						isCharInMap = true;
 						break;
 					}
 				}
-				if (GameCanvas.gameTick % 30 * Time.timeScale == 0)
+				int disguiseCheckInterval = (int)(30 * Time.timeScale);
+				if (disguiseCheckInterval > 0 && (GameCanvas.gameTick % disguiseCheckInterval) == 0)
 				{
 					if (isCharInMap && previousDisguiseId != -1 && !isChangeDisguise)
+					{
+						int restoreDisguiseId = previousDisguiseId;
+						isChangeDisguise = true;
 						new Thread(() =>
 						{
-							isChangeDisguise = true;
-							for (int j = 0; j < Char.myCharz().arrItemBag.Length; j++)
+							try
 							{
-								Item item = Char.myCharz().arrItemBag[j];
-								if (item != null && item.template.id == previousDisguiseId)
+								Item[] bagItems = Char.myCharz()?.arrItemBag;
+								if (bagItems != null)
 								{
-									do
+									for (int j = 0; j < bagItems.Length; j++)
 									{
-										Service.gI().getItem(4, (sbyte)j);
-										Thread.Sleep(500);
-									} while (Char.myCharz().arrItemBody[5].template.id != previousDisguiseId);
-									break;
+										Item item = bagItems[j];
+										if (item?.template != null && item.template.id == restoreDisguiseId)
+										{
+											int retries = 0;
+											do
+											{
+												Service.gI().getItem(4, (sbyte)j);
+												Thread.Sleep(500);
+												retries++;
+											} while (GetEquippedDisguiseId() != restoreDisguiseId && retries < MaxDisguiseEquipRetries);
+											break;
+										}
+									}
 								}
+
+								previousDisguiseId = -1;
 							}
-							previousDisguiseId = -1;
+							finally
+							{
+								isChangeDisguise = false;
+							}
 						}).Start();
+					}
 				}
-				if (!isCharInMap && isAutoTeleportTo && mSystem.currentTimeMillis() - lastTimeAutoTeleportTo >= 2000)
+				if (!isCharInMap && isAutoTeleportTo && !isChangeDisguise && mSystem.currentTimeMillis() - lastTimeAutoTeleportTo >= 2000)
 				{
 					lastTimeAutoTeleportTo = mSystem.currentTimeMillis();
-					if (previousDisguiseId == -1)
-						new Thread(() =>
+					targetChar.LastTimeTeleportTo = lastTimeAutoTeleportTo;
+					isChangeDisguise = true;
+					new Thread(() =>
+					{
+						try
 						{
-							if (Char.myCharz().arrItemBody[5] == null || Char.myCharz().arrItemBody[5] != null && (Char.myCharz().arrItemBody[5].template.id < 592 || Char.myCharz().arrItemBody[5].template.id > 594))
+							short equippedId = GetEquippedDisguiseId();
+							if (!IsYardratDisguise(equippedId))
 							{
-								if (Char.myCharz().arrItemBody[5] != null)
-									previousDisguiseId = Char.myCharz().arrItemBody[5].template.id;
-								for (int i = 0; i < Char.myCharz().arrItemBag.Length; i++)
+								Item[] bagItems = Char.myCharz()?.arrItemBag;
+								if (bagItems != null)
 								{
-									Item item = Char.myCharz().arrItemBag[i];
-									if (item != null && item.template.id >= 592 && item.template.id <= 594)
+									for (int i = 0; i < bagItems.Length; i++)
 									{
-										do
+										Item item = bagItems[i];
+										if (item?.template != null && IsYardratDisguise(item.template.id))
 										{
-											Service.gI().getItem(4, (sbyte)i);
-											Thread.Sleep(250);
-										} while (Char.myCharz().arrItemBody[5].template.id < 592 || Char.myCharz().arrItemBody[5].template.id > 594);
-										break;
+											if (previousDisguiseId == -1 && equippedId != -1)
+											{
+												previousDisguiseId = equippedId;
+											}
+
+											int retries = 0;
+											do
+											{
+												Service.gI().getItem(4, (sbyte)i);
+												Thread.Sleep(250);
+												retries++;
+											} while (!IsYardratDisguise(GetEquippedDisguiseId()) && retries < MaxDisguiseEquipRetries);
+											break;
+										}
 									}
 								}
 							}
-							TeleportToPlayer(charAutoTeleportTo.ID, false);
-						}).Start();
-					charAutoTeleportTo.LastTimeTeleportTo = mSystem.currentTimeMillis();
+
+							TeleportToPlayer(targetChar.ID, false);
+						}
+						finally
+						{
+							isChangeDisguise = false;
+						}
+					}).Start();
 				}
 			}
 		}
@@ -320,7 +389,7 @@ namespace Mod.TeleportMenu
 				str = Strings.delete;
 				action = () =>
 				{
-					if (teleportChar != charAutoTeleportTo)
+					if (!isAutoTeleportTo || !teleportChar.Equals(charAutoTeleportTo))
 					{
 						listTeleportChars.Remove(teleportChar);
 						SaveData();
@@ -335,8 +404,11 @@ namespace Mod.TeleportMenu
 				str = Strings.teleportMenuAutoTeleportTo;
 				action = () =>
 				{
+					charAutoTeleportTo = teleportChar;
+					isAutoTeleportTo = true;
 					currentTeleportStatus = TeleportStatus.TeleportTo;
-					showTeleportCharListPanel();
+					GameCanvas.panel?.hide();
+					GameScr.info1.addInfo($"{Strings.teleportMenuAutoTeleportTo}: {teleportChar}!", 0);
 				};
 				break;
 			}

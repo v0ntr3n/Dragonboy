@@ -67,7 +67,13 @@ namespace Mod.Xmap
 			{
 				indexWay++;
 				progressMonitor.MarkProgress(currentMapId, indexWay);
-				yield break;
+				if (indexWay >= way.Count)
+				{
+					finishXmap();
+					yield break;
+				}
+
+				currentStep = way[indexWay];
 			}
 
 			if (Char.myCharz().IsCharDead())

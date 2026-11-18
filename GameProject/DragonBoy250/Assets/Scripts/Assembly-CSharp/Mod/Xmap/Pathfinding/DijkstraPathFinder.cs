@@ -1,9 +1,15 @@
+using System;
 using System.Collections.Generic;
 
 namespace Mod.Xmap
 {
 	internal sealed class DijkstraPathFinder : IPathFinder
 	{
+		MapNext[] prev = Array.Empty<MapNext>();
+		bool[] hasPrev = Array.Empty<bool>();
+		bool[] visited = Array.Empty<bool>();
+		int[] dist = Array.Empty<int>();
+
 		public List<MapNext> FindWay(int start, int end, List<MapNext>[] graph)
 		{
 			if (graph == null || start < 0 || end < 0 || start >= graph.Length || end >= graph.Length)
@@ -17,13 +23,13 @@ namespace Mod.Xmap
 			}
 
 			int length = graph.Length;
-			MapNext[] prev = new MapNext[length];
-			bool[] hasPrev = new bool[length];
-			bool[] visited = new bool[length];
-			int[] dist = new int[length];
+			EnsureCapacity(length);
 
 			for (int i = 0; i < length; i++)
 			{
+				prev[i] = default;
+				hasPrev[i] = false;
+				visited[i] = false;
 				dist[i] = int.MaxValue;
 			}
 
@@ -41,7 +47,7 @@ namespace Mod.Xmap
 					}
 				}
 
-				if (cmap == -1 || dist[cmap] == int.MaxValue)
+				if (cmap == -1 || dist[cmap] == int.MaxValue || cmap == end)
 				{
 					break;
 				}
@@ -93,6 +99,17 @@ namespace Mod.Xmap
 
 			way.Reverse();
 			return way;
+		}
+
+		void EnsureCapacity(int length)
+		{
+			if (dist.Length < length)
+			{
+				prev = new MapNext[length];
+				hasPrev = new bool[length];
+				visited = new bool[length];
+				dist = new int[length];
+			}
 		}
 	}
 

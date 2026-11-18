@@ -6,6 +6,7 @@ namespace Mod.Xmap
 	{
 		const float MaxStuckSeconds = 5f;
 		const float MaxStuckInTransportScreenSeconds = 75f;
+		const float SkipSpaceshipTransportSeconds = 1.5f;
 
 		int lastProgressMapId;
 		float lastProgressRealtime;
@@ -39,19 +40,23 @@ namespace Mod.Xmap
 			if (GameCanvas.currentScreen is TransportScr)
 			{
 				lastProgressRealtime = now;
+				float transportTimeout = SpaceshipSkip.isEnabled
+					? SkipSpaceshipTransportSeconds
+					: MaxStuckInTransportScreenSeconds;
 				if (firstTimeInTransportScreen == null)
 				{
 					firstTimeInTransportScreen = now;
 				}
-				else if (now - firstTimeInTransportScreen >= MaxStuckInTransportScreenSeconds)
+				else if (now - firstTimeInTransportScreen.Value >= transportTimeout)
 				{
 					Service.gI().transportNow();
-					firstTimeInTransportScreen = null;
+					firstTimeInTransportScreen = now;
 				}
 
 				return false;
 			}
 
+			firstTimeInTransportScreen = null;
 			return now - lastProgressRealtime >= MaxStuckSeconds;
 		}
 	}
