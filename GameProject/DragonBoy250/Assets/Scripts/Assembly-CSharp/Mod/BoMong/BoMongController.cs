@@ -1,7 +1,9 @@
 using System.Collections;
 using Assembly_CSharp.Mod.BoMong;
+using Mod.Auto;
 using Mod.BoMong.QuestHandler;
 using Mod.ModHelper;
+using Mod.PickMob;
 using Mod.Xmap;
 using UnityEngine;
 
@@ -11,9 +13,11 @@ namespace Mod.BoMong
 	{
 		const int BOMONG_MAP_ID = 47;
 		const int BOMONG_NPC_ID = 17;
+		const long USE_TDLT_COOLDOWN_MS = 2000L;
 
 		Coroutine questCoroutine;
 		IQuestHandler questHandler;
+		long _lastUseTdltMs;
 
 		public bool IsHandlingQuest { get; private set; }
 		bool IsWaitingReward { get; set; }
@@ -25,6 +29,7 @@ namespace Mod.BoMong
 			BoMongSettings.Load();
 			BoMongMessageEvent.ResetState();
 			IsWaitingReward = false;
+			_lastUseTdltMs = 0;
 
 			GameScr.info1.addInfo("[Auto Bò Mộng] BẮT ĐẦU", 0);
 		}
@@ -32,6 +37,7 @@ namespace Mod.BoMong
 		protected override void OnStop()
 		{
 			StopCurrentQuest();
+			StopChildBots();
 			BoMongMessageEvent.ResetState();
 			IsWaitingReward = false;
 
@@ -46,11 +52,24 @@ namespace Mod.BoMong
 			GameScr.info1.addInfo("[Auto Bò Mộng] ĐÃ DỪNG", 0);
 		}
 
+		static void StopChildBots()
+		{
+			PickMobConfig.SetSlaughter(false);
+			AutoKillAll.gI.Toggle(false);
+			AutoGoback.gI.Toggle(false);
+			AutoKillSelfAndPickGold.gI.Toggle(false);
+		}
+
 		protected override IEnumerator OnUpdate()
 		{
 			if (!Utils.isUsingTDLT())
 			{
-				Utils.useItem(521);
+				long now = mSystem.currentTimeMillis();
+				if (now - _lastUseTdltMs >= USE_TDLT_COOLDOWN_MS)
+				{
+					_lastUseTdltMs = now;
+					Utils.useItem(521);
+				}
 			}
 
 			if (Char.myCharz().IsCharDead())
@@ -65,6 +84,9 @@ namespace Mod.BoMong
 			// ==========================================
 			if (BoMongMessageEvent.EndNvBoMong)
 			{
+				StopCurrentQuest();
+				StopChildBots();
+				BoMongMessageEvent.ResetState();
 				GameScr.info1.addInfo("[Auto Bò Mộng] Đã hết nhiệm vụ hôm nay!", 0);
 				Toggle(false);
 				yield break;
@@ -176,15 +198,9 @@ namespace Mod.BoMong
 
 		void CompleteCurrentQuest()
 		{
-			if (questCoroutine != null)
-			{
-				StopCoroutine(questCoroutine);
-				questCoroutine = null;
-			}
-
-			questHandler?.OnQuestCompleted();
-			questHandler = null;
-			IsHandlingQuest = false;
+			StopCurrentQuest();
+			StopChildBots();
+			BoMongMessageEvent.ResetState();
 		}
 
 		void StopCurrentQuest()

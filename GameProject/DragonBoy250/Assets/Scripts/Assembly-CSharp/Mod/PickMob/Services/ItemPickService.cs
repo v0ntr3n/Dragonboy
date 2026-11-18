@@ -20,6 +20,7 @@ namespace Mod.PickMob.Services
 		static int _lockedItemMapId = -1;
 		static long _lockedUntilMs;
 
+		static readonly WaitForSecondsRealtime PickItemWait = new WaitForSecondsRealtime(PICK_ITEM_DELAY);
 		static readonly Dictionary<int, bool> _eventItemCache = new Dictionary<int, bool>();
 
 		public static IEnumerator TryPickItem(Char myChar)
@@ -27,7 +28,8 @@ namespace Mod.PickMob.Services
 			if (TileMap.mapID == myChar.cgender + 21 && GameScr.vItemMap.size() > 0)
 			{
 				Service.gI().pickItem(((ItemMap)GameScr.vItemMap.elementAt(0)).itemMapID);
-				return new WaitForSecondsRealtime(PICK_ITEM_DELAY);
+				PickItemWait.Reset();
+				return PickItemWait;
 			}
 
 			ItemMap target = FindBestPickTarget(myChar);
@@ -43,20 +45,23 @@ namespace Mod.PickMob.Services
 					Service.gI().charMove();
 					Service.gI().pickItem(target.itemMapID);
 					target.countAutoPick++;
-					return new WaitForSecondsRealtime(PICK_ITEM_DELAY);
+					PickItemWait.Reset();
+					return PickItemWait;
 
 				case TypePickItem.PickItemNormal:
 					LockTarget(target, 1200L);
 					MovementService.Move(myChar, target.xEnd, target.yEnd);
 					Service.gI().pickItem(target.itemMapID);
 					target.countAutoPick++;
-					return new WaitForSecondsRealtime(PICK_ITEM_DELAY);
+					PickItemWait.Reset();
+					return PickItemWait;
 
 				case TypePickItem.PickItemTanSat:
 					LockTarget(target, 2000L);
 					MovementService.Move(myChar, target.xEnd, target.yEnd);
 					myChar.mobFocus = null;
-					return new WaitForSecondsRealtime(PICK_ITEM_DELAY);
+					PickItemWait.Reset();
+					return PickItemWait;
 				}
 			}
 

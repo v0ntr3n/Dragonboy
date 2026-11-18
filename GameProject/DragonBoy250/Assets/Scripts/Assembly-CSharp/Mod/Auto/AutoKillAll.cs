@@ -7,33 +7,44 @@ namespace Mod.Auto
 {
 	public class AutoKillAll : CoroutineMainThreadAction<AutoKillAll>
 	{
+		static readonly MyVector EmptyMobVector = new MyVector();
+		static readonly MyVector AttackCharVector = new MyVector();
+
 		Char currentTarget;
+		bool _prevAutoPickItems;
+		bool _hasSavedAutoPickItems;
+
 		protected override float Interval => 0.2f;
 
 		static bool IsEnemyCandidate(Char target)
 		{
 			return target != null
 			       && !string.IsNullOrEmpty(target.cName)
+			       && !char.IsUpper(target.cName[0])
 			       && !target.isPet
 			       && !target.isMiniPet
 			       && !target.cName.StartsWith("#")
 			       && !target.cName.StartsWith("$")
 			       && target.cName != "Trọng tài"
 			       && target.cFlag != 0
-			       && !char.IsUpper(char.Parse(target.cName.Substring(0, 1)))
 			       && target.cHP > 0;
 		}
 
-		static bool IsTargetValid(Char target)
+		static bool IsTargetValidInMap(Char target)
 		{
 			return IsEnemyCandidate(target)
 			       && !target.meDead
-			       && GameScr.findCharInMap(target.charID) == target
 			       && target.charID > 0
 			       && target.cx >= 0
 			       && target.cy >= 0
 			       && target.cx <= TileMap.pxw
 			       && target.cy <= TileMap.pxh;
+		}
+
+		static bool IsTargetValid(Char target)
+		{
+			return IsTargetValidInMap(target)
+			       && GameScr.findCharInMap(target.charID) == target;
 		}
 
 		static void ClearFocus()
@@ -66,9 +77,10 @@ namespace Mod.Auto
 			}
 
 			skill.lastTimeUseThisSkill = mSystem.currentTimeMillis();
-			MyVector targets = new MyVector();
-			targets.addElement(target);
-			Service.gI().sendPlayerAttack(new MyVector(), targets, 2);
+			EmptyMobVector.removeAllElements();
+			AttackCharVector.removeAllElements();
+			AttackCharVector.addElement(target);
+			Service.gI().sendPlayerAttack(EmptyMobVector, AttackCharVector, 2);
 		}
 
 		protected override IEnumerator OnUpdate()
@@ -102,10 +114,15 @@ namespace Mod.Auto
 				}
 			}
 
+			if (GameScr.vCharInMap == null)
+			{
+				yield break;
+			}
+
 			for (int i = 0; i < GameScr.vCharInMap.size(); i++)
 			{
 				Char obj = (Char)GameScr.vCharInMap.elementAt(i);
-				if (IsTargetValid(obj))
+				if (IsTargetValidInMap(obj))
 				{
 					currentTarget = obj;
 					AttackTarget(obj);
@@ -116,13 +133,21 @@ namespace Mod.Auto
 
 		protected override void OnStart()
 		{
+			_prevAutoPickItems = PickMobConfig.IsAutoPickItems;
+			_hasSavedAutoPickItems = true;
 			PickMobConfig.IsAutoPickItems = false;
+			currentTarget = null;
 			base.OnStart();
 		}
 
 		protected override void OnStop()
 		{
-			PickMobConfig.IsAutoPickItems = true;
+			if (_hasSavedAutoPickItems)
+			{
+				PickMobConfig.IsAutoPickItems = _prevAutoPickItems;
+				_hasSavedAutoPickItems = false;
+			}
+			currentTarget = null;
 			base.OnStop();
 		}
 	}

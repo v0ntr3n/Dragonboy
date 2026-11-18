@@ -1,4 +1,3 @@
-using System.Linq;
 using JetBrains.Annotations;
 
 namespace Mod.PickMob
@@ -13,16 +12,17 @@ namespace Mod.PickMob
 		{
 			10, 11, 14, 23, 7
 		};
+		static readonly SkillTemplate LookupTemplate = new SkillTemplate();
 
 		[CanBeNull]
 		public static Skill GetSkillAttack()
 		{
 			Skill best = null;
-			SkillTemplate template = new SkillTemplate();
-			foreach (sbyte id in PickMobConfig.IdSkillsTanSat)
+			Char myChar = Char.myCharz();
+			for (int i = 0; i < PickMobConfig.IdSkillsTanSat.Count; i++)
 			{
-				template.id = id;
-				Skill candidate = Char.myCharz().getSkill(template);
+				LookupTemplate.id = PickMobConfig.IdSkillsTanSat[i];
+				Skill candidate = myChar.getSkill(LookupTemplate);
 				if (IsSkillBetter(candidate, best))
 				{
 					best = candidate;
@@ -57,22 +57,23 @@ namespace Mod.PickMob
 				skill.paintCanNotUseSkill = false;
 			}
 
-			if (skill.paintCanNotUseSkill && !IdSkillsMelee.Contains(skill.template.id))
+			if (skill.paintCanNotUseSkill && !ContainsSkillId(IdSkillsMelee, skill.template.id))
 			{
 				return false;
 			}
 
-			if (IdSkillsCanNotAttack.Contains(skill.template.id))
+			if (ContainsSkillId(IdSkillsCanNotAttack, skill.template.id))
 			{
 				return false;
 			}
 
-			if (skill.template.id == 9 && (Char.myCharz().cHP < Char.myCharz().cHPFull / 3 || Char.myCharz().cMP < Char.myCharz().cMPFull / 3))
+			Char myChar = Char.myCharz();
+			if (skill.template.id == 9 && (myChar.cHP < myChar.cHPFull / 3 || myChar.cMP < myChar.cMPFull / 3))
 			{
 				return false;
 			}
 
-			if (Char.myCharz().cMP < GetManaUseSkill(skill))
+			if (myChar.cMP < GetManaUseSkill(skill))
 			{
 				return false;
 			}
@@ -80,12 +81,25 @@ namespace Mod.PickMob
 			return true;
 		}
 
-		static int GetManaUseSkill(Skill skill)
+		static bool ContainsSkillId(sbyte[] skillIds, sbyte id)
+		{
+			for (int i = 0; i < skillIds.Length; i++)
+			{
+				if (skillIds[i] == id)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		static long GetManaUseSkill(Skill skill)
 		{
 			if (skill.template.manaUseType == 2)
-				return 1;
+				return 1L;
 			if (skill.template.manaUseType == 1)
-				return (int)(skill.manaUse * Char.myCharz().cMPFull / 100);
+				return (long)skill.manaUse * Char.myCharz().cMPFull / 100L;
 			return skill.manaUse;
 		}
 	}

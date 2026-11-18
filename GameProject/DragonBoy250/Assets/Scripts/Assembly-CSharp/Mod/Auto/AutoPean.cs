@@ -19,6 +19,9 @@ namespace Mod.Auto
 		const string RMS_HP_VALUE = "autopean_hp_value";
 		const string RMS_MP_PERCENT = "autopean_mp_percent";
 		const string RMS_MP_VALUE = "autopean_mp_value";
+		const long HANDLE_SENZU_BEANS_INTERVAL_MS = 1000L;
+
+		static long _lastHandleSenzuBeansMs;
 
 		static readonly Dictionary<BeanAction, bool> _autoActions = new Dictionary<BeanAction, bool>
 		{
@@ -101,7 +104,7 @@ namespace Mod.Auto
 
 			if (_autoActions[action])
 			{
-				HandleSenzuBeans();
+				HandleSenzuBeans(true);
 			}
 		}
 
@@ -110,8 +113,16 @@ namespace Mod.Auto
 			return _autoActions.TryGetValue(action, out bool enabled) && enabled;
 		}
 
-		static void HandleSenzuBeans()
+		static void HandleSenzuBeans(bool force = false)
 		{
+			long now = mSystem.currentTimeMillis();
+			if (!force && now - _lastHandleSenzuBeansMs < HANDLE_SENZU_BEANS_INTERVAL_MS)
+			{
+				return;
+			}
+
+			_lastHandleSenzuBeansMs = now;
+
 			if (_autoActions[BeanAction.Request] && ClanUtils.CanAskForPeans())
 				ClanUtils.RequestPeans();
 
@@ -124,19 +135,19 @@ namespace Mod.Auto
 
 		static void CheckAutoUsePean()
 		{
-			if (TileMap.mapID == Char.myCharz().cgender + 21)
+			Char myChar = Char.myCharz();
+			if (myChar == null || myChar.isDie || myChar.cHP <= 0)
+			{
+				return;
+			}
+
+			if (TileMap.mapID == myChar.cgender + 21)
 			{
 				return;
 			}
 
 			// Không có điều kiện nào được cài đặt
 			if (HpPercent <= 0 && HpValue <= 0 && MpPercent <= 0 && MpValue <= 0)
-			{
-				return;
-			}
-
-			Char myChar = Char.myCharz();
-			if (myChar == null || myChar.isDie || myChar.cHP <= 0)
 			{
 				return;
 			}
@@ -162,7 +173,7 @@ namespace Mod.Auto
 			bool needUse = false;
 
 			// HP < x%
-			if (HpPercent > 0 && myChar.cHPFull > 0 && myChar.cHP < myChar.cHPFull * HpPercent / 100)
+			if (HpPercent > 0 && myChar.cHPFull > 0 && myChar.cHP < (long)myChar.cHPFull * HpPercent / 100L)
 			{
 				needUse = true;
 			}
@@ -174,7 +185,7 @@ namespace Mod.Auto
 			}
 
 			// MP < x%
-			if (!needUse && MpPercent > 0 && myChar.cMPFull > 0 && myChar.cMP < myChar.cMPFull * MpPercent / 100)
+			if (!needUse && MpPercent > 0 && myChar.cMPFull > 0 && myChar.cMP < (long)myChar.cMPFull * MpPercent / 100L)
 			{
 				needUse = true;
 			}
@@ -195,7 +206,8 @@ namespace Mod.Auto
 		{
 			MagicTree magicTree = GameScr.gI().magicTree;
 
-			if (!Utils.IsMyCharHome()
+			if (magicTree == null
+			    || !Utils.IsMyCharHome()
 			    || magicTree.isUpdate
 			    || magicTree.isPeasEffect
 			    || magicTree.currPeas == 0)

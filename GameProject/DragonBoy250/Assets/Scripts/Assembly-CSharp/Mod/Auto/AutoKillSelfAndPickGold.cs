@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using Mod.ModHelper;
 using Mod.PickMob;
 using Mod.Xmap;
@@ -9,17 +8,14 @@ namespace Mod.Auto
 {
 	public class AutoKillSelfAndPickGold : CoroutineMainThreadAction<AutoKillSelfAndPickGold>
 	{
+		static readonly int[] SelfAttackSkillIds = { 0, 2, 4, 17 };
+		static readonly MyVector EmptyMobVector = new MyVector();
+		static readonly MyVector SelfTargetVector = new MyVector();
 
-		static readonly List<int> source = new List<int>
-		{
-			0,
-			2,
-			4,
-			17
-		};
 		int lastItemId = -1;
-
 		float pickStartTime = -1f;
+		bool _prevAutoPickItems;
+		bool _hasSavedAutoPickItems;
 
 		protected override float Interval => 0.5f;
 
@@ -71,22 +67,39 @@ namespace Mod.Auto
 			}
 		}
 
+		static bool IsSelfAttackSkill(int skillId)
+		{
+			for (int i = 0; i < SelfAttackSkillIds.Length; i++)
+			{
+				if (SelfAttackSkillIds[i] == skillId)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
 		static void AttackSelf()
 		{
 			Skill selectedSkill = null;
 			Skill[] keySkill = GameScr.keySkill;
-			foreach (Skill s in keySkill)
+			if (keySkill != null)
 			{
-				if (s != null && source.Contains(s.template.id))
+				for (int i = 0; i < keySkill.Length; i++)
 				{
-					if (s.template.id == 17)
+					Skill s = keySkill[i];
+					if (s != null && IsSelfAttackSkill(s.template.id))
 					{
-						selectedSkill = s;
-						break;
-					}
-					if (selectedSkill == null)
-					{
-						selectedSkill = s;
+						if (s.template.id == 17)
+						{
+							selectedSkill = s;
+							break;
+						}
+						if (selectedSkill == null)
+						{
+							selectedSkill = s;
+						}
 					}
 				}
 			}
@@ -96,9 +109,10 @@ namespace Mod.Auto
 				GameScr.gI().doSelectSkill(selectedSkill, true);
 			}
 
-			MyVector myVector = new MyVector();
-			myVector.addElement(Char.myCharz());
-			Service.gI().sendPlayerAttack(new MyVector(), myVector, -1);
+			EmptyMobVector.removeAllElements();
+			SelfTargetVector.removeAllElements();
+			SelfTargetVector.addElement(Char.myCharz());
+			Service.gI().sendPlayerAttack(EmptyMobVector, SelfTargetVector, -1);
 		}
 
 		protected override void OnStart()
@@ -114,6 +128,8 @@ namespace Mod.Auto
 				Service.gI().getFlag(1, 8);
 			}
 			AutoGoback.gI.Toggle(true);
+			_prevAutoPickItems = PickMobConfig.IsAutoPickItems;
+			_hasSavedAutoPickItems = true;
 			PickMobConfig.IsAutoPickItems = false;
 			base.OnStart();
 		}
@@ -121,7 +137,11 @@ namespace Mod.Auto
 		protected override void OnStop()
 		{
 			AutoGoback.gI.Toggle(false);
-			PickMobConfig.IsAutoPickItems = true;
+			if (_hasSavedAutoPickItems)
+			{
+				PickMobConfig.IsAutoPickItems = _prevAutoPickItems;
+				_hasSavedAutoPickItems = false;
+			}
 			GameScr.info1.addInfo("Đã tắt AutoKillSelfAndPickGold", 0);
 			base.OnStop();
 		}
