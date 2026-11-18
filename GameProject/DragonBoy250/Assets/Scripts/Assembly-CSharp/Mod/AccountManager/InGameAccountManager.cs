@@ -132,10 +132,12 @@ namespace Mod.AccountManager
 		public override void switchToMe()
 		{
 			isSwitchedToMe = true;
-			if (defaultServers == null || (ServerListScreen.nameServer != null && defaultServers.Length != ServerListScreen.nameServer.Length))
+			string[] serverNames = ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0
+				? ServerListScreen.nameServer
+				: new[] { GameEvents.TEAMOBI2026_SERVER_NAME };
+			if (defaultServers == null || defaultServers.Length != serverNames.Length)
 			{
-				int len = ServerListScreen.nameServer != null ? ServerListScreen.nameServer.Length : 1;
-				defaultServers = new Server[len];
+				defaultServers = new Server[serverNames.Length];
 				for (int i = 0; i < defaultServers.Length; i++)
 					defaultServers[i] = new Server(i);
 			}
@@ -163,7 +165,7 @@ namespace Mod.AccountManager
 			finishEditCustomServer = new Command(Strings.save, ActionListener.gI(), (int)CommandType.FinishEditCustomServer, null);
 			cancelEditCustomServer = new Command(mResources.CANCEL, ActionListener.gI(), (int)CommandType.CancelEditCustomServer, null);
 			cancelInputAccount = new Command(mResources.CANCEL, ActionListener.gI(), (int)CommandType.CloseInputAccount, null);
-			selectServer = new ComboBox(mResources.server, ServerListScreen.nameServer.ToList().Append(Strings.custom).ToList());
+			selectServer = new ComboBox(mResources.server, serverNames.ToList().Append(Strings.custom).ToList());
 			finishImportAccounts = new Command(Strings.import, ActionListener.gI(), (int)CommandType.FinishImportAccounts, null);
 			cancelImportAccounts = new Command(mResources.CANCEL, ActionListener.gI(), (int)CommandType.CloseImportAccounts, null);
 
@@ -339,13 +341,12 @@ namespace Mod.AccountManager
 
 		static void ApplyLoadedAccountServerSelection()
 		{
-			if (InGameAccountDAO.SelectedAccountIndex != -1 && InGameAccountDAO.SelectedAccount != null && !InGameAccountDAO.SelectedAccount.Server.IsCustomIP())
+			if (InGameAccountDAO.SelectedAccountIndex != -1 && InGameAccountDAO.SelectedAccount != null && InGameAccountDAO.SelectedAccount.Server != null && !InGameAccountDAO.SelectedAccount.Server.IsCustomIP())
 			{
 				int maxIdx = ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0
 					? ServerListScreen.nameServer.Length - 1
 					: 0;
 				int clampedIdx = Mathf.Clamp(InGameAccountDAO.SelectedAccount.Server.index, 0, maxIdx);
-				InGameAccountDAO.SelectedAccount.Server.index = clampedIdx;
 				ServerListScreen.ipSelect = clampedIdx;
 				Rms.saveRMSInt("svselect", clampedIdx);
 			}
@@ -393,27 +394,45 @@ namespace Mod.AccountManager
 			closeAccountManager.paint(g);
 		}
 
+		static string GetServerDisplayName(Server server)
+		{
+			if (server == null)
+				return ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0
+					? ServerListScreen.nameServer[0]
+					: GameEvents.TEAMOBI2026_SERVER_NAME;
+			if (server.IsCustomIP())
+				return server.name ?? string.Empty;
+			return ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0
+				? ServerListScreen.nameServer[Mathf.Clamp(server.index, 0, ServerListScreen.nameServer.Length - 1)]
+				: GameEvents.TEAMOBI2026_SERVER_NAME;
+		}
+
 		static void PaintCurrentAccountInfo(mGraphics g)
 		{
 			if (currentAccountInfoX == GameCanvas.w)
 				return;
 			int y = Y_LIST_ACCOUNTS;
 			int height = GameCanvas.h - y * 2;
+			int currentIndex = scrollableMenuAccounts.CurrentItemIndex;
 			Account account = null;
-			if (scrollableMenuAccounts.CurrentItemIndex != -1)
-				account = accounts[scrollableMenuAccounts.CurrentItemIndex];
+			if (currentIndex >= 0 && currentIndex < accounts.Count)
+				account = accounts[currentIndex];
 			PopUp.paintPopUp(g, currentAccountInfoX - 10, y - 10, WIDTH_ACCOUNT_INFO + 20, height + 20, account == null ? 0 : (int)account.Type, true);
 			height -= editAccount.h;
 			PopUp.paintPopUp(g, currentAccountInfoX, y, WIDTH_ACCOUNT_INFO, height, 0xffffff, false);
 			editAccount.paint(g);
 			deleteAccount.paint(g);
 			selectAccountToLogin.paint(g);
-			if (scrollableMenuAccounts.CurrentItemIndex == -1)
+			if (account == null)
 				return;
 			g.setClip(currentAccountInfoX, y, WIDTH_ACCOUNT_INFO, height);
-			EnsureSmallImage(account.Info.Icon);
 			int offsetXAccountMainInfo = currentAccountInfoX;
-			Texture2D icon = icons[account.Info.Icon];
+			Texture2D icon = null;
+			if (account.Info != null)
+			{
+				EnsureSmallImage(account.Info.Icon);
+				icon = icons[account.Info.Icon];
+			}
 			if (icon != null)
 			{
 				float iconWidth = ACCOUNT_HEIGHT * icon.width / (float)icon.height;
@@ -437,8 +456,9 @@ namespace Mod.AccountManager
 			mFont mfont = mFont.tahoma_7b_dark;
 			if (account.Type == AccountType.Unregistered)
 				mfont = mFont.tahoma_7b_green2;
-			mfont.drawString(g, account.Info.Name, offsetXAccountMainInfo, y + 5, 0);
-			string serverName = account.Server.IsCustomIP() ? account.Server.name : (ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0 ? ServerListScreen.nameServer[Mathf.Clamp(account.Server.index, 0, ServerListScreen.nameServer.Length - 1)] : GameEvents.TEAMOBI2026_SERVER_NAME);
+			string displayName = account.Info != null && !string.IsNullOrEmpty(account.Info.Name) ? account.Info.Name : (account.Username ?? string.Empty);
+			mfont.drawString(g, displayName, offsetXAccountMainInfo, y + 5, 0);
+			string serverName = GetServerDisplayName(account.Server);
 			string lastTimeLogin = (account.LastTimeLogin != DateTime.MinValue ? Strings.lastLogin + ": " : "") + account.GetLastTimeLogin();
 			if (mFont.tahoma_7_greySmall.getWidth(lastTimeLogin) + offsetXAccountMainInfo - currentAccountInfoX > WIDTH_ACCOUNT_INFO)
 			{
@@ -461,6 +481,11 @@ namespace Mod.AccountManager
 			mFont.tahoma_7b_dark.drawString(g, Strings.info, currentAccountInfoX + WIDTH_ACCOUNT_INFO / 2 - mFont.tahoma_7b_dark.getWidth(Strings.info) / 2, y + 55, mFont.LEFT);
 			int offsetY = 65;
 			int offsetX = currentAccountInfoX;
+			string charIdText = account.Info != null ? account.Info.CharID.ToString() : "-";
+			string maxHpText = account.Info != null ? Utils.FormatWithSIPrefix(account.Info.MaxHP) : "-";
+			string maxMpText = account.Info != null ? Utils.FormatWithSIPrefix(account.Info.MaxMP) : "-";
+			string expText = account.Info != null ? Utils.FormatWithSIPrefix(account.Info.EXP) : "-";
+			string genderText = account.Info != null ? account.Info.GetGender() : "-";
 			if (account.PetInfo != null)
 			{
 				offsetX += 10;
@@ -470,19 +495,19 @@ namespace Mod.AccountManager
 				offsetY += 5;
 				g.fillRect(center, y + offsetY, 1, 58);
 				offsetY += 7;
-				mFont.tahoma_7_greySmall.drawString(g, "CharID: " + account.Info.CharID, currentAccountInfoX + 10, y + offsetY, 0);
+				mFont.tahoma_7_greySmall.drawString(g, "CharID: " + charIdText, currentAccountInfoX + 10, y + offsetY, 0);
 				mFont.tahoma_7_greySmall.drawString(g, Strings.name + ": " + account.PetInfo.Name, currentAccountInfoX + 10 + WIDTH_ACCOUNT_INFO / 2, y + offsetY, 0);
 				offsetY += 10;
-				mFont.tahoma_7_greySmall.drawString(g, mResources.HP + ": " + Utils.FormatWithSIPrefix(account.Info.MaxHP), currentAccountInfoX + 10, y + offsetY, 0);
+				mFont.tahoma_7_greySmall.drawString(g, mResources.HP + ": " + maxHpText, currentAccountInfoX + 10, y + offsetY, 0);
 				mFont.tahoma_7_greySmall.drawString(g, mResources.HP + ": " + Utils.FormatWithSIPrefix(account.PetInfo.MaxHP), currentAccountInfoX + 10 + WIDTH_ACCOUNT_INFO / 2, y + offsetY, 0);
 				offsetY += 10;
-				mFont.tahoma_7_greySmall.drawString(g, mResources.KI + ": " + Utils.FormatWithSIPrefix(account.Info.MaxMP), currentAccountInfoX + 10, y + offsetY, 0);
+				mFont.tahoma_7_greySmall.drawString(g, mResources.KI + ": " + maxMpText, currentAccountInfoX + 10, y + offsetY, 0);
 				mFont.tahoma_7_greySmall.drawString(g, mResources.KI + ": " + Utils.FormatWithSIPrefix(account.PetInfo.MaxMP), currentAccountInfoX + 10 + WIDTH_ACCOUNT_INFO / 2, y + offsetY, 0);
 				offsetY += 10;
-				mFont.tahoma_7_greySmall.drawString(g, mResources.power + ": " + Utils.FormatWithSIPrefix(account.Info.EXP), currentAccountInfoX + 10, y + offsetY, 0);
+				mFont.tahoma_7_greySmall.drawString(g, mResources.power + ": " + expText, currentAccountInfoX + 10, y + offsetY, 0);
 				mFont.tahoma_7_greySmall.drawString(g, mResources.power + ": " + Utils.FormatWithSIPrefix(account.PetInfo.EXP), currentAccountInfoX + 10 + WIDTH_ACCOUNT_INFO / 2, y + offsetY, 0);
 				offsetY += 10;
-				mFont.tahoma_7_greySmall.drawString(g, Strings.gender + ": " + account.Info.GetGender(), currentAccountInfoX + 10, y + offsetY, 0);
+				mFont.tahoma_7_greySmall.drawString(g, Strings.gender + ": " + genderText, currentAccountInfoX + 10, y + offsetY, 0);
 				mFont.tahoma_7_greySmall.drawString(g, Strings.gender + ": " + account.PetInfo.GetGender(), currentAccountInfoX + 10 + WIDTH_ACCOUNT_INFO / 2, y + offsetY, 0);
 				offsetY += 10;
 			}
@@ -490,15 +515,15 @@ namespace Mod.AccountManager
 			{
 				offsetY += 2;
 				offsetX += 20;
-				mFont.tahoma_7_greySmall.drawString(g, "CharID: " + account.Info.CharID, currentAccountInfoX + 20, y + offsetY, 0);
+				mFont.tahoma_7_greySmall.drawString(g, "CharID: " + charIdText, currentAccountInfoX + 20, y + offsetY, 0);
 				offsetY += 10;
-				mFont.tahoma_7_greySmall.drawString(g, mResources.HP + ": " + Utils.FormatWithSIPrefix(account.Info.MaxHP), currentAccountInfoX + 20, y + offsetY, 0);
+				mFont.tahoma_7_greySmall.drawString(g, mResources.HP + ": " + maxHpText, currentAccountInfoX + 20, y + offsetY, 0);
 				offsetY += 10;
-				mFont.tahoma_7_greySmall.drawString(g, mResources.KI + ": " + Utils.FormatWithSIPrefix(account.Info.MaxMP), currentAccountInfoX + 20, y + offsetY, 0);
+				mFont.tahoma_7_greySmall.drawString(g, mResources.KI + ": " + maxMpText, currentAccountInfoX + 20, y + offsetY, 0);
 				offsetY += 10;
-				mFont.tahoma_7_greySmall.drawString(g, mResources.power + ": " + Utils.FormatWithSIPrefix(account.Info.EXP), currentAccountInfoX + 20, y + offsetY, 0);
+				mFont.tahoma_7_greySmall.drawString(g, mResources.power + ": " + expText, currentAccountInfoX + 20, y + offsetY, 0);
 				offsetY += 10;
-				mFont.tahoma_7_greySmall.drawString(g, Strings.gender + ": " + account.Info.GetGender(), currentAccountInfoX + 20, y + offsetY, 0);
+				mFont.tahoma_7_greySmall.drawString(g, Strings.gender + ": " + genderText, currentAccountInfoX + 20, y + offsetY, 0);
 				offsetY += 10;
 			}
 			offsetY += 5;
@@ -877,9 +902,17 @@ namespace Mod.AccountManager
 
 		static void PaintAccount(mGraphics g, int i, int x, int y, int width, int height)
 		{
+			if (i < 0 || i >= accounts.Count)
+				return;
 			Account account = accounts[i];
-			EnsureSmallImage(account.Info.Icon);
-			Texture2D icon = icons[account.Info.Icon];
+			if (account == null)
+				return;
+			Texture2D icon = null;
+			if (account.Info != null)
+			{
+				EnsureSmallImage(account.Info.Icon);
+				icon = icons[account.Info.Icon];
+			}
 			if (icon != null)
 			{
 				float iconWidth = (height - 2) * icon.width / (float)icon.height;
@@ -899,7 +932,7 @@ namespace Mod.AccountManager
 					GUI.EndGroup();
 				}
 			}
-			Texture2D overlay = GetOverlay(account.Info.Gender);
+			Texture2D overlay = account.Info != null ? GetOverlay(account.Info.Gender) : null;
 			if (overlay != null)
 			{
 				float overlayWidth = (height - 1) * overlay.width / (float)overlay.height;
@@ -910,9 +943,10 @@ namespace Mod.AccountManager
 			mFont mfont = mFont.tahoma_7b_dark;
 			if (account.Type == AccountType.Unregistered)
 				mfont = mFont.tahoma_7b_green2;
-			mfont.drawString(g, account.Info.Name, x + 80, y + 2, 0);
+			string displayName = account.Info != null && !string.IsNullOrEmpty(account.Info.Name) ? account.Info.Name : (account.Username ?? string.Empty);
+			mfont.drawString(g, displayName, x + 80, y + 2, 0);
 
-			string serverName = account.Server.IsCustomIP() ? account.Server.name : (ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0 ? ServerListScreen.nameServer[Mathf.Clamp(account.Server.index, 0, ServerListScreen.nameServer.Length - 1)] : GameEvents.TEAMOBI2026_SERVER_NAME);
+			string serverName = GetServerDisplayName(account.Server);
 			mFont.tahoma_7_greySmall.drawString(g, account.GetLastTimeLogin(), x + 80, y + height - 12, 0);
 			mFont.tahoma_7_greySmall.drawString(g, mResources.server + ' ' + serverName, x + 80, y + height - 22, 0);
 			//g.setColor(new Color(0, 0, 0, .3f));
@@ -1065,43 +1099,74 @@ namespace Mod.AccountManager
 					toggleHidePassword.img.texture = show;
 					break;
 				case CommandType.EditAccount:
+				{
+					int editIndex = scrollableMenuAccounts.CurrentItemIndex;
+					if (editIndex < 0 || editIndex >= accounts.Count)
+						break;
+					Account editAcc = accounts[editIndex];
+					if (editAcc == null)
+						break;
 					isEditingAccount = true;
 					tfUser.isFocus = false;
 					tfPass.isFocus = false;
-					tfUser.setText(accounts[scrollableMenuAccounts.CurrentItemIndex].Username);
-					tfPass.setText(accounts[scrollableMenuAccounts.CurrentItemIndex].Password);
+					tfUser.setText(editAcc.Username ?? string.Empty);
+					tfPass.setText(editAcc.Password ?? string.Empty);
 					tfPass.setIputType(TField.INPUT_TYPE_PASSWORD);
 					toggleHidePassword.img.texture = show;
-					Server server = accounts[scrollableMenuAccounts.CurrentItemIndex].Server;
-					if (server.IsCustomIP())
+					Server server = editAcc.Server;
+					if (server != null && server.IsCustomIP())
 					{
 						customServer = server;
 						selectServer.SelectedIndex = selectServer.Items.Count - 1;
 					}
 					else
-						selectServer.SelectedIndex = Mathf.Clamp(server.index, 0, System.Math.Max(0, selectServer.Items.Count - 2));
+						selectServer.SelectedIndex = Mathf.Clamp(server != null ? server.index : 0, 0, System.Math.Max(0, selectServer.Items.Count - 2));
 					break;
+				}
 				case CommandType.ConfirmDeleteAccount:
+					if (scrollableMenuAccounts.CurrentItemIndex < 0 || scrollableMenuAccounts.CurrentItemIndex >= accounts.Count)
+						break;
 					GameCanvas.startYesNoDlg(Strings.inGameAccountManagerConfirmDeleteAcc, new Command(mResources.YES, gI(), (int)CommandType.DeleteAccount, null), new Command(mResources.NO, 2001));
 					break;
 				case CommandType.DeleteAccount:
-					accounts.RemoveAt(scrollableMenuAccounts.CurrentItemIndex);
-					if (accounts.Count == 0)
-						selectedAccountIndex = scrollableMenuAccounts.CurrentItemIndex = -1;
-					else if (scrollableMenuAccounts.CurrentItemIndex > accounts.Count - 1)
+				{
+					int deleteIndex = scrollableMenuAccounts.CurrentItemIndex;
+					if (deleteIndex < 0 || deleteIndex >= accounts.Count)
 					{
-						if (selectedAccountIndex == scrollableMenuAccounts.CurrentItemIndex)
-							selectedAccountIndex = accounts.Count - 1;
-						scrollableMenuAccounts.CurrentItemIndex = accounts.Count - 1;
+						InfoDlg.hide();
+						GameCanvas.currentDialog = null;
+						break;
+					}
+					accounts.RemoveAt(deleteIndex);
+					if (accounts.Count == 0)
+					{
+						selectedAccountIndex = scrollableMenuAccounts.CurrentItemIndex = -1;
+					}
+					else
+					{
+						if (selectedAccountIndex == deleteIndex)
+							selectedAccountIndex = System.Math.Min(deleteIndex, accounts.Count - 1);
+						else if (selectedAccountIndex > deleteIndex)
+							selectedAccountIndex--;
+						if (scrollableMenuAccounts.CurrentItemIndex >= accounts.Count)
+							scrollableMenuAccounts.CurrentItemIndex = accounts.Count - 1;
 					}
 					InfoDlg.hide();
 					GameCanvas.currentDialog = null;
 					InGameAccountDAO.Save();
 					break;
+				}
 				case CommandType.SelectAccountToLogin:
-					selectedAccountIndex = scrollableMenuAccounts.CurrentItemIndex;
+				{
+					int loginIndex = scrollableMenuAccounts.CurrentItemIndex;
+					if (loginIndex < 0 || loginIndex >= accounts.Count)
+						break;
+					selectedAccountIndex = loginIndex;
 					InGameAccountDAO.Save();
-					SelectedServer = SelectedAccount.Server;
+					Account selectedAcc = SelectedAccount;
+					if (selectedAcc == null)
+						break;
+					SelectedServer = selectedAcc.Server;
 					Rms.saveRMSString("acc", "acc");
 					Rms.saveRMSString("pass", "pass");
 					Session_ME.gI().close();
@@ -1109,7 +1174,9 @@ namespace Mod.AccountManager
 					GameCanvas.connect();
 					GameCanvas.serverScreen.switchToMe();
 					break;
+				}
 				case CommandType.FinishInputAccount:
+				{
 					if (string.IsNullOrEmpty(tfUser.getText()))
 					{
 						GameCanvas.startOKDlg(mResources.userBlank.TrimEnd('.') + '!');
@@ -1121,14 +1188,22 @@ namespace Mod.AccountManager
 						GameCanvas.startOKDlg(mResources.passwordBlank + '!');
 						break;
 					}
-					if (selectServer.SelectedIndex == -1)
+					int selectedServerIndex = selectServer.SelectedIndex;
+					int customServerOptionIndex = selectServer.Items.Count - 1;
+					if (selectedServerIndex < 0 || selectedServerIndex >= selectServer.Items.Count)
 					{
 						GameCanvas.startOKDlg(Strings.inGameAccountManagerServerBlank + '!');
 						break;
 					}
-					if (isUserAo && selectServer.SelectedIndex == selectServer.Items.Count - 1)
+					if (isUserAo && selectedServerIndex == customServerOptionIndex)
 					{
 						GameCanvas.startOKDlg(Strings.inGameAccountManagerUnregisteredAccountMustBeOnTeaMobiServer + '!');
+						break;
+					}
+					bool isCustomServer = selectedServerIndex == customServerOptionIndex;
+					if (!isCustomServer && (defaultServers == null || selectedServerIndex >= defaultServers.Length))
+					{
+						GameCanvas.startOKDlg(Strings.inGameAccountManagerServerBlank + '!');
 						break;
 					}
 					if (isAddingAccount)
@@ -1137,52 +1212,59 @@ namespace Mod.AccountManager
 						{
 							Username = tfUser.getText(),
 							Password = tfPass.getText(),
-							Server = customServer
+							Server = isCustomServer ? customServer : defaultServers[selectedServerIndex]
 						};
-						if (selectServer.SelectedIndex != selectServer.Items.Count - 1)
-							acc.Server = defaultServers[selectServer.SelectedIndex];
-						if (scrollableMenuAccounts.CurrentItemIndex == -1)
+						if (scrollableMenuAccounts.CurrentItemIndex < 0 || scrollableMenuAccounts.CurrentItemIndex >= accounts.Count)
 							accounts.Add(acc);
 						else
 							accounts.Insert(scrollableMenuAccounts.CurrentItemIndex + 1, acc);
 					}
 					else if (isEditingAccount)
 					{
-						Account acc = accounts[scrollableMenuAccounts.CurrentItemIndex];
+						int editIndex = scrollableMenuAccounts.CurrentItemIndex;
+						if (editIndex < 0 || editIndex >= accounts.Count)
+						{
+							isAddingAccount = isEditingAccount = false;
+							break;
+						}
+						Account acc = accounts[editIndex];
 						string userName = tfUser.getText();
 						string password = tfPass.getText();
-						if (acc.Username == userName && acc.Password == password)
+						if (acc != null && acc.Username == userName && acc.Password == password && acc.Server != null)
 						{
-							if (!acc.Server.IsCustomIP() && acc.Server.index == selectServer.SelectedIndex)
+							if (!acc.Server.IsCustomIP() && !isCustomServer && acc.Server.index == selectedServerIndex)
 								goto closeAndSaveData;
-							if (acc.Server.IsCustomIP() && customServer != null && acc.Server == customServer)
+							if (acc.Server.IsCustomIP() && isCustomServer && customServer != null && acc.Server == customServer)
 								goto closeAndSaveData;
 						}
-						accounts[scrollableMenuAccounts.CurrentItemIndex] = new Account
+						accounts[editIndex] = new Account
 						{
 							Username = userName,
 							Password = password,
-							Server = customServer
+							Server = isCustomServer ? customServer : defaultServers[selectedServerIndex]
 						};
-						if (selectServer.SelectedIndex != selectServer.Items.Count - 1)
-							accounts[scrollableMenuAccounts.CurrentItemIndex].Server = defaultServers[selectServer.SelectedIndex];
 					}
 					closeAndSaveData: ;
 					isAddingAccount = isEditingAccount = false;
 					InGameAccountDAO.Save();
 					break;
+				}
 				case CommandType.CloseInputAccount:
 					isAddingAccount = isEditingAccount = false;
 					break;
 				case CommandType.EditCustomServer:
-					if (isEditingAccount && accounts[scrollableMenuAccounts.CurrentItemIndex].Server.IsCustomIP())
+				{
+					int editIndex = scrollableMenuAccounts.CurrentItemIndex;
+					if (isEditingAccount && editIndex >= 0 && editIndex < accounts.Count &&
+					    accounts[editIndex] != null && accounts[editIndex].Server != null && accounts[editIndex].Server.IsCustomIP())
 					{
-						tfCustomServerName.setText(accounts[scrollableMenuAccounts.CurrentItemIndex].Server.name);
-						tfCustomServerAddress.setText(accounts[scrollableMenuAccounts.CurrentItemIndex].Server.hostnameOrIPAddress);
-						tfCustomServerPort.setText(accounts[scrollableMenuAccounts.CurrentItemIndex].Server.port.ToString());
+						tfCustomServerName.setText(accounts[editIndex].Server.name);
+						tfCustomServerAddress.setText(accounts[editIndex].Server.hostnameOrIPAddress);
+						tfCustomServerPort.setText(accounts[editIndex].Server.port.ToString());
 					}
 					isEditingCustomServer = true;
 					break;
+				}
 				case CommandType.FinishEditCustomServer:
 					if (string.IsNullOrEmpty(tfCustomServerName.getText()))
 					{
@@ -1220,25 +1302,39 @@ namespace Mod.AccountManager
 					toggleHidePassword.img.texture = tfPass.inputType == TField.INPUT_TYPE_PASSWORD ? show : hide;
 					break;
 				case CommandType.MoveAccountUp:
-					if (scrollableMenuAccounts.CurrentItemIndex > 0)
+				{
+					int index = scrollableMenuAccounts.CurrentItemIndex;
+					if (index > 0 && index < accounts.Count)
 					{
-						Account acc = accounts[scrollableMenuAccounts.CurrentItemIndex];
-						accounts.RemoveAt(scrollableMenuAccounts.CurrentItemIndex);
-						accounts.Insert(scrollableMenuAccounts.CurrentItemIndex - 1, acc);
-						scrollableMenuAccounts.CurrentItemIndex--;
+						Account acc = accounts[index];
+						accounts.RemoveAt(index);
+						accounts.Insert(index - 1, acc);
+						if (selectedAccountIndex == index)
+							selectedAccountIndex = index - 1;
+						else if (selectedAccountIndex == index - 1)
+							selectedAccountIndex = index;
+						scrollableMenuAccounts.CurrentItemIndex = index - 1;
 						InGameAccountDAO.Save();
 					}
 					break;
+				}
 				case CommandType.MoveAccountDown:
-					if (scrollableMenuAccounts.CurrentItemIndex < accounts.Count - 1)
+				{
+					int index = scrollableMenuAccounts.CurrentItemIndex;
+					if (index >= 0 && index < accounts.Count - 1)
 					{
-						Account acc = accounts[scrollableMenuAccounts.CurrentItemIndex];
-						accounts.RemoveAt(scrollableMenuAccounts.CurrentItemIndex);
-						accounts.Insert(scrollableMenuAccounts.CurrentItemIndex + 1, acc);
-						scrollableMenuAccounts.CurrentItemIndex++;
+						Account acc = accounts[index];
+						accounts.RemoveAt(index);
+						accounts.Insert(index + 1, acc);
+						if (selectedAccountIndex == index)
+							selectedAccountIndex = index + 1;
+						else if (selectedAccountIndex == index + 1)
+							selectedAccountIndex = index;
+						scrollableMenuAccounts.CurrentItemIndex = index + 1;
 						InGameAccountDAO.Save();
 					}
 					break;
+				}
 				case CommandType.ImportAccounts:
 					selectServer.X = tfInputDataImportAccounts.x;
 					selectServer.Y = tfInputRegexMatchAccountInfoImportAccounts.y + ITEM_HEIGHT + 15;

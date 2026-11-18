@@ -79,6 +79,25 @@ namespace Mod.ModHelper
 			return WsPort > 0;
 		}
 
+		static bool TryGetToken(CancellationTokenSource cts, out CancellationToken token)
+		{
+			if (cts == null)
+			{
+				token = CancellationToken.None;
+				return false;
+			}
+			try
+			{
+				token = cts.Token;
+				return !token.IsCancellationRequested;
+			}
+			catch (ObjectDisposedException)
+			{
+				token = CancellationToken.None;
+				return false;
+			}
+		}
+
 		public void Connect()
 		{
 			if (WsPort <= 0)
@@ -87,8 +106,13 @@ namespace Mod.ModHelper
 				return;
 			}
 
-			_cts = new CancellationTokenSource();
-			_receiveThread = new Thread(ConnectAndListen)
+			CancellationTokenSource newCts = new CancellationTokenSource();
+			CancellationTokenSource oldCts = Interlocked.Exchange(ref _cts, newCts);
+			if (oldCts != null)
+			{
+				try { oldCts.Cancel(); } catch (ObjectDisposedException) { }
+			}
+			_receiveThread = new Thread(() => ConnectAndListen(newCts))
 			{
 				Name = "LauncherWSClient",
 				IsBackground = true
@@ -96,9 +120,14 @@ namespace Mod.ModHelper
 			_receiveThread.Start();
 		}
 
-		void ConnectAndListen()
+		void ConnectAndListen(CancellationTokenSource cts)
 		{
-			CancellationTokenSource cts = _cts;
+			if (!TryGetToken(cts, out CancellationToken token))
+			{
+				try { cts?.Dispose(); } catch (ObjectDisposedException) { }
+				return;
+			}
+
 			ClientWebSocket ws = new ClientWebSocket();
 			_ws = ws;
 
@@ -109,7 +138,7 @@ namespace Mod.ModHelper
 				Stopwatch sw = Stopwatch.StartNew();
 
 				const int timeoutMs = 10_000;
-				System.Threading.Tasks.Task connectTask = ws.ConnectAsync(uri, cts.Token);
+				System.Threading.Tasks.Task connectTask = ws.ConnectAsync(uri, token);
 				bool completed = connectTask.Wait(timeoutMs);
 				sw.Stop();
 
@@ -199,7 +228,7 @@ namespace Mod.ModHelper
 				byte[] buffer = new byte[4096];
 				using (MemoryStream ms = new MemoryStream(4096))
 				{
-					while (!cts.IsCancellationRequested && ws.State == WebSocketState.Open)
+					while (!token.IsCancellationRequested && ws.State == WebSocketState.Open)
 					{
 						try
 						{
@@ -207,7 +236,7 @@ namespace Mod.ModHelper
 							WebSocketReceiveResult result;
 							do
 							{
-								result = ws.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token).GetAwaiter().GetResult();
+								result = ws.ReceiveAsync(new ArraySegment<byte>(buffer), token).GetAwaiter().GetResult();
 								if (result.MessageType == WebSocketMessageType.Close)
 									break;
 								ms.Write(buffer, 0, result.Count);
@@ -269,18 +298,30 @@ namespace Mod.ModHelper
 						{
 							break;
 						}
+						catch (ObjectDisposedException)
+						{
+							break;
+						}
 						catch (Exception ex)
 						{
-							if (cts.IsCancellationRequested || _ws == null)
+							if (token.IsCancellationRequested || _ws == null)
 								break;
 							WriteLog("Receive error: " + ex);
 						}
 					}
 				}
 			}
+			catch (OperationCanceledException)
+			{
+				// Expected on shutdown
+			}
+			catch (ObjectDisposedException)
+			{
+				// Expected on shutdown
+			}
 			catch (Exception ex)
 			{
-				if (!cts.IsCancellationRequested && _ws != null)
+				if (!token.IsCancellationRequested && _ws != null)
 				{
 					WriteLog("Connection error: " + ex);
 					MainThreadDispatcher.Dispatch(() =>
@@ -292,6 +333,8 @@ namespace Mod.ModHelper
 			finally
 			{
 				IsConnected = false;
+				Interlocked.CompareExchange(ref _cts, null, cts);
+				try { cts?.Dispose(); } catch (ObjectDisposedException) { }
 			}
 		}
 
@@ -357,7 +400,7 @@ namespace Mod.ModHelper
 				Utils.server = new JObject
 				{
 					["ip"] = GameEvents.TEAMOBI2026_HOST,
-					["port"] = GameEvents.TEAMOBI2026_PORT
+					["port"] = (int)GameEvents.TEAMOBI2026_PORT
 				};
 				return;
 			}
@@ -399,8 +442,13 @@ namespace Mod.ModHelper
 					Utils.server = null;
 					ServerListScreen.ipSelect = index;
 					Rms.saveRMSInt("svselect", index);
+					return;
 				}
 			}
+
+			Utils.server = null;
+			ServerListScreen.ipSelect = 0;
+			Rms.saveRMSInt("svselect", 0);
 		}
 
 		void SendCharacterInfo()
@@ -475,8 +523,11 @@ namespace Mod.ModHelper
 			if (ws == null || ws.State != WebSocketState.Open)
 				return;
 
+			CancellationTokenSource cts = _cts;
+			if (!TryGetToken(cts, out CancellationToken token))
+				return;
+
 			byte[] bytes = Encoding.UTF8.GetBytes(text);
-			CancellationToken token = _cts?.Token ?? CancellationToken.None;
 			_ = SendBytesAsync(ws, bytes, token);
 		}
 
@@ -495,6 +546,10 @@ namespace Mod.ModHelper
 					.ConfigureAwait(false);
 			}
 			catch (OperationCanceledException)
+			{
+				// Expected on shutdown
+			}
+			catch (ObjectDisposedException)
 			{
 				// Expected on shutdown
 			}
@@ -519,7 +574,7 @@ namespace Mod.ModHelper
 
 			if (ws == null)
 			{
-				try { cts?.Cancel(); cts?.Dispose(); } catch { }
+				try { cts?.Cancel(); } catch (ObjectDisposedException) { } catch { }
 				return;
 			}
 
@@ -559,8 +614,7 @@ namespace Mod.ModHelper
 					{
 						_sendLock.Release();
 					}
-					try { cts?.Cancel(); } catch { }
-					try { cts?.Dispose(); } catch { }
+					try { cts?.Cancel(); } catch (ObjectDisposedException) { } catch { }
 					try { ws.Dispose(); } catch { }
 					WriteLog("WebSocket connection closed.");
 				}
