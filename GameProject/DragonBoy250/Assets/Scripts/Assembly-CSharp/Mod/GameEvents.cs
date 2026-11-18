@@ -44,13 +44,11 @@ namespace Mod
 
 		static string nameCustomServer = "";
 		static string currentHost = TEAMOBI2026_HOST;
-		static ushort currentPort = TEAMOBI2026_PORT;
+		static ushort currentPort = (ushort)TEAMOBI2026_PORT;
 
 		internal static void ApplyTeamobi2026ServerConfig()
 		{
 			ServerListScreen.linkDefault = TEAMOBI2026_SERVER_LIST;
-			GameMidlet.IP = TEAMOBI2026_HOST;
-			GameMidlet.PORT = TEAMOBI2026_PORT;
 			ServerListScreen.getServerList(TEAMOBI2026_SERVER_LIST);
 			ServerListScreen.ipSelect = 0;
 			Rms.saveRMSInt("svselect", 0);
@@ -78,42 +76,56 @@ namespace Mod
 			}
 		}
 
-		static void RestoreAuthoritativePoseBeforeTick()
+		internal static void RestoreAuthoritativePose()
 		{
 			if (!_hasTickSnapshot)
 				return;
 			Char me = Char.myCharz();
-			if (me != null)
+			if (me != null && _isInterpolatingPose)
 			{
-				if (_isInterpolatingPose && me.cx == _interpCx && me.cy == _interpCy)
+				if (me.cx == _interpCx && me.cy == _interpCy)
 				{
 					me.cx = _authCx;
 					me.cy = _authCy;
 				}
 				else
 				{
-					_authCx = me.cx;
-					_authCy = me.cy;
+					_prevCx = _authCx = me.cx;
+					_prevCy = _authCy = me.cy;
 				}
-				_prevCx = _authCx;
-				_prevCy = _authCy;
 			}
-			if (_isInterpolatingPose && GameScr.cmx == _interpCmx && GameScr.cmy == _interpCmy)
+			if (_isInterpolatingPose)
 			{
-				GameScr.cmx = _authCmx;
-				GameScr.cmy = _authCmy;
+				if (GameScr.cmx == _interpCmx && GameScr.cmy == _interpCmy)
+				{
+					GameScr.cmx = _authCmx;
+					GameScr.cmy = _authCmy;
+				}
+				else
+				{
+					_prevCmx = _authCmx = GameScr.cmx;
+					_prevCmy = _authCmy = GameScr.cmy;
+				}
 			}
-			else
-			{
-				_authCmx = GameScr.cmx;
-				_authCmy = GameScr.cmy;
-			}
-			_prevCmx = _authCmx;
-			_prevCmy = _authCmy;
 			_isInterpolatingPose = false;
 		}
 
-		static void RecordAuthoritativePoseAfterTick()
+		internal static void BeginFixedTick()
+		{
+			RestoreAuthoritativePose();
+			if (!_hasTickSnapshot)
+				return;
+			Char me = Char.myCharz();
+			if (me != null)
+			{
+				_prevCx = _authCx = me.cx;
+				_prevCy = _authCy = me.cy;
+			}
+			_prevCmx = _authCmx = GameScr.cmx;
+			_prevCmy = _authCmy = GameScr.cmy;
+		}
+
+		internal static void RecordAuthoritativePoseAfterTick()
 		{
 			Char me = Char.myCharz();
 			if (me == null)
@@ -136,10 +148,10 @@ namespace Mod
 			_isInterpolatingPose = false;
 		}
 
-		static void ApplySubTickPoseForRender()
+		internal static void ApplySubTickPoseForRender()
 		{
 			UnlockMainPaintGate();
-			if (!_hasTickSnapshot || GameCanvas.currentScreen != GameScr.instance || Char.isLoadingMap || Char.ischangingMap)
+			if (!_hasTickSnapshot || !(GameCanvas.currentScreen is GameScr) || Char.isLoadingMap || Char.ischangingMap)
 			{
 				_isInterpolatingPose = false;
 				return;
@@ -147,15 +159,31 @@ namespace Mod
 			Char me = Char.myCharz();
 			if (me == null)
 				return;
-			if (_isInterpolatingPose && (me.cx != _interpCx || me.cy != _interpCy))
+			if (!_isInterpolatingPose)
 			{
-				_prevCx = _authCx = me.cx;
-				_prevCy = _authCy = me.cy;
+				if (me.cx != _authCx || me.cy != _authCy)
+				{
+					_prevCx = _authCx = me.cx;
+					_prevCy = _authCy = me.cy;
+				}
+				if (GameScr.cmx != _authCmx || GameScr.cmy != _authCmy)
+				{
+					_prevCmx = _authCmx = GameScr.cmx;
+					_prevCmy = _authCmy = GameScr.cmy;
+				}
 			}
-			if (_isInterpolatingPose && (GameScr.cmx != _interpCmx || GameScr.cmy != _interpCmy))
+			else
 			{
-				_prevCmx = _authCmx = GameScr.cmx;
-				_prevCmy = _authCmy = GameScr.cmy;
+				if (me.cx != _interpCx || me.cy != _interpCy)
+				{
+					_prevCx = _authCx = me.cx;
+					_prevCy = _authCy = me.cy;
+				}
+				if (GameScr.cmx != _interpCmx || GameScr.cmy != _interpCmy)
+				{
+					_prevCmx = _authCmx = GameScr.cmx;
+					_prevCmy = _authCmy = GameScr.cmy;
+				}
 			}
 			float fixedDt = (Time.fixedDeltaTime > 0.0001f) ? Time.fixedDeltaTime : 0.02f;
 			float alpha = Mathf.Clamp01((Time.time - Time.fixedTime) / fixedDt);
@@ -274,7 +302,6 @@ namespace Mod
 		internal static void OnFixedUpdateMain()
 		{
 			UnlockMainPaintGate();
-			RestoreAuthoritativePoseBeforeTick();
 			if (GameCanvas.currentScreen != null)
 			{
 				if (!GameCanvas.panel.isShow && GameCanvas.panel2 != null && GameCanvas.panel2.isShow)
@@ -305,7 +332,7 @@ namespace Mod
 		{
 			if (!Main.started)
 				return;
-			ApplySubTickPoseForRender();
+			UnlockMainPaintGate();
 			if (!_previousWidth.Equals(Screen.width) || !_previousHeight.Equals(Screen.height))
 			{
 				_previousWidth = Screen.width;
@@ -572,9 +599,7 @@ namespace Mod
 				if (InGameAccountManager.SelectedAccount == null)
 				{
 					host = currentHost = TEAMOBI2026_HOST;
-					port = currentPort = TEAMOBI2026_PORT;
-					GameMidlet.IP = TEAMOBI2026_HOST;
-					GameMidlet.PORT = TEAMOBI2026_PORT;
+					port = currentPort = (ushort)TEAMOBI2026_PORT;
 					return;
 				}
 				Server server = InGameAccountManager.SelectedServer ?? InGameAccountManager.SelectedAccount.Server;
@@ -590,15 +615,15 @@ namespace Mod
 					int idx = (server != null && ServerListScreen.address != null && server.index >= 0 && server.index < ServerListScreen.address.Length)
 						? server.index
 						: 0;
-					host = currentHost = (ServerListScreen.address != null && ServerListScreen.address.Length > 0)
+					string resolvedHost = (ServerListScreen.address != null && ServerListScreen.address.Length > 0)
 						? ServerListScreen.address[idx]
 						: TEAMOBI2026_HOST;
-					port = currentPort = (ServerListScreen.port != null && ServerListScreen.port.Length > 0)
+					ushort resolvedPort = (ServerListScreen.port != null && ServerListScreen.port.Length > 0)
 						? (ushort)ServerListScreen.port[idx]
-						: TEAMOBI2026_PORT;
+						: (ushort)TEAMOBI2026_PORT;
+					host = currentHost = resolvedHost;
+					port = currentPort = resolvedPort;
 					ServerListScreen.ipSelect = idx;
-					GameMidlet.IP = host;
-					GameMidlet.PORT = port;
 				}
 			}
 			else
@@ -611,7 +636,7 @@ namespace Mod
 				else
 				{
 					host = currentHost = TEAMOBI2026_HOST;
-					port = currentPort = TEAMOBI2026_PORT;
+					port = currentPort = (ushort)TEAMOBI2026_PORT;
 				}
 			}
 		}
