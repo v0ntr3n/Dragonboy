@@ -35,6 +35,8 @@ final class SocketServer {
     let accountID: UUID
     let username: String
     let password: String
+    let server: String
+    let authToken: String?
 
     private let pingInterval: Int = 25_000
     private let pingTimeout:  Int = 20_000
@@ -45,31 +47,43 @@ final class SocketServer {
 
     private var listener: NWListener?
     private var connections: [NWConnection] = []
+    private var authenticatedConnections: Set<ObjectIdentifier> = []
     private var pingTimers: [ObjectIdentifier: DispatchSourceTimer] = [:]
+    private var lastPongReceivedAt: [ObjectIdentifier: Date] = [:]
     private let queue: DispatchQueue
 
     /// Tracks whether at least one WebSocket client has successfully connected.
     private var hasConnectedOnce = false
+    private var isStopped = false
 
-    init(accountID: UUID, username: String, password: String) {
+    init(
+        accountID: UUID,
+        username: String,
+        password: String,
+        server: String = "",
+        authToken: String? = nil
+    ) {
         self.accountID = accountID
         self.username  = username
         self.password  = password
+        self.server    = server
+        self.authToken = authToken
         self.queue     = DispatchQueue(label: "socketserver.\(accountID.uuidString)", qos: .userInitiated)
     }
 
     @discardableResult
-    func start() throws -> UInt16 {
+    func start(port: NWEndpoint.Port? = nil) throws -> UInt16 {
         dispatchPrecondition(condition: .notOnQueue(.main))
 
         let params = NWParameters(tls: nil)
         params.allowLocalEndpointReuse = true
+        params.requiredLocalEndpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: port ?? .any)
 
         let wsOptions = NWProtocolWebSocket.Options()
         wsOptions.autoReplyPing = true
         params.defaultProtocolStack.applicationProtocols.insert(wsOptions, at: 0)
 
-        let nwListener = try NWListener(using: params, on: .any)
+        let nwListener = try NWListener(using: params)
         self.listener = nwListener
 
         let semaphore = DispatchSemaphore(value: 0)
@@ -107,18 +121,36 @@ final class SocketServer {
         }
         if let err = startError { throw err }
 
-        print("[SocketServer] Listening on port \(port) for \(username) (Socket.IO EIO=4)")
-        return port
+        print("[SocketServer] Listening on 127.0.0.1:\(self.port) for \(username) (Socket.IO EIO=4)")
+        return self.port
     }
-    
+
     func stop() {
-        for conn in connections { conn.cancel() }
-        connections.removeAll()
-        for (_, timer) in pingTimers { timer.cancel() }
-        pingTimers.removeAll()
-        listener?.cancel()
-        listener = nil
-        print("[SocketServer] Stopped server on port \(port) for \(username)")
+        queue.async { [weak self] in
+            guard let self = self, !self.isStopped else { return }
+            self.isStopped = true
+
+            let activeConnections = self.connections
+            self.connections.removeAll()
+            self.authenticatedConnections.removeAll()
+            self.lastPongReceivedAt.removeAll()
+
+            for (_, timer) in self.pingTimers {
+                timer.cancel()
+            }
+            self.pingTimers.removeAll()
+
+            for conn in activeConnections {
+                conn.stateUpdateHandler = nil
+                conn.cancel()
+            }
+
+            self.listener?.stateUpdateHandler = nil
+            self.listener?.newConnectionHandler = nil
+            self.listener?.cancel()
+            self.listener = nil
+            print("[SocketServer] Stopped server on port \(self.port) for \(self.username)")
+        }
     }
 
     func emitEvent(_ event: String, data: Any, to connection: NWConnection) {
@@ -128,12 +160,50 @@ final class SocketServer {
     }
 
     func broadcastEvent(_ event: String, data: Any) {
-        for conn in connections {
-            emitEvent(event, data: data, to: conn)
+        queue.async { [weak self] in
+            guard let self = self, !self.isStopped else { return }
+            for conn in self.connections {
+                self.emitEvent(event, data: data, to: conn)
+            }
         }
     }
 
+    private func isAuthorized(
+        _ dict: [String: Any]?,
+        for connection: NWConnection,
+        requireExplicitToken: Bool = false
+    ) -> Bool {
+        guard let expected = authToken, !expected.isEmpty else {
+            return true
+        }
+        let key = ObjectIdentifier(connection)
+        if let provided = dict?["token"] as? String, provided == expected {
+            authenticatedConnections.insert(key)
+            return true
+        }
+        if !requireExplicitToken && authenticatedConnections.contains(key) {
+            return true
+        }
+        return false
+    }
+
+    private func sendCredentials(to connection: NWConnection) {
+        var payload: [String: Any] = [
+            "action": "credentials",
+            "username": username,
+            "password": password
+        ]
+        if !server.isEmpty {
+            payload["server"] = server
+        }
+        emitEvent("credentials", data: payload, to: connection)
+    }
+
     private func acceptConnection(_ connection: NWConnection) {
+        guard !isStopped else {
+            connection.cancel()
+            return
+        }
         connections.append(connection)
 
         connection.stateUpdateHandler = { [weak self] state in
@@ -142,6 +212,7 @@ final class SocketServer {
             case .ready:
                 print("[SocketServer:\(self.port)] WebSocket client connected")
                 self.hasConnectedOnce = true
+                self.lastPongReceivedAt[ObjectIdentifier(connection)] = Date()
                 self.performEngineIOHandshake(connection)
                 NotificationCenter.default.post(
                     name: .socketClientConnected, object: nil,
@@ -155,7 +226,7 @@ final class SocketServer {
 
         connection.start(queue: queue)
     }
-    
+
     private func performEngineIOHandshake(_ connection: NWConnection) {
         let sid = generateSID()
 
@@ -200,6 +271,12 @@ final class SocketServer {
         connection.receiveMessage { [weak self] data, context, isComplete, error in
             guard let self = self else { return }
 
+            if let wsMeta = context?.protocolMetadata(definition: NWProtocolWebSocket.definition) as? NWProtocolWebSocket.Metadata,
+               wsMeta.opcode == .close {
+                self.removeConnection(connection)
+                return
+            }
+
             if let data = data, !data.isEmpty,
                let text = String(data: data, encoding: .utf8) {
                 self.handlePacket(text, from: connection)
@@ -208,26 +285,43 @@ final class SocketServer {
             if let error = error {
                 print("[SocketServer:\(self.port)] WS receive error: \(error)")
                 self.removeConnection(connection)
-            } else {
+            } else if context?.isFinal == true && (data == nil || data?.isEmpty == true) {
+                self.removeConnection(connection)
+            } else if !self.isStopped && self.connections.contains(where: { $0 === connection }) {
                 self.receiveLoop(connection)
             }
         }
     }
-    
+
     private func handlePacket(_ packet: String, from connection: NWConnection) {
-        guard let firstChar = packet.first else { return }
+        let trimmed = packet.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let firstChar = trimmed.first else { return }
+
+        if trimmed == "close-socket" {
+            guard isAuthorized(nil, for: connection) else {
+                print("[SocketServer:\(port)] Rejected unauthorized raw close-socket")
+                return
+            }
+            removeConnection(connection)
+            return
+        }
+
+        if trimmed == "3" || (firstChar == "3" && trimmed.dropFirst().allSatisfy({ !$0.isNumber })) {
+            lastPongReceivedAt[ObjectIdentifier(connection)] = Date()
+            return
+        }
 
         if let eioType = EIOPacketType(rawValue: Int(String(firstChar)) ?? -1) {
             switch eioType {
             case .ping:
-                let body = String(packet.dropFirst())
+                let body = String(trimmed.dropFirst())
                 sendText("\(EIOPacketType.pong.rawValue)\(body)", to: connection)
 
             case .pong:
-                break
+                lastPongReceivedAt[ObjectIdentifier(connection)] = Date()
 
             case .message:
-                let sioPayload = String(packet.dropFirst())
+                let sioPayload = String(trimmed.dropFirst())
                 handleSIOPacket(sioPayload, from: connection)
 
             case .close:
@@ -240,13 +334,13 @@ final class SocketServer {
         }
 
         if firstChar == "{" || firstChar == "[" {
-            handleRawJSON(packet, from: connection)
+            handleRawJSON(trimmed, from: connection)
             return
         }
 
-        print("[SocketServer:\(port)] Unknown packet: \(packet.prefix(80))")
+        print("[SocketServer:\(port)] Unknown packet: \(trimmed.prefix(80))")
     }
-    
+
     private func handleRawJSON(_ text: String, from connection: NWConnection) {
         guard let data = text.data(using: .utf8),
               let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
@@ -255,27 +349,34 @@ final class SocketServer {
         }
 
         let action = dict["action"] as? String ?? "unknown"
+        let requireToken = (action == "get_credentials")
 
-        print("[SocketServer:\(port)] Raw JSON action '\(action)'")
+        guard isAuthorized(dict, for: connection, requireExplicitToken: requireToken) else {
+            print("[SocketServer:\(port)] Rejected unauthorized raw JSON action '\(action)'")
+            if requireToken {
+                removeConnection(connection)
+            }
+            return
+        }
+
+        switch action {
+        case "get_credentials":
+            sendCredentials(to: connection)
+            return
+
+        case "close-socket":
+            removeConnection(connection)
+            return
+
+        default:
+            break
+        }
 
         NotificationCenter.default.post(
             name: .socketMessageReceived, object: nil,
             userInfo: ["accountID": accountID,
                        "event": action,
                        "args": [dict]])
-                       
-        switch action {
-        case "get_credentials":
-            let payload: [String: Any] = ["action": "credentials",
-                                           "username": username,
-                                           "password": password]
-            if let jsonData = try? JSONSerialization.data(withJSONObject: payload),
-               let jsonStr = String(data: jsonData, encoding: .utf8) {
-                sendText(jsonStr, to: connection)
-            }
-        default:
-            break
-        }
     }
 
     private func handleSIOPacket(_ payload: String, from connection: NWConnection) {
@@ -311,25 +412,45 @@ final class SocketServer {
               let eventName = array.first as? String else { return }
 
         let args = Array(array.dropFirst())
+        let firstDict = args.first as? [String: Any]
+        let requireToken = (eventName == "get_credentials")
 
-        print("[SocketServer:\(port)] Event '\(eventName)' args: \(args)")
+        guard isAuthorized(firstDict, for: connection, requireExplicitToken: requireToken) else {
+            print("[SocketServer:\(port)] Rejected unauthorized event '\(eventName)'")
+            if requireToken {
+                removeConnection(connection)
+            }
+            return
+        }
+
+        print("[SocketServer:\(port)] Event '\(eventName)'")
+
+        switch eventName {
+        case "get_credentials":
+            sendCredentials(to: connection)
+            return
+
+        case "close-socket":
+            removeConnection(connection)
+            return
+
+        case "ping":
+            emitEvent("pong", data: [:], to: connection)
+
+        default:
+            break
+        }
 
         NotificationCenter.default.post(
             name: .socketMessageReceived, object: nil,
             userInfo: ["accountID": accountID,
                        "event": eventName,
                        "args": args])
-
-        switch eventName {
-        case "ping":
-            emitEvent("pong", data: [:], to: connection)
-        default:
-            break
-        }
     }
 
     private func startPingTimer(for connection: NWConnection) {
         let key = ObjectIdentifier(connection)
+        pingTimers[key]?.cancel()
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now() + .milliseconds(pingInterval),
                        repeating: .milliseconds(pingInterval))
@@ -348,12 +469,19 @@ final class SocketServer {
     }
 
     private func removeConnection(_ connection: NWConnection) {
-        connection.cancel()
-        connections.removeAll { $0 === connection }
+        guard let idx = connections.firstIndex(where: { $0 === connection }) else { return }
+        connections.remove(at: idx)
 
         let key = ObjectIdentifier(connection)
+        authenticatedConnections.remove(key)
+        lastPongReceivedAt.removeValue(forKey: key)
         pingTimers[key]?.cancel()
         pingTimers.removeValue(forKey: key)
+
+        connection.stateUpdateHandler = nil
+        connection.cancel()
+
+        guard !isStopped else { return }
 
         print("[SocketServer:\(port)] Client disconnected")
         NotificationCenter.default.post(

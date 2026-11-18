@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - Connection Status
 
-enum ConnectionStatus: Equatable {
+enum ConnectionStatus: Equatable, Hashable {
     case idle
     case connected
     case disconnected
@@ -55,11 +55,7 @@ struct Account: Identifiable, Codable, Hashable {
         case id, username, password, server, createdAt, updatedAt, characterInfo
     }
 
-    // MARK: - Hashable (exclude characterInfo)
-
-    static func == (lhs: Account, rhs: Account) -> Bool {
-        lhs.id == rhs.id
-    }
+    // MARK: - Hashable (synthesized Equatable compares full structural state)
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)

@@ -7,7 +7,9 @@ struct AccountDetailView: View {
     let onLaunchOrStop: () -> Void
     let onRemove: () -> Void
 
-    @State private var accountCopy: Account
+    @State private var username: String
+    @State private var server: String
+    @State private var password: String
     @State private var errorMessage: String?
     @State private var showSaved = false
     @State private var showingDeleteConfirmation = false
@@ -16,16 +18,14 @@ struct AccountDetailView: View {
         self.account = account
         self.onLaunchOrStop = onLaunchOrStop
         self.onRemove = onRemove
-        _accountCopy = State(initialValue: account)
-    }
-
-    private var liveAccount: Account {
-        store.accounts.first(where: { $0.id == account.id }) ?? account
+        _username = State(initialValue: account.username)
+        _server = State(initialValue: account.server)
+        _password = State(initialValue: account.password)
     }
 
     private var displayName: String {
-        let characterName = liveAccount.characterInfo?.cName ?? ""
-        return characterName.isEmpty ? liveAccount.username : characterName
+        let characterName = account.characterInfo?.cName ?? ""
+        return characterName.isEmpty ? account.username : characterName
     }
 
     var body: some View {
@@ -33,7 +33,7 @@ struct AccountDetailView: View {
             VStack(alignment: .leading, spacing: 24) {
                 accountHeader
 
-                if let info = liveAccount.characterInfo {
+                if let info = account.characterInfo {
                     characterOverview(info)
                     vitals(info)
                     characterStats(info)
@@ -49,12 +49,12 @@ struct AccountDetailView: View {
         .navigationTitle(displayName)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Button(liveAccount.connectionStatus.isConnected ? "Stop game" : "Launch game", systemImage: liveAccount.connectionStatus.isConnected ? "stop.fill" : "play.fill") {
+                Button(account.connectionStatus.isConnected ? "Stop game" : "Launch game", systemImage: account.connectionStatus.isConnected ? "stop.fill" : "play.fill") {
                     onLaunchOrStop()
                 }
                 .buttonStyle(.borderedProminent)
                 .font(.headline)
-                .tint(liveAccount.connectionStatus.isConnected ? .red : .accentColor)
+                .tint(account.connectionStatus.isConnected ? .red : .accentColor)
                 .disabled(store.launching.contains(account.id))
 
                 Button("Remove account", systemImage: "trash", role: .destructive) {
@@ -64,7 +64,7 @@ struct AccountDetailView: View {
             }
         }
         .confirmationDialog("Remove this account?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
-            Button("Remove \(liveAccount.username)", role: .destructive, action: onRemove)
+            Button("Remove \(account.username)", role: .destructive, action: onRemove)
         } message: {
             Text("This removes the saved account from Account Manager. It does not affect the game account.")
         }
@@ -81,7 +81,7 @@ struct AccountDetailView: View {
     private var accountHeader: some View {
         HStack(spacing: 16) {
             Circle()
-                .fill(liveAccount.connectionStatus.isConnected ? Color.green.gradient : Color.gray.gradient)
+                .fill(account.connectionStatus.isConnected ? Color.green.gradient : Color.gray.gradient)
                 .frame(width: 64, height: 64)
                 .overlay {
                     Text(displayName.prefix(1).uppercased())
@@ -92,11 +92,11 @@ struct AccountDetailView: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(displayName)
                     .font(.title.bold())
-                Text("\(liveAccount.username)  ·  \(liveAccount.server)")
+                Text("\(account.username)  ·  \(account.server)")
                     .foregroundStyle(.secondary)
                 Label(statusText, systemImage: statusImage)
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(liveAccount.connectionStatus.displayColor)
+                    .foregroundStyle(account.connectionStatus.displayColor)
             }
 
             Spacer()
@@ -105,20 +105,20 @@ struct AccountDetailView: View {
 
     private var statusText: String {
         if store.launching.contains(account.id) { return "Starting game…" }
-        if liveAccount.connectionStatus.displayText.isEmpty { return "Not running" }
-        return liveAccount.connectionStatus.displayText
+        if account.connectionStatus.displayText.isEmpty { return "Not running" }
+        return account.connectionStatus.displayText
     }
 
     private var statusImage: String {
         if store.launching.contains(account.id) { return "arrow.triangle.2.circlepath" }
-        return liveAccount.connectionStatus.isConnected ? "checkmark.circle.fill" : "circle"
+        return account.connectionStatus.isConnected ? "checkmark.circle.fill" : "circle"
     }
 
     private var waitingState: some View {
         ContentUnavailableView {
             Label("No live character data", systemImage: "person.crop.circle.badge.clock")
         } description: {
-            Text(liveAccount.connectionStatus.isConnected
+            Text(account.connectionStatus.isConnected
                  ? "Connected to the game. Waiting for character data."
                  : "Launch the game to see this character’s location, health, and stats.")
         }
@@ -189,9 +189,9 @@ struct AccountDetailView: View {
     private var accountSettings: some View {
         DisclosureGroup("Account settings") {
             VStack(spacing: 12) {
-                TextField("Username", text: $accountCopy.username)
-                TextField("Server", text: $accountCopy.server)
-                SecureField("Password", text: $accountCopy.password)
+                TextField("Username", text: $username)
+                TextField("Server", text: $server)
+                SecureField("Password", text: $password)
                 HStack {
                     if showSaved {
                         Label("Saved", systemImage: "checkmark.circle.fill")
@@ -201,6 +201,8 @@ struct AccountDetailView: View {
                     Spacer()
                     Button("Save changes", action: saveTapped)
                         .buttonStyle(.bordered)
+                        .disabled(username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                                  server.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
             .padding(.top, 12)
@@ -239,7 +241,12 @@ struct AccountDetailView: View {
 
     private func saveTapped() {
         do {
-            try store.updateAccount(accountCopy)
+            try store.updateCredentials(
+                id: account.id,
+                username: username,
+                password: password,
+                server: server
+            )
             withAnimation { showSaved = true }
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 withAnimation { showSaved = false }

@@ -1,10 +1,5 @@
 import Foundation
 import AppKit
-import Network
-
-extension Notification.Name {
-    static let launcherChildOutput = Notification.Name("launcherChildOutput")
-}
 import Darwin
 
 enum LauncherError: Error {
@@ -34,61 +29,8 @@ final class Launcher {
         return FileManager.default.fileExists(atPath: bundlePath)
     }
 
-    static func resolvedExecutableURL(in bundlePath: String) -> URL? {
-        let bundleURL = URL(fileURLWithPath: bundlePath)
-        guard let bundle = Bundle(url: bundleURL) else { return nil }
-        if let execName = bundle.object(forInfoDictionaryKey: "CFBundleExecutable") as? String {
-            let execURL = bundleURL.appendingPathComponent("Contents/MacOS/")
-                .appendingPathComponent(execName)
-            if FileManager.default.isExecutableFile(atPath: execURL.path) {
-                return execURL
-            }
-        }
-
-        let macOSDir = bundleURL.appendingPathComponent("Contents/MacOS")
-        if let enumerator = FileManager.default.enumerator(at: macOSDir, includingPropertiesForKeys: [.isExecutableKey], options: [.skipsHiddenFiles]) {
-            for case let fileURL as URL in enumerator {
-                if FileManager.default.isExecutableFile(atPath: fileURL.path) {
-                    return fileURL
-                }
-            }
-        }
-
-        return nil
-    }
-
-    static func spawnExecutable(at execURL: URL, args: [String]) throws -> Int {
-        let proc = Process()
-        proc.executableURL = execURL
-        proc.arguments = args
-        proc.currentDirectoryURL = execURL.deletingLastPathComponent()
-
-        let outPipe = Pipe()
-        let errPipe = Pipe()
-        proc.standardOutput = outPipe
-        proc.standardError = errPipe
-
-        try proc.run()
-
-        outPipe.fileHandleForReading.readabilityHandler = { fh in
-            let data = fh.availableData
-            if data.count > 0, let s = String(data: data, encoding: .utf8) {
-                NotificationCenter.default.post(name: .launcherChildOutput, object: nil, userInfo: ["pid": Int(proc.processIdentifier), "type": "stdout", "message": s])
-            }
-        }
-
-        errPipe.fileHandleForReading.readabilityHandler = { fh in
-            let data = fh.availableData
-            if data.count > 0, let s = String(data: data, encoding: .utf8) {
-                NotificationCenter.default.post(name: .launcherChildOutput, object: nil, userInfo: ["pid": Int(proc.processIdentifier), "type": "stderr", "message": s])
-            }
-        }
-
-        return Int(proc.processIdentifier)
-    }
-
     @discardableResult
-    static func launch(bundlePath: String, args: [String] = []) throws -> Int {
+    static func launch(bundlePath: String, args: [String] = []) throws -> pid_t {
         dispatchPrecondition(condition: .notOnQueue(.main))
 
         guard isAppInstalled(at: bundlePath) else {
@@ -128,7 +70,7 @@ final class Launcher {
             ]))
         }
 
-        let pid = Int(app.processIdentifier)
+        let pid = app.processIdentifier
         if pid <= 0 {
             throw LauncherError.launchFailed(NSError(domain: "Launcher", code: -1, userInfo: [
                 NSLocalizedDescriptionKey: "Invalid PID returned: \(pid)"
@@ -137,5 +79,4 @@ final class Launcher {
 
         return pid
     }
-
 }

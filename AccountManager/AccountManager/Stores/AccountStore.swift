@@ -6,9 +6,15 @@ final class AccountStore: ObservableObject {
     @Published var launching: Set<UUID> = []
 
     private let fileURL: URL
+    private let saveQueue = DispatchQueue(label: "accountstore.save", qos: .utility)
+    private let charInfoSaveThrottleInterval: TimeInterval = 30
+
     private var socketObserver: NSObjectProtocol?
     private var connectObserver: NSObjectProtocol?
     private var disconnectObserver: NSObjectProtocol?
+
+    private var lastCharInfoSaveByAccount: [UUID: Date] = [:]
+    private var trailingCharInfoSaveTimers: [UUID: DispatchWorkItem] = [:]
 
     init() {
         let fm = FileManager.default
@@ -32,6 +38,9 @@ final class AccountStore: ObservableObject {
         if let obs = socketObserver { NotificationCenter.default.removeObserver(obs) }
         if let obs = connectObserver { NotificationCenter.default.removeObserver(obs) }
         if let obs = disconnectObserver { NotificationCenter.default.removeObserver(obs) }
+        for (_, item) in trailingCharInfoSaveTimers {
+            item.cancel()
+        }
     }
 
     // MARK: - Socket connection observation
@@ -83,24 +92,37 @@ final class AccountStore: ObservableObject {
         }
     }
 
-    private var lastCharInfoSave: Date = .distantPast
-
     func updateCharacterInfo(accountID: UUID, info: CharacterInfo) {
         DispatchQueue.main.async {
-            if let idx = self.accounts.firstIndex(where: { $0.id == accountID }) {
-                self.accounts[idx].characterInfo = info
-                if !info.status.isEmpty {
-                    self.accounts[idx].connectionStatus = .gameStatus(info.status)
-                }
-                let now = Date()
-                if now.timeIntervalSince(self.lastCharInfoSave) >= 30 {
-                    self.lastCharInfoSave = now
+            guard let idx = self.accounts.firstIndex(where: { $0.id == accountID }) else { return }
+            self.accounts[idx].characterInfo = info
+            if !info.status.isEmpty {
+                self.accounts[idx].connectionStatus = .gameStatus(info.status)
+            }
+
+            let now = Date()
+            let lastSave = self.lastCharInfoSaveByAccount[accountID] ?? .distantPast
+            let elapsed = now.timeIntervalSince(lastSave)
+
+            if elapsed >= self.charInfoSaveThrottleInterval {
+                self.trailingCharInfoSaveTimers[accountID]?.cancel()
+                self.trailingCharInfoSaveTimers.removeValue(forKey: accountID)
+                self.lastCharInfoSaveByAccount[accountID] = now
+                self.save()
+            } else if self.trailingCharInfoSaveTimers[accountID] == nil {
+                let remaining = max(1.0, self.charInfoSaveThrottleInterval - elapsed)
+                let item = DispatchWorkItem { [weak self] in
+                    guard let self = self else { return }
+                    self.trailingCharInfoSaveTimers.removeValue(forKey: accountID)
+                    self.lastCharInfoSaveByAccount[accountID] = Date()
                     self.save()
                 }
+                self.trailingCharInfoSaveTimers[accountID] = item
+                DispatchQueue.main.asyncAfter(deadline: .now() + remaining, execute: item)
             }
         }
     }
-    
+
     func load() {
         let fm = FileManager.default
         var loadedAccounts: [Account] = []
@@ -123,7 +145,6 @@ final class AccountStore: ObservableObject {
                 self.accounts = loadedAccounts
             }
         }
-
     }
 
     func save() {
@@ -136,13 +157,14 @@ final class AccountStore: ObservableObject {
             snapshot = s
         }
 
-        DispatchQueue.global(qos: .utility).async {
+        let targetURL = self.fileURL
+        saveQueue.async {
             do {
                 let encoder = JSONEncoder()
                 encoder.outputFormatting = [.prettyPrinted]
                 encoder.dateEncodingStrategy = .iso8601
                 let data = try encoder.encode(snapshot)
-                try data.write(to: self.fileURL, options: [.atomic])
+                try data.write(to: targetURL, options: [.atomic])
             } catch {
                 print("Failed to save accounts: \(error)")
             }
@@ -173,12 +195,34 @@ final class AccountStore: ObservableObject {
         }
     }
 
-    func updateAccount(_ account: Account) throws {
+    func updateCredentials(id: UUID, username: String, password: String, server: String) throws {
+        if username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+           server.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            throw NSError(
+                domain: "AccountStore",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "Username and server cannot be empty."]
+            )
+        }
+
+        let candidateKey = "\(username)@\(server)".lowercased()
+        var duplicateError: Error?
+
         let work = {
-            guard let idx = self.accounts.firstIndex(where: { $0.id == account.id }) else { return }
-            var updated = account
-            updated.updatedAt = Date()
-            self.accounts[idx] = updated
+            guard let idx = self.accounts.firstIndex(where: { $0.id == id }) else { return }
+            if self.accounts.contains(where: { $0.id != id && $0.uniqueKey == candidateKey }) {
+                duplicateError = NSError(
+                    domain: "AccountStore",
+                    code: 1,
+                    userInfo: [NSLocalizedDescriptionKey: "An account with this username and server already exists."]
+                )
+                return
+            }
+
+            self.accounts[idx].username = username
+            self.accounts[idx].password = password
+            self.accounts[idx].server = server
+            self.accounts[idx].updatedAt = Date()
             self.save()
         }
 
@@ -187,10 +231,26 @@ final class AccountStore: ObservableObject {
         } else {
             DispatchQueue.main.sync { work() }
         }
+
+        if let error = duplicateError {
+            throw error
+        }
+    }
+
+    func updateAccount(_ account: Account) throws {
+        try updateCredentials(
+            id: account.id,
+            username: account.username,
+            password: account.password,
+            server: account.server
+        )
     }
 
     func removeAccount(_ account: Account) throws {
         let work = {
+            self.trailingCharInfoSaveTimers[account.id]?.cancel()
+            self.trailingCharInfoSaveTimers.removeValue(forKey: account.id)
+            self.lastCharInfoSaveByAccount.removeValue(forKey: account.id)
             self.accounts.removeAll { $0.id == account.id }
             self.save()
         }
@@ -201,9 +261,11 @@ final class AccountStore: ObservableObject {
             DispatchQueue.main.sync { work() }
         }
     }
-    
+
     func markStopped(accountID: UUID) {
         DispatchQueue.main.async {
+            self.trailingCharInfoSaveTimers[accountID]?.cancel()
+            self.trailingCharInfoSaveTimers.removeValue(forKey: accountID)
             if let idx = self.accounts.firstIndex(where: { $0.id == accountID }) {
                 self.accounts[idx].connectionStatus = .disconnected
                 self.save()
