@@ -39,6 +39,14 @@ namespace Mod
 		static string nameCustomServer = "";
 		static string currentHost = "";
 		static ushort currentPort;
+		static readonly string[] QwertySkillHotkeys =
+		{
+			"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"
+		};
+		static readonly string[] NonQwertySkillHotkeys =
+		{
+			"7", "8", "9", "10", "11"
+		};
 
 		internal static void OnAwake()
 		{
@@ -742,10 +750,19 @@ namespace Mod
 
 		internal static void OnMobStartDie(Mob mob)
 		{
+			if (mob.status != 1 && mob.status != 0)
+			{
+				mob.lastTimeDie = mSystem.currentTimeMillis();
+				mob.countDie = (mob.countDie + 1) > 10 ? 0 : mob.countDie + 1;
+			}
 		}
 
 		internal static void OnUpdateMob(Mob mob)
 		{
+			if (mob.levelBoss != 0)
+			{
+				mob.countDie = 0;
+			}
 		}
 
 		internal static bool OnCreateImage(string filename, out Image image)
@@ -1005,15 +1022,7 @@ namespace Mod
 			int num = instance.nSkill;
 			if (Main.isPC || !GameCanvas.isTouch)
 				num = array.Length;
-			string[] array2 = TField.isQwerty
-				? new string[10]
-				{
-					"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"
-				}
-				: new string[5]
-				{
-					"7", "8", "9", "10", "11"
-				};
+			string[] array2 = TField.isQwerty ? QwertySkillHotkeys : NonQwertySkillHotkeys;
 			bool hasSkillsInTopRow = false;
 			bool isStartHasSkill = false;
 			for (int i = num - 1; i >= 0; i--)
