@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Mod.Graphics;
+using Mod.ModHelper;
 using Mod.R;
 using UnityEngine;
 
@@ -12,7 +13,8 @@ namespace Mod.AccountManager
 	internal class InGameAccountManager : mScreen
 	{
 
-		static readonly Regex regexMatchUserAo = new Regex("^User[0-9]{1,}$", RegexOptions.Compiled);
+		static readonly TimeSpan ImportRegexTimeout = TimeSpan.FromSeconds(2);
+		static readonly Regex regexMatchUserAo = new Regex("^User[0-9]{1,}$", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
 		static readonly Texture2D earthOverlay = Resources.Load<Texture2D>("InGameAccountManager/img/" + nameof(earthOverlay));
 		static readonly Texture2D namekOverlay = Resources.Load<Texture2D>("InGameAccountManager/img/" + nameof(namekOverlay));
@@ -1253,76 +1255,149 @@ namespace Mod.AccountManager
 						GameCanvas.startOKDlg(Strings.inGameAccountManagerRegexMatchLinesBlank + '!');
 						break;
 					}
-					Regex linesRegex = new Regex(linesPattern);
 					string accountInfoPattern = tfInputRegexMatchAccountInfoImportAccounts.getText();
 					if (string.IsNullOrWhiteSpace(accountInfoPattern))
 					{
 						GameCanvas.startOKDlg(Strings.inGameAccountManagerRegexMatchAccountInfoBlank + '!');
 						break;
 					}
+					Regex linesRegex;
+					Regex accountInfoRegex;
+					try
+					{
+						linesRegex = new Regex(linesPattern, RegexOptions.None, ImportRegexTimeout);
+						accountInfoRegex = new Regex(accountInfoPattern, RegexOptions.None, ImportRegexTimeout);
+					}
+					catch (ArgumentException ex)
+					{
+						GameCanvas.startOKDlg(ex.Message);
+						break;
+					}
+					int fallbackServerIndex = selectServer.SelectedIndex;
+					Server[] serversSnapshot = defaultServers;
 					InfoDlg.showWait();
 					new Thread(() =>
 					{
-						Regex accountInfoRegex = new Regex(accountInfoPattern);
+						List<Account> importedAccounts = new List<Account>();
 						int countAccountAdded = 0;
 						int countAccountMissed = 0;
-						while (true)
+						string timeoutError = null;
+						try
 						{
-							Match lineMatch = linesRegex.Match(data);
-							Match accountInfoMatch;
-							if (lineMatch == Match.Empty && string.IsNullOrWhiteSpace(data))
-								break;
-							if (lineMatch == Match.Empty)
-								accountInfoMatch = accountInfoRegex.Match(data);
-							else
-								accountInfoMatch = accountInfoRegex.Match(lineMatch.Groups[1].Value);
-							if (accountInfoMatch == Match.Empty)
+							while (!string.IsNullOrWhiteSpace(data))
 							{
-								countAccountMissed++;
-								data = data.Substring(lineMatch.Index + lineMatch.Length);
-								continue;
-							}
-							try
-							{
-								Account account = new Account
+								Match lineMatch = linesRegex.Match(data);
+								Match accountInfoMatch;
+								int advanceIndex;
+
+								if (!lineMatch.Success)
 								{
-									Username = accountInfoMatch.Groups[1].Value,
-									Password = accountInfoMatch.Groups[2].Value
-								};
+									accountInfoMatch = accountInfoRegex.Match(data);
+									if (!accountInfoMatch.Success || accountInfoMatch.Length == 0)
+									{
+										countAccountMissed++;
+										break;
+									}
+									advanceIndex = System.Math.Max(1, accountInfoMatch.Index + accountInfoMatch.Length);
+								}
+								else if (lineMatch.Length == 0)
+								{
+									countAccountMissed++;
+									int nextNewline = data.IndexOf('\n', lineMatch.Index);
+									int skip = nextNewline >= 0 ? nextNewline + 1 : System.Math.Max(1, lineMatch.Index + 1);
+									data = skip < data.Length ? data.Substring(skip) : string.Empty;
+									continue;
+								}
+								else
+								{
+									string lineContent = lineMatch.Groups.Count > 1 ? lineMatch.Groups[1].Value : lineMatch.Value;
+									accountInfoMatch = accountInfoRegex.Match(lineContent);
+									advanceIndex = System.Math.Max(1, lineMatch.Index + lineMatch.Length);
+								}
+
+								if (!accountInfoMatch.Success)
+								{
+									countAccountMissed++;
+									data = advanceIndex < data.Length ? data.Substring(advanceIndex) : string.Empty;
+									continue;
+								}
+
 								try
 								{
-									int index = int.Parse(accountInfoMatch.Groups[3].Value);
-									if (index < 0 || index >= defaultServers.Length)
-										throw new IndexOutOfRangeException();
-									account.Server = new Server(index);
+									Account account = new Account
+									{
+										Username = accountInfoMatch.Groups[1].Value,
+										Password = accountInfoMatch.Groups[2].Value
+									};
+									try
+									{
+										int index = int.Parse(accountInfoMatch.Groups[3].Value);
+										if (serversSnapshot == null || index < 0 || index >= serversSnapshot.Length)
+											throw new IndexOutOfRangeException();
+										account.Server = new Server(index);
+									}
+									catch
+									{
+										if (serversSnapshot != null && fallbackServerIndex >= 0 && fallbackServerIndex < serversSnapshot.Length)
+											account.Server = serversSnapshot[fallbackServerIndex];
+										else
+											account.Server = new Server(0);
+									}
+									importedAccounts.Add(account);
+									data = advanceIndex < data.Length ? data.Substring(advanceIndex) : string.Empty;
+									countAccountAdded++;
 								}
 								catch
 								{
-									account.Server = defaultServers[selectServer.SelectedIndex];
+									countAccountMissed++;
+									data = advanceIndex < data.Length ? data.Substring(advanceIndex) : string.Empty;
 								}
-								if (scrollableMenuAccounts.CurrentItemIndex == -1)
-									accounts.Add(account);
-								else
-									accounts.Insert(scrollableMenuAccounts.CurrentItemIndex + 1, account);
-								if (lineMatch == Match.Empty)
-									data = data.Substring(accountInfoMatch.Index + accountInfoMatch.Length);
-								else
-									data = data.Substring(lineMatch.Index + lineMatch.Length);
-								countAccountAdded++;
-							}
-							catch
-							{
-								countAccountMissed++;
-								data = data.Substring(lineMatch.Index + lineMatch.Length);
 							}
 						}
-						InfoDlg.hide();
-						GameCanvas.startOKDlg(string.Format(Strings.inGameAccountManagerImportAccountsResult, countAccountAdded, countAccountAdded * 100f / (countAccountAdded + countAccountMissed), countAccountMissed, countAccountMissed * 100f / (countAccountAdded + countAccountMissed)) + '!');
-						GetInputAccountArea(out int x, out int y, out int width, out int height, true);
-						selectServer.X = x + 10;
-						selectServer.Y = tfCustomServerPort.y = y + 15 + ITEM_HEIGHT + 15 + ITEM_HEIGHT + 15;
-						selectServer.Width = width - 20;
-						isImportingAccounts = false;
+						catch (RegexMatchTimeoutException)
+						{
+							timeoutError = "Regex match timed out while importing accounts!";
+						}
+
+						MainThreadDispatcher.Dispatch(() =>
+						{
+							if (importedAccounts.Count > 0)
+							{
+								if (scrollableMenuAccounts.CurrentItemIndex == -1 ||
+								    scrollableMenuAccounts.CurrentItemIndex >= accounts.Count)
+								{
+									accounts.AddRange(importedAccounts);
+								}
+								else
+								{
+									accounts.InsertRange(scrollableMenuAccounts.CurrentItemIndex + 1, importedAccounts);
+								}
+								InGameAccountDAO.Save();
+							}
+
+							InfoDlg.hide();
+							if (timeoutError != null && countAccountAdded == 0)
+							{
+								GameCanvas.startOKDlg(timeoutError);
+							}
+							else
+							{
+								int total = countAccountAdded + countAccountMissed;
+								float addedPercent = total > 0 ? countAccountAdded * 100f / total : 0f;
+								float missedPercent = total > 0 ? countAccountMissed * 100f / total : 0f;
+								GameCanvas.startOKDlg(string.Format(
+									Strings.inGameAccountManagerImportAccountsResult,
+									countAccountAdded,
+									addedPercent,
+									countAccountMissed,
+									missedPercent) + '!');
+							}
+							GetInputAccountArea(out int x, out int y, out int width, out int height, true);
+							selectServer.X = x + 10;
+							selectServer.Y = tfCustomServerPort.y = y + 15 + ITEM_HEIGHT + 15 + ITEM_HEIGHT + 15;
+							selectServer.Width = width - 20;
+							isImportingAccounts = false;
+						});
 					})
 					{
 						IsBackground = true

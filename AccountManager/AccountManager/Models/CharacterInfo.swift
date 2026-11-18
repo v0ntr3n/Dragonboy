@@ -1,7 +1,28 @@
 import Foundation
 
-/// Live character data received from the game client every ~1 second.
+/// Live character data received from the game client.
 struct CharacterInfo: Codable, Equatable {
+    private static let iso8601Lock = NSLock()
+
+    private static let iso8601FractionalFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let iso8601StandardFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    private static func parseISO8601Date(_ string: String) -> Date? {
+        iso8601Lock.lock()
+        defer { iso8601Lock.unlock() }
+        return iso8601FractionalFormatter.date(from: string)
+            ?? iso8601StandardFormatter.date(from: string)
+    }
+
     var lastUpdated: Date = Date()
 
     // Status
@@ -58,6 +79,69 @@ struct CharacterInfo: Codable, Equatable {
     var luong: Int = 0
     var luongKhoa: Int = 0
 
+    private enum CodingKeys: String, CodingKey {
+        case lastUpdated
+        case status
+        case cName, cgender
+        case mapName, mapID, zoneID
+        case cx, cy
+        case cHP, cHPFull, cMP, cMPFull, cStamina, cPower, cTiemNang
+        case cHPGoc, cMPGoc, cDefGoc, cDamGoc, cCriticalGoc
+        case cDamFull, cDefull, cCriticalFull
+        case cPetHP, cPetHPFull, cPetMP, cPetMPFull, cPetStamina, cPetPower, cPetTiemNang, cPetDamFull, cPetDefull, cPetCriticalFull
+        case xu, luong, luongKhoa
+    }
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        if let rawDate = try? container.decode(String.self, forKey: .lastUpdated),
+           let parsedDate = Self.parseISO8601Date(rawDate) {
+            self.lastUpdated = parsedDate
+        } else {
+            self.lastUpdated = (try? container.decode(Date.self, forKey: .lastUpdated)) ?? Date()
+        }
+
+        self.status          = try container.decodeIfPresent(String.self, forKey: .status) ?? ""
+        self.cName           = try container.decodeIfPresent(String.self, forKey: .cName) ?? ""
+        self.cgender         = try container.decodeIfPresent(Int.self, forKey: .cgender) ?? 0
+        self.mapName         = try container.decodeIfPresent(String.self, forKey: .mapName) ?? ""
+        self.mapID           = try container.decodeIfPresent(Int.self, forKey: .mapID) ?? 0
+        self.zoneID          = try container.decodeIfPresent(Int.self, forKey: .zoneID) ?? 0
+        self.cx              = try container.decodeIfPresent(Int.self, forKey: .cx) ?? 0
+        self.cy              = try container.decodeIfPresent(Int.self, forKey: .cy) ?? 0
+        self.cHP             = try container.decodeIfPresent(Int64.self, forKey: .cHP) ?? 0
+        self.cHPFull         = try container.decodeIfPresent(Int64.self, forKey: .cHPFull) ?? 0
+        self.cMP             = try container.decodeIfPresent(Int64.self, forKey: .cMP) ?? 0
+        self.cMPFull         = try container.decodeIfPresent(Int64.self, forKey: .cMPFull) ?? 0
+        self.cStamina        = try container.decodeIfPresent(Int.self, forKey: .cStamina) ?? 0
+        self.cPower          = try container.decodeIfPresent(Int64.self, forKey: .cPower) ?? 0
+        self.cTiemNang       = try container.decodeIfPresent(Int64.self, forKey: .cTiemNang) ?? 0
+        self.cHPGoc          = try container.decodeIfPresent(Int.self, forKey: .cHPGoc) ?? 0
+        self.cMPGoc          = try container.decodeIfPresent(Int.self, forKey: .cMPGoc) ?? 0
+        self.cDefGoc         = try container.decodeIfPresent(Int.self, forKey: .cDefGoc) ?? 0
+        self.cDamGoc         = try container.decodeIfPresent(Int.self, forKey: .cDamGoc) ?? 0
+        self.cCriticalGoc    = try container.decodeIfPresent(Int.self, forKey: .cCriticalGoc) ?? 0
+        self.cDamFull        = try container.decodeIfPresent(Int64.self, forKey: .cDamFull) ?? 0
+        self.cDefull         = try container.decodeIfPresent(Int64.self, forKey: .cDefull) ?? 0
+        self.cCriticalFull   = try container.decodeIfPresent(Int.self, forKey: .cCriticalFull) ?? 0
+        self.cPetHP          = try container.decodeIfPresent(Int64.self, forKey: .cPetHP) ?? 0
+        self.cPetHPFull      = try container.decodeIfPresent(Int64.self, forKey: .cPetHPFull) ?? 0
+        self.cPetMP          = try container.decodeIfPresent(Int64.self, forKey: .cPetMP) ?? 0
+        self.cPetMPFull      = try container.decodeIfPresent(Int64.self, forKey: .cPetMPFull) ?? 0
+        self.cPetStamina     = try container.decodeIfPresent(Int.self, forKey: .cPetStamina) ?? 0
+        self.cPetPower       = try container.decodeIfPresent(Int64.self, forKey: .cPetPower) ?? 0
+        self.cPetTiemNang    = try container.decodeIfPresent(Int64.self, forKey: .cPetTiemNang) ?? 0
+        self.cPetDamFull     = try container.decodeIfPresent(Int64.self, forKey: .cPetDamFull) ?? 0
+        self.cPetDefull      = try container.decodeIfPresent(Int64.self, forKey: .cPetDefull) ?? 0
+        self.cPetCriticalFull = try container.decodeIfPresent(Int.self, forKey: .cPetCriticalFull) ?? 0
+        self.xu              = try container.decodeIfPresent(Int64.self, forKey: .xu) ?? 0
+        self.luong           = try container.decodeIfPresent(Int.self, forKey: .luong) ?? 0
+        self.luongKhoa       = try container.decodeIfPresent(Int.self, forKey: .luongKhoa) ?? 0
+    }
+
     // MARK: - Computed helpers
 
     var genderString: String {
@@ -87,7 +171,12 @@ struct CharacterInfo: Codable, Equatable {
 
     static func from(_ dict: [String: Any]) -> CharacterInfo {
         var info = CharacterInfo()
-        info.lastUpdated = Date()
+        if let rawDate = dict["lastUpdated"] as? String,
+           let parsedDate = parseISO8601Date(rawDate) {
+            info.lastUpdated = parsedDate
+        } else {
+            info.lastUpdated = Date()
+        }
 
         info.status         = dict["status"] as? String ?? ""
         info.cName          = dict["cName"] as? String ?? ""

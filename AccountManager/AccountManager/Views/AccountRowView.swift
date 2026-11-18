@@ -5,19 +5,22 @@ struct AccountRowView: View {
     let account: Account
     let onLaunchOrStop: () -> Void
 
-    private var liveAccount: Account {
-        store.accounts.first(where: { $0.id == account.id }) ?? account
+    private var displayName: String {
+        let characterName = account.characterInfo?.cName ?? ""
+        return characterName.isEmpty ? account.username : characterName
     }
 
-    private var displayName: String {
-        let characterName = liveAccount.characterInfo?.cName ?? ""
-        return characterName.isEmpty ? liveAccount.username : characterName
+    private var subtitleText: String {
+        if let mapName = account.characterInfo?.mapName, !mapName.isEmpty {
+            return mapName
+        }
+        return account.server
     }
 
     var body: some View {
         HStack(spacing: 10) {
             Circle()
-                .fill(liveAccount.connectionStatus.isConnected ? .green : .secondary.opacity(0.35))
+                .fill(account.connectionStatus.isConnected ? .green : .secondary.opacity(0.35))
                 .frame(width: 32, height: 32)
                 .overlay {
                     Text(displayName.prefix(1).uppercased())
@@ -30,7 +33,7 @@ struct AccountRowView: View {
                     .font(.body.weight(.medium))
                     .lineLimit(1)
 
-                Text(liveAccount.characterInfo?.mapName ?? liveAccount.server)
+                Text(subtitleText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -43,17 +46,17 @@ struct AccountRowView: View {
                     .controlSize(.small)
             } else {
                 Button(action: onLaunchOrStop) {
-                    Image(systemName: liveAccount.connectionStatus.isConnected ? "stop.fill" : "play.fill")
+                    Image(systemName: account.connectionStatus.isConnected ? "stop.fill" : "play.fill")
                         .font(.body.weight(.bold))
                         .frame(width: 32, height: 32)
                 }
                 .buttonStyle(.borderless)
-                .foregroundStyle(liveAccount.connectionStatus.isConnected ? Color.red : Color.accentColor)
-                .help(liveAccount.connectionStatus.isConnected ? "Stop game" : "Launch game")
+                .foregroundStyle(account.connectionStatus.isConnected ? Color.red : Color.accentColor)
+                .help(account.connectionStatus.isConnected ? "Stop game" : "Launch game")
             }
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(displayName), \(liveAccount.connectionStatus.displayText.isEmpty ? "offline" : liveAccount.connectionStatus.displayText)")
+        .accessibilityLabel("\(displayName), \(account.connectionStatus.displayText.isEmpty ? "offline" : account.connectionStatus.displayText)")
     }
 }

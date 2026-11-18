@@ -32,7 +32,7 @@ namespace Mod.AccountManager
 
 		internal static void Save()
 		{
-			if (Accounts == null || Accounts.Count == 0)
+			if (Accounts == null)
 			{
 				return;
 			}
@@ -116,7 +116,51 @@ namespace Mod.AccountManager
 
 		static Account CloneAccount(Account a)
 		{
-			return JsonConvert.DeserializeObject<Account>(JsonConvert.SerializeObject(a));
+			if (a == null)
+			{
+				return null;
+			}
+			return new Account
+			{
+				Username = a.Username,
+				Password = a.Password,
+				Server = CloneServer(a.Server),
+				LastTimeLogin = a.LastTimeLogin,
+				Gold = a.Gold,
+				Gem = a.Gem,
+				Ruby = a.Ruby,
+				Info = CloneCharacterInfo(a.Info) ?? new CharacterInfo(),
+				PetInfo = CloneCharacterInfo(a.PetInfo)
+			};
+		}
+
+		static Server CloneServer(Server s)
+		{
+			if (s == null)
+			{
+				return null;
+			}
+			return s.IsCustomIP()
+				? new Server(s.name, s.hostnameOrIPAddress, s.port)
+				: new Server(s.index);
+		}
+
+		static CharacterInfo CloneCharacterInfo(CharacterInfo info)
+		{
+			if (info == null)
+			{
+				return null;
+			}
+			return new CharacterInfo
+			{
+				Name = info.Name,
+				MaxHP = info.MaxHP,
+				MaxMP = info.MaxMP,
+				EXP = info.EXP,
+				Gender = info.Gender,
+				Icon = info.Icon,
+				CharID = info.CharID
+			};
 		}
 
 		internal static void AddUserAoToAccountManager()
