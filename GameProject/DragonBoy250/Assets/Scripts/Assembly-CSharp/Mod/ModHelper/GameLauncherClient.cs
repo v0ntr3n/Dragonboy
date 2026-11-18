@@ -353,7 +353,14 @@ namespace Mod.ModHelper
 		static void ApplyServerSelection(string serverSpec)
 		{
 			if (string.IsNullOrWhiteSpace(serverSpec))
+			{
+				Utils.server = new JObject
+				{
+					["ip"] = GameEvents.TEAMOBI2026_HOST,
+					["port"] = GameEvents.TEAMOBI2026_PORT
+				};
 				return;
+			}
 
 			string trimmed = serverSpec.Trim();
 			string[] colonParts = trimmed.Split(':');

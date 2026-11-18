@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -132,9 +132,10 @@ namespace Mod.AccountManager
 		public override void switchToMe()
 		{
 			isSwitchedToMe = true;
-			if (defaultServers == null)
+			if (defaultServers == null || (ServerListScreen.nameServer != null && defaultServers.Length != ServerListScreen.nameServer.Length))
 			{
-				defaultServers = new Server[ServerListScreen.nameServer.Length];
+				int len = ServerListScreen.nameServer != null ? ServerListScreen.nameServer.Length : 1;
+				defaultServers = new Server[len];
 				for (int i = 0; i < defaultServers.Length; i++)
 					defaultServers[i] = new Server(i);
 			}
@@ -338,12 +339,17 @@ namespace Mod.AccountManager
 
 		static void ApplyLoadedAccountServerSelection()
 		{
-			if (InGameAccountDAO.SelectedAccountIndex != -1 && !InGameAccountDAO.SelectedAccount.Server.IsCustomIP())
+			if (InGameAccountDAO.SelectedAccountIndex != -1 && InGameAccountDAO.SelectedAccount != null && !InGameAccountDAO.SelectedAccount.Server.IsCustomIP())
 			{
-				ServerListScreen.ipSelect = InGameAccountDAO.SelectedAccount.Server.index;
-				Rms.saveRMSInt("svselect", InGameAccountDAO.SelectedAccount.Server.index);
+				int maxIdx = ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0
+					? ServerListScreen.nameServer.Length - 1
+					: 0;
+				int clampedIdx = Mathf.Clamp(InGameAccountDAO.SelectedAccount.Server.index, 0, maxIdx);
+				InGameAccountDAO.SelectedAccount.Server.index = clampedIdx;
+				ServerListScreen.ipSelect = clampedIdx;
+				Rms.saveRMSInt("svselect", clampedIdx);
 			}
-			if (InGameAccountDAO.SelectedAccountIndex != -1)
+			if (InGameAccountDAO.SelectedAccountIndex != -1 && InGameAccountDAO.SelectedAccount != null)
 				SelectedServer = InGameAccountDAO.SelectedAccount.Server;
 		}
 
@@ -432,7 +438,7 @@ namespace Mod.AccountManager
 			if (account.Type == AccountType.Unregistered)
 				mfont = mFont.tahoma_7b_green2;
 			mfont.drawString(g, account.Info.Name, offsetXAccountMainInfo, y + 5, 0);
-			string serverName = account.Server.IsCustomIP() ? account.Server.name : ServerListScreen.nameServer[account.Server.index];
+			string serverName = account.Server.IsCustomIP() ? account.Server.name : (ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0 ? ServerListScreen.nameServer[Mathf.Clamp(account.Server.index, 0, ServerListScreen.nameServer.Length - 1)] : GameEvents.TEAMOBI2026_SERVER_NAME);
 			string lastTimeLogin = (account.LastTimeLogin != DateTime.MinValue ? Strings.lastLogin + ": " : "") + account.GetLastTimeLogin();
 			if (mFont.tahoma_7_greySmall.getWidth(lastTimeLogin) + offsetXAccountMainInfo - currentAccountInfoX > WIDTH_ACCOUNT_INFO)
 			{
@@ -906,7 +912,7 @@ namespace Mod.AccountManager
 				mfont = mFont.tahoma_7b_green2;
 			mfont.drawString(g, account.Info.Name, x + 80, y + 2, 0);
 
-			string serverName = account.Server.IsCustomIP() ? account.Server.name : ServerListScreen.nameServer[account.Server.index];
+			string serverName = account.Server.IsCustomIP() ? account.Server.name : (ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0 ? ServerListScreen.nameServer[Mathf.Clamp(account.Server.index, 0, ServerListScreen.nameServer.Length - 1)] : GameEvents.TEAMOBI2026_SERVER_NAME);
 			mFont.tahoma_7_greySmall.drawString(g, account.GetLastTimeLogin(), x + 80, y + height - 12, 0);
 			mFont.tahoma_7_greySmall.drawString(g, mResources.server + ' ' + serverName, x + 80, y + height - 22, 0);
 			//g.setColor(new Color(0, 0, 0, .3f));
@@ -1073,7 +1079,7 @@ namespace Mod.AccountManager
 						selectServer.SelectedIndex = selectServer.Items.Count - 1;
 					}
 					else
-						selectServer.SelectedIndex = server.index;
+						selectServer.SelectedIndex = Mathf.Clamp(server.index, 0, System.Math.Max(0, selectServer.Items.Count - 2));
 					break;
 				case CommandType.ConfirmDeleteAccount:
 					GameCanvas.startYesNoDlg(Strings.inGameAccountManagerConfirmDeleteAcc, new Command(mResources.YES, gI(), (int)CommandType.DeleteAccount, null), new Command(mResources.NO, 2001));

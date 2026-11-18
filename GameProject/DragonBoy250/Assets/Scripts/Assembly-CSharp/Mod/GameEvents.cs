@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using Assembly_CSharp.Mod.BoMong;
 using Mod.AccountManager;
@@ -36,9 +37,138 @@ namespace Mod
 		static bool isFirstPause = true;
 		static bool isOpenZoneUI;
 		static GUIStyle style;
+		internal const string TEAMOBI2026_SERVER_NAME = "Ngọc Rồng Teamobi2026";
+		internal const string TEAMOBI2026_HOST = "127.0.0.1";
+		internal const int TEAMOBI2026_PORT = 14445;
+		internal const string TEAMOBI2026_SERVER_LIST = "Ngọc Rồng Teamobi2026:127.0.0.1:14445:0:0:0,0,0";
+
 		static string nameCustomServer = "";
-		static string currentHost = "";
-		static ushort currentPort;
+		static string currentHost = TEAMOBI2026_HOST;
+		static ushort currentPort = TEAMOBI2026_PORT;
+
+		internal static void ApplyTeamobi2026ServerConfig()
+		{
+			ServerListScreen.linkDefault = TEAMOBI2026_SERVER_LIST;
+			GameMidlet.IP = TEAMOBI2026_HOST;
+			GameMidlet.PORT = TEAMOBI2026_PORT;
+			ServerListScreen.getServerList(TEAMOBI2026_SERVER_LIST);
+			ServerListScreen.ipSelect = 0;
+			Rms.saveRMSInt("svselect", 0);
+		}
+		static FieldInfo _mainPaintCountField;
+		static FieldInfo _mainUpdateCountField;
+		static bool _reflectionInitialized;
+		static bool _hasTickSnapshot;
+		static bool _isInterpolatingPose;
+		static int _prevCx, _prevCy, _authCx, _authCy, _interpCx, _interpCy;
+		static int _prevCmx, _prevCmy, _authCmx, _authCmy, _interpCmx, _interpCmy;
+
+		static void UnlockMainPaintGate()
+		{
+			if (!_reflectionInitialized)
+			{
+				_reflectionInitialized = true;
+				_mainPaintCountField = typeof(Main).GetField("paintCount", BindingFlags.Instance | BindingFlags.NonPublic);
+				_mainUpdateCountField = typeof(Main).GetField("updateCount", BindingFlags.Instance | BindingFlags.NonPublic);
+			}
+			if (Main.main != null)
+			{
+				_mainPaintCountField?.SetValue(Main.main, 0);
+				_mainUpdateCountField?.SetValue(Main.main, 1000000000);
+			}
+		}
+
+		static void RestoreAuthoritativePoseBeforeTick()
+		{
+			if (!_hasTickSnapshot)
+				return;
+			Char me = Char.myCharz();
+			if (me != null)
+			{
+				if (_isInterpolatingPose && me.cx == _interpCx && me.cy == _interpCy)
+				{
+					me.cx = _authCx;
+					me.cy = _authCy;
+				}
+				else
+				{
+					_authCx = me.cx;
+					_authCy = me.cy;
+				}
+				_prevCx = _authCx;
+				_prevCy = _authCy;
+			}
+			if (_isInterpolatingPose && GameScr.cmx == _interpCmx && GameScr.cmy == _interpCmy)
+			{
+				GameScr.cmx = _authCmx;
+				GameScr.cmy = _authCmy;
+			}
+			else
+			{
+				_authCmx = GameScr.cmx;
+				_authCmy = GameScr.cmy;
+			}
+			_prevCmx = _authCmx;
+			_prevCmy = _authCmy;
+			_isInterpolatingPose = false;
+		}
+
+		static void RecordAuthoritativePoseAfterTick()
+		{
+			Char me = Char.myCharz();
+			if (me == null)
+				return;
+			_authCx = me.cx;
+			_authCy = me.cy;
+			_authCmx = GameScr.cmx;
+			_authCmy = GameScr.cmy;
+			if (!_hasTickSnapshot || Mathf.Abs(_authCx - _prevCx) > 48 || Mathf.Abs(_authCy - _prevCy) > 48)
+			{
+				_prevCx = _authCx;
+				_prevCy = _authCy;
+			}
+			if (!_hasTickSnapshot || Mathf.Abs(_authCmx - _prevCmx) > 96 || Mathf.Abs(_authCmy - _prevCmy) > 96)
+			{
+				_prevCmx = _authCmx;
+				_prevCmy = _authCmy;
+			}
+			_hasTickSnapshot = true;
+			_isInterpolatingPose = false;
+		}
+
+		static void ApplySubTickPoseForRender()
+		{
+			UnlockMainPaintGate();
+			if (!_hasTickSnapshot || GameCanvas.currentScreen != GameScr.instance || Char.isLoadingMap || Char.ischangingMap)
+			{
+				_isInterpolatingPose = false;
+				return;
+			}
+			Char me = Char.myCharz();
+			if (me == null)
+				return;
+			if (_isInterpolatingPose && (me.cx != _interpCx || me.cy != _interpCy))
+			{
+				_prevCx = _authCx = me.cx;
+				_prevCy = _authCy = me.cy;
+			}
+			if (_isInterpolatingPose && (GameScr.cmx != _interpCmx || GameScr.cmy != _interpCmy))
+			{
+				_prevCmx = _authCmx = GameScr.cmx;
+				_prevCmy = _authCmy = GameScr.cmy;
+			}
+			float fixedDt = (Time.fixedDeltaTime > 0.0001f) ? Time.fixedDeltaTime : 0.02f;
+			float alpha = Mathf.Clamp01((Time.time - Time.fixedTime) / fixedDt);
+			_interpCx = Mathf.RoundToInt(Mathf.Lerp(_prevCx, _authCx, alpha));
+			_interpCy = Mathf.RoundToInt(Mathf.Lerp(_prevCy, _authCy, alpha));
+			_interpCmx = Mathf.RoundToInt(Mathf.Lerp(_prevCmx, _authCmx, alpha));
+			_interpCmy = Mathf.RoundToInt(Mathf.Lerp(_prevCmy, _authCmy, alpha));
+			me.cx = _interpCx;
+			me.cy = _interpCy;
+			GameScr.cmx = _interpCmx;
+			GameScr.cmy = _interpCmy;
+			_isInterpolatingPose = true;
+		}
 		static readonly string[] QwertySkillHotkeys =
 		{
 			"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"
@@ -50,17 +180,17 @@ namespace Mod
 
 		internal static void OnAwake()
 		{
-			Application.targetFrameRate = 60;
+			QualitySettings.vSyncCount = 0;
+			Application.targetFrameRate = 180;
 			Application.runInBackground = true;
 			Time.timeScale = 2f;
+			Time.fixedDeltaTime = 0.02f;
 		}
 
 		internal static void OnGameStart()
 		{
-			if (Utils.IsMacBuild())
-			{
-				QualitySettings.vSyncCount = 0;
-			}
+			QualitySettings.vSyncCount = 0;
+			Application.targetFrameRate = 180;
 			if (Utils.IsMobile())
 			{
 				QualitySettings.vSyncCount = 1;
@@ -101,11 +231,7 @@ namespace Mod
 		internal static void OnMainStart()
 		{
 			UIImage.OnStart();
-			if (Rms.loadRMSInt("svselect") == -1)
-			{
-				ServerListScreen.linkDefault = Strings.DEFAULT_IP_SERVERS;
-				ServerListScreen.getServerList(Strings.DEFAULT_IP_SERVERS);
-			}
+			ApplyTeamobi2026ServerConfig();
 		}
 
 		internal static void OnGamePause(bool paused)
@@ -147,6 +273,8 @@ namespace Mod
 
 		internal static void OnFixedUpdateMain()
 		{
+			UnlockMainPaintGate();
+			RestoreAuthoritativePoseBeforeTick();
 			if (GameCanvas.currentScreen != null)
 			{
 				if (!GameCanvas.panel.isShow && GameCanvas.panel2 != null && GameCanvas.panel2.isShow)
@@ -177,6 +305,7 @@ namespace Mod
 		{
 			if (!Main.started)
 				return;
+			ApplySubTickPoseForRender();
 			if (!_previousWidth.Equals(Screen.width) || !_previousHeight.Equals(Screen.height))
 			{
 				_previousWidth = Screen.width;
@@ -351,7 +480,7 @@ namespace Mod
 
 			if (mSystem.currentTimeMillis() - lastTimeRequestZoneInfo > delayRequestZoneInfo)
 			{
-				delayRequestZoneInfo = Res.random(200, 300);
+				delayRequestZoneInfo = Res.random(2000, 3000);
 				lastTimeRequestZoneInfo = mSystem.currentTimeMillis();
 				Service.gI().openUIZone();
 			}
@@ -366,6 +495,7 @@ namespace Mod
 			AutoSellTrashItems.Update();
 			DelayedAction.Tick();
 			AutoUseItem.Update();
+			RecordAuthoritativePoseAfterTick();
 		}
 
 		internal static void OnLogin(ref string username, ref string pass, ref sbyte type)
@@ -440,12 +570,16 @@ namespace Mod
 			{
 				nameCustomServer = "";
 				if (InGameAccountManager.SelectedAccount == null)
+				{
+					host = currentHost = TEAMOBI2026_HOST;
+					port = currentPort = TEAMOBI2026_PORT;
+					GameMidlet.IP = TEAMOBI2026_HOST;
+					GameMidlet.PORT = TEAMOBI2026_PORT;
 					return;
-				Server server = InGameAccountManager.SelectedServer;
-				if (server == null)
-					return;
+				}
+				Server server = InGameAccountManager.SelectedServer ?? InGameAccountManager.SelectedAccount.Server;
 				InGameAccountManager.SelectedServer = null;
-				if (server.IsCustomIP())
+				if (server != null && server.IsCustomIP())
 				{
 					host = currentHost = server.hostnameOrIPAddress;
 					port = currentPort = server.port;
@@ -453,9 +587,18 @@ namespace Mod
 				}
 				else
 				{
-					host = currentHost = ServerListScreen.address[server.index];
-					port = currentPort = (ushort)ServerListScreen.port[server.index];
-					ServerListScreen.ipSelect = server.index;
+					int idx = (server != null && ServerListScreen.address != null && server.index >= 0 && server.index < ServerListScreen.address.Length)
+						? server.index
+						: 0;
+					host = currentHost = (ServerListScreen.address != null && ServerListScreen.address.Length > 0)
+						? ServerListScreen.address[idx]
+						: TEAMOBI2026_HOST;
+					port = currentPort = (ServerListScreen.port != null && ServerListScreen.port.Length > 0)
+						? (ushort)ServerListScreen.port[idx]
+						: TEAMOBI2026_PORT;
+					ServerListScreen.ipSelect = idx;
+					GameMidlet.IP = host;
+					GameMidlet.PORT = port;
 				}
 			}
 			else
@@ -464,6 +607,11 @@ namespace Mod
 				{
 					host = (string)Utils.server["ip"];
 					port = (int)Utils.server["port"];
+				}
+				else
+				{
+					host = currentHost = TEAMOBI2026_HOST;
+					port = currentPort = TEAMOBI2026_PORT;
 				}
 			}
 		}
@@ -539,6 +687,8 @@ namespace Mod
 
 		internal static void OnInfoMapLoaded()
 		{
+			_hasTickSnapshot = false;
+			_isInterpolatingPose = false;
 			Utils.UpdateWaypointChangeMap();
 			GameScr.gI().pts = null;
 		}
@@ -1094,9 +1244,13 @@ namespace Mod
 			mFont.tahoma_7_yellow.drawString(g, mResources.character + ": " + Char.myCharz().cName, 60, 27, mFont.LEFT,
 				mFont.tahoma_7_grey);
 			Account account = InGameAccountManager.SelectedAccount;
-			string serverName = account.Server.IsCustomIP()
-				? account.Server.name
-				: ServerListScreen.nameServer[account.Server.index];
+			string serverName = account == null || account.Server == null
+				? TEAMOBI2026_SERVER_NAME
+				: account.Server.IsCustomIP()
+					? account.Server.name
+					: (ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0
+						? ServerListScreen.nameServer[Mathf.Clamp(account.Server.index, 0, ServerListScreen.nameServer.Length - 1)]
+						: TEAMOBI2026_SERVER_NAME);
 			mFont.tahoma_7_yellow.drawString(g,
 				mResources.account + " " + mResources.account_server.ToLower() + " " + serverName, 60, 39, mFont.LEFT,
 				mFont.tahoma_7_grey);
@@ -1244,8 +1398,9 @@ namespace Mod
 				}
 			}
 
+			UnlockMainPaintGate();
 			g.setColor(new Color(0.2f, 0.2f, 0.2f, 0.6f));
-			double fps = System.Math.Round(1f / Time.smoothDeltaTime * Time.timeScale, 1);
+			double fps = System.Math.Round(1f / Mathf.Max(0.0001f, Time.unscaledDeltaTime), 1);
 			string fpsStr = fps.ToString("F1").Replace(',', '.');
 			g.fillRect(0, 0, mFont.tahoma_7b_red.getWidth(fpsStr) + 2, 12);
 			mFont.tahoma_7b_red.drawString(g, fpsStr, 2, 0, 0);
@@ -1464,7 +1619,7 @@ namespace Mod
 
 		internal static void OnLoadIP()
 		{
-			ServerListScreen.getServerList(Strings.DEFAULT_IP_SERVERS);
+			ApplyTeamobi2026ServerConfig();
 		}
 
 		internal static void OnAfterPaintPanel(Panel panel, mGraphics g)
