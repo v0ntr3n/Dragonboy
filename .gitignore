@@ -1,13 +1,20 @@
+# OS & IDE metadata
 .DS_Store
 .idea
-/GameProject/BuildArtifacts
-/**/Library
-GameProject/DragonBoy250/obj/Debug/Assembly-CSharp.csproj.AssemblyReference.cache
-GameProject/DragonBoy250/DragonBoy250.sln.DotSettings.user
-/GameProject/DragonBoy250/obj
 *.cache
-GameProject/DragonBoy250/DragonBoy250.sln.DotSettings.user
-GameProject/DragonBoy250/obj/Debug/Assembly-CSharp-Editor.csproj.AssemblyReference.cache
-*.cache
-GameProject/DragonBoy250/obj/Debug/Assembly-CSharp.csproj.AssemblyReference.cache
-GameProject/DragonBoy250/obj/Debug/Assembly-CSharp-Editor.csproj.AssemblyReference.cache
+*.DotSettings.user
+xcuserdata/
+*.xcuserstate
+
+# Build outputs
+/build/
+/builds/
+/GameProject/BuildArtifacts/
+
+# Unity & NuGet generated directories
+/**/Library/
+/**/[Oo]bj/
+/**/[Tt]emp/
+/**/.local/
+/**/Assets/_Recovery/
+/**/Assets/_Recovery.meta

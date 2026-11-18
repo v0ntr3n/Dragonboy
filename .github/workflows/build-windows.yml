@@ -41,23 +41,27 @@ jobs:
       - name: Checkout source and LFS assets
         uses: actions/checkout@v4
         with:
+          fetch-depth: 1
           lfs: true
 
       - name: Cache Unity Library
         uses: actions/cache@v4
         with:
           path: GameProject/DragonBoy250/Library
-          key: unity-6000.3.9f1-windows-x64-${{ hashFiles('GameProject/DragonBoy250/Assets/**', 'GameProject/DragonBoy250/Packages/**', 'GameProject/DragonBoy250/ProjectSettings/**') }}
+          key: unity-6000.3.9f1-windows-x64-${{ hashFiles('GameProject/DragonBoy250/Assets/**', '!GameProject/DragonBoy250/Assets/_Recovery/**', 'GameProject/DragonBoy250/Packages/**', 'GameProject/DragonBoy250/ProjectSettings/**') }}
           restore-keys: |
             unity-6000.3.9f1-windows-x64-
 
       - name: Build Windows x64 with Unity
         uses: game-ci/unity-builder@v4.8.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           # v4.8.2 reactivates Personal licenses from the ULF's embedded serial.
           projectPath: GameProject/DragonBoy250
           unityVersion: 6000.3.9f1
           targetPlatform: StandaloneWindows64
+          buildsPath: build
           buildMethod: DragonBoy.Build.BuildPlayerCLI.Build
           customParameters: >-
             -outputFolderPattern ../../build/StandaloneWindows64

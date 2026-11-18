@@ -10,7 +10,8 @@
 # default for csharp files.
 # Note: This is only used by command line
 ###############################################################################
-#*.cs     diff=csharp
+*.cs text diff=csharp
+*.sh text eol=lf
 
 ###############################################################################
 # Set the merge driver for project and solution files
@@ -61,3 +62,11 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+###############################################################################
+# Unity YAML & metadata files
+###############################################################################
+*.unity text merge=unityyamlmerge eol=lf
+*.prefab text merge=unityyamlmerge eol=lf
+*.asset text merge=unityyamlmerge eol=lf
+*.meta text eol=lf
