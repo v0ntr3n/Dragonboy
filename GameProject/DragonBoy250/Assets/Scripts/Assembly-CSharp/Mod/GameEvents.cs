@@ -51,8 +51,34 @@ namespace Mod
 		static FieldInfo _midletIpField;
 		static FieldInfo _midletPortField;
 		static FieldInfo _myVectorListField;
+		static FieldInfo _myReaderBufferField;
 		static bool _reflectionInitialized;
 		static bool _endpointReflectionInitialized;
+		static int _splashTicksObserved;
+		static bool _splashLoadIpTriggered;
+		static bool _splashCompleted;
+
+		internal static void EnsureMainThreadRegistered()
+		{
+			if (Thread.CurrentThread.Name != "Main")
+			{
+				try
+				{
+					Thread.CurrentThread.Name = "Main";
+				}
+				catch
+				{
+				}
+			}
+			if (string.IsNullOrEmpty(Main.mainThreadName))
+			{
+				Main.mainThreadName = Thread.CurrentThread.Name;
+			}
+			if (Rms.status != 0)
+			{
+				Rms.status = 0;
+			}
+		}
 
 		static void EnsureEndpointReflection()
 		{
@@ -60,13 +86,22 @@ namespace Mod
 				return;
 			_endpointReflectionInitialized = true;
 			const BindingFlags staticFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+			const BindingFlags instanceFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 			_midletIpField = typeof(GameMidlet).GetField("IP", staticFlags);
 			_midletPortField = typeof(GameMidlet).GetField("PORT", staticFlags);
-			foreach (FieldInfo field in typeof(MyVector).GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+			foreach (FieldInfo field in typeof(MyVector).GetFields(instanceFlags))
 			{
 				if (typeof(System.Collections.IList).IsAssignableFrom(field.FieldType))
 				{
 					_myVectorListField = field;
+					break;
+				}
+			}
+			foreach (FieldInfo field in typeof(myReader).GetFields(instanceFlags))
+			{
+				if (field.FieldType == typeof(sbyte[]))
+				{
+					_myReaderBufferField = field;
 					break;
 				}
 			}
@@ -112,22 +147,7 @@ namespace Mod
 			}
 		}
 
-		internal static void EnsureResVersionReady()
-		{
-			try
-			{
-				string resVer = Rms.loadRMSString(Rms.RMS_ResVersion);
-				if (string.IsNullOrEmpty(resVer))
-				{
-					Rms.saveRMSString(Rms.RMS_ResVersion, "1");
-				}
-			}
-			catch
-			{
-			}
-		}
-
-		internal static void ApplyTeamobi2026ServerConfig()
+		internal static void ApplyStaticServerDefaultsOnly()
 		{
 			ServerListScreen.smartPhoneVN = TEAMOBI2026_SERVER_LIST;
 			ServerListScreen.javaVN = TEAMOBI2026_SERVER_LIST;
@@ -149,11 +169,77 @@ namespace Mod
 			catch
 			{
 			}
+			SyncGameMidletEndpoints(TEAMOBI2026_HOST, TEAMOBI2026_PORT);
+		}
+
+		internal static void EnsureResVersionReady()
+		{
+			try
+			{
+				string resVer = Rms.loadRMSString(Rms.RMS_ResVersion);
+				if (string.IsNullOrEmpty(resVer))
+				{
+					Rms.saveRMSString(Rms.RMS_ResVersion, "1");
+				}
+			}
+			catch
+			{
+			}
+		}
+
+		internal static void ApplyTeamobi2026ServerConfig()
+		{
+			EnsureMainThreadRegistered();
+			ApplyStaticServerDefaultsOnly();
 			EnsureResVersionReady();
 			ServerListScreen.getServerList(TEAMOBI2026_SERVER_LIST);
 			ServerListScreen.ipSelect = 0;
 			Rms.saveRMSInt("svselect", 0);
+			LoginScr.serverName = TEAMOBI2026_SERVER_NAME;
 			SyncGameMidletEndpoints(TEAMOBI2026_HOST, TEAMOBI2026_PORT);
+		}
+
+		static void CompleteSplashAndOpenServerList()
+		{
+			if (GameCanvas.instance == null || GameCanvas.serverScreen == null)
+				return;
+			_splashCompleted = true;
+			try
+			{
+				ApplyTeamobi2026ServerConfig();
+				SplashScr.imgLogo = null;
+				ServerListScreen.bigOk = true;
+				ServerListScreen.loadScreen = true;
+				ServerListScreen.isGetData = false;
+				ServerListScreen.waitToLogin = false;
+				ServerListScreen.testConnect = 2;
+				GameCanvas.loadBG(0);
+				GameCanvas.serverScreen.initCommand();
+				GameCanvas.instance.perform(9000, null);
+				if (GameCanvas.currentScreen != GameCanvas.serverScreen)
+				{
+					GameCanvas.serverScreen.switchToMe();
+				}
+			}
+			catch (Exception ex)
+			{
+				Debug.LogException(ex);
+			}
+			if (GameCanvas.currentScreen is SplashScr || GameCanvas.currentScreen == null)
+			{
+				try
+				{
+					ServerListScreen.loadScreen = true;
+					GameCanvas.loadBG(0);
+					GameCanvas.serverScreen.initCommand();
+					GameCanvas.currentScreen = GameCanvas.serverScreen;
+					OnServerListScreenLoaded(GameCanvas.serverScreen);
+				}
+				catch (Exception ex2)
+				{
+					Debug.LogException(ex2);
+				}
+			}
 		}
 
 		static string NormalizeServerListPayload(string rawList)
@@ -190,6 +276,33 @@ namespace Mod
 			return changed ? string.Join(",", tokens) : rawList;
 		}
 
+		static sbyte[] ExtractIncomingMessageBytes(Message msg)
+		{
+			if (msg == null)
+				return null;
+			try
+			{
+				myReader r = msg.reader();
+				if (r != null && _myReaderBufferField != null)
+				{
+					sbyte[] buf = _myReaderBufferField.GetValue(r) as sbyte[];
+					if (buf != null)
+						return buf;
+				}
+			}
+			catch
+			{
+			}
+			try
+			{
+				return msg.getData();
+			}
+			catch
+			{
+				return null;
+			}
+		}
+
 		static void NormalizeQueueServerListMessages(MyVector queue)
 		{
 			if (queue == null || queue.size() <= 0)
@@ -207,7 +320,7 @@ namespace Mod
 						Message msg = backingList[i] as Message;
 						if (msg == null || msg.command != -29)
 							continue;
-						sbyte[] data = msg.getData();
+						sbyte[] data = ExtractIncomingMessageBytes(msg);
 						if (data == null || data.Length < 4 || data[0] != 2)
 							continue;
 						int utfLen = ((data[1] & 0xFF) << 8) | (data[2] & 0xFF);
@@ -408,6 +521,7 @@ namespace Mod
 
 		internal static void OnAwake()
 		{
+			EnsureMainThreadRegistered();
 			QualitySettings.vSyncCount = 0;
 			Application.targetFrameRate = 180;
 			Application.runInBackground = true;
@@ -417,6 +531,7 @@ namespace Mod
 
 		internal static void OnGameStart()
 		{
+			EnsureMainThreadRegistered();
 			QualitySettings.vSyncCount = 0;
 			Application.targetFrameRate = 180;
 			if (Utils.IsMobile())
@@ -502,11 +617,28 @@ namespace Mod
 
 		internal static void OnFixedUpdateMain()
 		{
+			EnsureMainThreadRegistered();
 			UnlockMainPaintGate();
 			PreProcessIncomingNetworkQueue();
 			if (ServerListScreen.address == null || ServerListScreen.address.Length == 0 || string.IsNullOrEmpty(ServerListScreen.address[0]) || (InGameAccountManager.SelectedAccount == null && IsLegacyOrWildcardHost(ServerListScreen.address[0])))
 			{
 				ApplyTeamobi2026ServerConfig();
+			}
+			if (ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0 && (ServerListScreen.ipSelect < 0 || ServerListScreen.ipSelect >= ServerListScreen.nameServer.Length))
+			{
+				ServerListScreen.ipSelect = 0;
+			}
+			if (GameCanvas.currentScreen is SplashScr)
+			{
+				_splashTicksObserved++;
+				if ((_splashLoadIpTriggered && _splashTicksObserved >= 32) || _splashTicksObserved >= 36)
+				{
+					CompleteSplashAndOpenServerList();
+				}
+			}
+			else if (!_splashCompleted && GameCanvas.currentScreen == null && GameCanvas.serverScreen != null && GameCanvas.gameTick > 40)
+			{
+				CompleteSplashAndOpenServerList();
 			}
 			if (GameCanvas.currentScreen is ServerListScreen && !ServerListScreen.loadScreen && !ServerListScreen.isGetData)
 			{
@@ -1868,20 +2000,14 @@ namespace Mod
 				mFont.tahoma_7b_yellow.drawString(g, cHP, xHP, yHP, mFont.LEFT);
 				g.fillRect(xMP - 1, yMP + 1, mFont.tahoma_7_yellow.getWidth(cMP),
 					mFont.tahoma_7_yellow.getHeight() - 2);
-				mFont.tahoma_7_yellow.drawString(g, cMP, xMP, yMP, mFont.LEFT);
+				mFont.tahoma_7_yellow.drawString(g, cMP, xMP, yHP, mFont.LEFT);
 			}
 		}
 
 		internal static void OnLoadIP()
 		{
+			_splashLoadIpTriggered = true;
 			ApplyTeamobi2026ServerConfig();
-			try
-			{
-				SplashScr.loadIP();
-			}
-			catch
-			{
-			}
 		}
 
 		internal static void OnAfterPaintPanel(Panel panel, mGraphics g)
@@ -2349,10 +2475,19 @@ namespace Mod
 
 		internal static bool OnServerListScreenInitCommand(ServerListScreen screen)
 		{
+			EnsureMainThreadRegistered();
 			EnsureResVersionReady();
 			if (ServerListScreen.address == null || ServerListScreen.address.Length == 0 || IsLegacyOrWildcardHost(ServerListScreen.address[0]))
 			{
 				ApplyTeamobi2026ServerConfig();
+			}
+			if (ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0 && (ServerListScreen.ipSelect < 0 || ServerListScreen.ipSelect >= ServerListScreen.nameServer.Length))
+			{
+				ServerListScreen.ipSelect = 0;
+			}
+			if (string.IsNullOrEmpty(Strings.accounts))
+			{
+				Strings.LoadLanguage(mResources.language);
 			}
 			ServerListScreen.loadScreen = true;
 			screen.nCmdPlay = 0;
@@ -2436,13 +2571,21 @@ namespace Mod
 					}
 					else
 					{
-						screen.cmd[2] = new Command(string.Empty, screen, 17, null);
+						string svName = (ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0)
+							? ServerListScreen.nameServer[Mathf.Clamp(ServerListScreen.ipSelect, 0, ServerListScreen.nameServer.Length - 1)]
+							: TEAMOBI2026_SERVER_NAME;
+						screen.cmd[2] = new Command(mResources.server + ": " + svName, screen, 17, null);
 					}
 
 					break;
 				case 3:
 					if (screen.nCmdPlay == 1)
-						screen.cmd[3] = new Command(string.Empty, screen, 17, null);
+					{
+						string svName = (ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0)
+							? ServerListScreen.nameServer[Mathf.Clamp(ServerListScreen.ipSelect, 0, ServerListScreen.nameServer.Length - 1)]
+							: TEAMOBI2026_SERVER_NAME;
+						screen.cmd[3] = new Command(mResources.server + ": " + svName, screen, 17, null);
+					}
 					else
 						screen.cmd[3] = new Command(mResources.option, screen, 8, null);
 					break;

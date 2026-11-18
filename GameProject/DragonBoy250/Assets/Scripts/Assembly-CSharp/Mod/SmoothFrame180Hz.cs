@@ -16,7 +16,8 @@ namespace Mod
 		{
 			QualitySettings.vSyncCount = 0;
 			Application.targetFrameRate = 180;
-			GameEvents.ApplyTeamobi2026ServerConfig();
+			GameEvents.EnsureMainThreadRegistered();
+			GameEvents.ApplyStaticServerDefaultsOnly();
 			UnlockMainPaintGate();
 
 			if (_instance == null)
