@@ -4,7 +4,6 @@ using System.IO;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -110,7 +109,7 @@ namespace Mod.ModHelper
 				Stopwatch sw = Stopwatch.StartNew();
 
 				const int timeoutMs = 10_000;
-				Task connectTask = ws.ConnectAsync(uri, cts.Token);
+				System.Threading.Tasks.Task connectTask = ws.ConnectAsync(uri, cts.Token);
 				bool completed = connectTask.Wait(timeoutMs);
 				sw.Stop();
 
@@ -474,7 +473,7 @@ namespace Mod.ModHelper
 			_ = SendBytesAsync(ws, bytes, token);
 		}
 
-		async Task SendBytesAsync(ClientWebSocket ws, byte[] bytes, CancellationToken cancellationToken)
+		async System.Threading.Tasks.Task SendBytesAsync(ClientWebSocket ws, byte[] bytes, CancellationToken cancellationToken)
 		{
 			bool acquired = false;
 			try
@@ -524,7 +523,7 @@ namespace Mod.ModHelper
 			);
 			byte[] closeBytes = Encoding.UTF8.GetBytes(closeJson);
 
-			_ = Task.Run(async () =>
+			_ = System.Threading.Tasks.Task.Run(async () =>
 			{
 				bool acquired = false;
 				try
