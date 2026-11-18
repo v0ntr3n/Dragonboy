@@ -54,6 +54,8 @@ jobs:
       - name: Build Windows x64 with Unity
         uses: game-ci/unity-builder@v6
         with:
+          # Pin the GameCI CLI to avoid GitHub API 403 resolving 'latest'.
+          cliVersion: v0.1.76
           projectPath: GameProject/DragonBoy250
           unityVersion: 6000.3.9f1
           targetPlatform: StandaloneWindows64
