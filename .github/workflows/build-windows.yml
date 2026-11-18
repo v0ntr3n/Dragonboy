@@ -52,10 +52,9 @@ jobs:
             unity-6000.3.9f1-windows-x64-
 
       - name: Build Windows x64 with Unity
-        uses: game-ci/unity-builder@v6
+        uses: game-ci/unity-builder@v4.8.2
         with:
-          # Pin the GameCI CLI to avoid GitHub API 403 resolving 'latest'.
-          cliVersion: v0.1.76
+          # v4.8.2 reactivates Personal licenses from the ULF's embedded serial.
           projectPath: GameProject/DragonBoy250
           unityVersion: 6000.3.9f1
           targetPlatform: StandaloneWindows64
