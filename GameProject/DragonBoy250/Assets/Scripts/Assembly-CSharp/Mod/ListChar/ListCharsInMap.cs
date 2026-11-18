@@ -30,6 +30,14 @@ namespace Mod.ListChar
 		static readonly Color focusRowColor = new Color(0.95f, 0.67f, 0.25f, 0.72f);
 		static readonly Color idleRowColor = new Color(0.13f, 0.15f, 0.18f, 0.5f);
 
+		static GUIStyle _cachedTitleStyle;
+		static int _cachedTitleZoomLevel;
+		static GUIStyle _cachedRowStyle;
+		static int _cachedRowZoomLevel;
+		static GUIStyle _cachedFlagStyle;
+		static int _cachedFlagZoomLevel;
+		static readonly List<string> _charDescriptionsBuffer = new List<string>(6);
+
 		internal static void Update()
 		{
 			if (!isEnabled)
@@ -167,36 +175,61 @@ namespace Mod.ListChar
 
 		static GUIStyle CreateTitleStyle()
 		{
-			GUIStyle style = new GUIStyle(GUI.skin.label)
+			if (_cachedTitleStyle == null || _cachedTitleZoomLevel != mGraphics.zoomLevel)
 			{
-				fontSize = 7 * mGraphics.zoomLevel,
-				fontStyle = FontStyle.Bold,
-				alignment = TextAnchor.UpperRight,
-				richText = true
-			};
-			style.normal.textColor = Color.white;
-			return style;
+				_cachedTitleStyle = new GUIStyle(GUI.skin.label)
+				{
+					fontSize = 7 * mGraphics.zoomLevel,
+					fontStyle = FontStyle.Bold,
+					alignment = TextAnchor.UpperRight,
+					richText = true
+				};
+				_cachedTitleZoomLevel = mGraphics.zoomLevel;
+			}
+			_cachedTitleStyle.normal.textColor = Color.white;
+			return _cachedTitleStyle;
 		}
 
 		static GUIStyle CreateRowStyle()
 		{
-			return new GUIStyle(GUI.skin.label)
+			if (_cachedRowStyle == null || _cachedRowZoomLevel != mGraphics.zoomLevel)
 			{
-				fontSize = 6 * mGraphics.zoomLevel,
-				fontStyle = FontStyle.Bold,
-				alignment = TextAnchor.UpperRight,
-				richText = true
-			};
+				_cachedRowStyle = new GUIStyle(GUI.skin.label)
+				{
+					fontSize = 6 * mGraphics.zoomLevel,
+					fontStyle = FontStyle.Bold,
+					alignment = TextAnchor.UpperRight,
+					richText = true
+				};
+				_cachedRowZoomLevel = mGraphics.zoomLevel;
+			}
+			_cachedRowStyle.normal.textColor = GUI.skin.label.normal.textColor;
+			return _cachedRowStyle;
+		}
+
+		static GUIStyle CreateFlagStyle()
+		{
+			if (_cachedFlagStyle == null || _cachedFlagZoomLevel != mGraphics.zoomLevel)
+			{
+				_cachedFlagStyle = new GUIStyle(GUI.skin.label)
+				{
+					alignment = TextAnchor.UpperCenter,
+					fontSize = 6 * mGraphics.zoomLevel
+				};
+				_cachedFlagZoomLevel = mGraphics.zoomLevel;
+			}
+			_cachedFlagStyle.normal.textColor = Color.white;
+			return _cachedFlagStyle;
 		}
 
 		static void PaintListChars(mGraphics g)
 		{
 			int skippedCharCount = 0;
-			List<KeyValuePair<string, GUIStyle>> charDescriptions = new List<KeyValuePair<string, GUIStyle>>();
+			_charDescriptionsBuffer.Clear();
+			GUIStyle style = CreateRowStyle();
 			int start = GetVisibleStartIndex();
 			for (int i = start - offset; i < listChars.Count - offset; i++)
 			{
-				GUIStyle style = CreateRowStyle();
 				Char ch = listChars[i];
 				string charDesc = $"<color=#F2B965>{ch.GetClanTag()}</color>{ch.GetNameWithoutClanTag(true)} {formatHP(ch)}";
 				if (ch.IsPet())
@@ -220,7 +253,7 @@ namespace Mod.ListChar
 				if (ch.cHP <= 0)
 					charDesc = $"<color=#525252>{charDesc}</color>";
 
-				charDescriptions.Add(new KeyValuePair<string, GUIStyle>(charDesc, style));
+				_charDescriptionsBuffer.Add(charDesc);
 				maxLength = System.Math.Max(maxLength, Utils.getWidth(style, charDesc) + (ch.cFlag != 0 ? distanceBetweenLines + 1 : 0));
 			}
 			FillBackground(g);
@@ -237,12 +270,7 @@ namespace Mod.ListChar
 					offsetPaint = distanceBetweenLines + 1;
 					if (ch.cFlag == 9 || ch.cFlag == 10)
 					{
-						GUIStyle flagStyle = new GUIStyle(GUI.skin.label)
-						{
-							alignment = TextAnchor.UpperCenter,
-							fontSize = 6 * mGraphics.zoomLevel
-						};
-						flagStyle.normal.textColor = Color.white;
+						GUIStyle flagStyle = CreateFlagStyle();
 						if (ch.cFlag == 9)
 							g.drawString("K", -(x + offsetX), mGraphics.zoomLevel - 3 + y + distanceBetweenLines * (i - start + offset), flagStyle);
 						if (ch.cFlag == 10)
@@ -262,7 +290,7 @@ namespace Mod.ListChar
 					g.setColor(borderColor);
 					g.drawRect(rowX, rowY + 1, maxLength - 1, 6);
 				}
-				g.drawString(charDescriptions[rowIndex].Key, -(x + offsetX) - offsetPaint, mGraphics.zoomLevel - 3 + rowY + (ch.IsBoss() ? -1 : 0), charDescriptions[rowIndex].Value);
+				g.drawString(_charDescriptionsBuffer[rowIndex], -(x + offsetX) - offsetPaint, mGraphics.zoomLevel - 3 + rowY + (ch.IsBoss() ? -1 : 0), style);
 			}
 		}
 

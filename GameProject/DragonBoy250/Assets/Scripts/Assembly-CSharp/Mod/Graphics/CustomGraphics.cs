@@ -126,7 +126,7 @@ namespace Mod.Graphics
 			if (lineTex == null)
 			{
 				lineTex = new Texture2D(1, 1, TextureFormat.ARGB32, false);
-				lineTex.SetPixel(0, 1, Color.white);
+				lineTex.SetPixel(0, 0, Color.white);
 				lineTex.Apply();
 			}
 			if (aaLineTex == null)
@@ -164,15 +164,14 @@ namespace Mod.Graphics
 			if (x1 == x2 && y1 == y2)
 				return;
 			string key = $"texture_drawline_{color.r}_{color.g}_{color.b}_{color.a}_{thickness}";
-			Texture2D texture2D = cachedTextures[key];
-			if (texture2D == null)
+			if (!cachedTextures.TryGetValue(key, out Texture2D tex) || tex == null)
 			{
-				texture2D = new Texture2D(thickness, thickness);
+				tex = new Texture2D(thickness, thickness);
 				for (int i = 0; i < thickness; i++)
 				for (int j = 0; j < thickness; j++)
-					texture2D.SetPixel(i, j, color);
-				texture2D.Apply();
-				cachedTextures.Add(key, texture2D);
+					tex.SetPixel(i, j, color);
+				tex.Apply();
+				cachedTextures[key] = tex;
 			}
 			Vector2 vector = new Vector2(x1, y1);
 			Vector2 vector3 = new Vector2(x2, y2) - vector;
@@ -180,7 +179,7 @@ namespace Mod.Graphics
 			if (vector3.x < 0f)
 				angle += 180f;
 			GUIUtility.RotateAroundPivot(angle, vector);
-			UnityEngine.Graphics.DrawTexture(new Rect(vector.x, vector.y, vector3.magnitude, thickness), texture2D);
+			UnityEngine.Graphics.DrawTexture(new Rect(vector.x, vector.y, vector3.magnitude, thickness), tex);
 			GUIUtility.RotateAroundPivot(-angle, vector);
 		}
 
@@ -350,12 +349,14 @@ namespace Mod.Graphics
 				x *= mGraphics.zoomLevel;
 				y *= mGraphics.zoomLevel;
 			}
-			if (w < 0 || h < 0)
+			if (w <= 0 || h <= 0)
 				return;
-			Texture2D texture2D = new Texture2D(1, 1);
-			texture2D.SetPixel(0, 0, color);
-			texture2D.Apply();
-			GUI.DrawTexture(new Rect(x, y, w, h), texture2D);
+			if (lineTex == null)
+				Initialize();
+			Color prev = GUI.color;
+			GUI.color = color;
+			GUI.DrawTexture(new Rect(x, y, w, h), lineTex);
+			GUI.color = prev;
 		}
 
 		//internal static Texture2D CropToSquare(Texture2D textureToCrop, int size)
@@ -500,13 +501,23 @@ namespace Mod.Graphics
 
 		internal static Texture2D Resize(Texture2D texture2D, int width, int height)
 		{
-			RenderTexture rt = new RenderTexture(width, height, 24);
-			RenderTexture.active = rt;
-			UnityEngine.Graphics.Blit(texture2D, rt);
-			Texture2D result = new Texture2D(width, height);
-			result.ReadPixels(new Rect(0f, 0f, width, height), 0, 0);
-			result.Apply();
-			return result;
+			RenderTexture prev = RenderTexture.active;
+			RenderTexture rt = RenderTexture.GetTemporary(width, height, 24);
+			try
+			{
+				RenderTexture.active = rt;
+				UnityEngine.Graphics.Blit(texture2D, rt);
+				RenderTexture.active = rt;
+				Texture2D result = new Texture2D(width, height);
+				result.ReadPixels(new Rect(0f, 0f, width, height), 0, 0);
+				result.Apply();
+				return result;
+			}
+			finally
+			{
+				RenderTexture.active = prev;
+				RenderTexture.ReleaseTemporary(rt);
+			}
 		}
 
 		internal static void DrawOutline(Rect r, string t, GUIStyle style, int strength, Color outlineColor)

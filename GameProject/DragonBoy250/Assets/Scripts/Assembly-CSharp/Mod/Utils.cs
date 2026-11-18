@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using JetBrains.Annotations;
@@ -34,6 +35,9 @@ namespace Mod
 
 		static bool isOpenedByExternalAccountManager;
 		internal static bool IsOpenedByExternalAccountManager { get; set; }
+
+		static readonly GUIContent _sharedGuiContent = new GUIContent();
+		static readonly Dictionary<(string, int, int), string> _trimCache = new Dictionary<(string, int, int), string>();
 
 
 		/// <summary>
@@ -410,12 +414,14 @@ namespace Mod
 
 		internal static int getWidth(GUIStyle gUIStyle, string s)
 		{
-			return (int)(gUIStyle.CalcSize(new GUIContent(s)).x * 1.025f / mGraphics.zoomLevel);
+			_sharedGuiContent.text = s;
+			return (int)(gUIStyle.CalcSize(_sharedGuiContent).x * 1.025f / mGraphics.zoomLevel);
 		}
 
 		internal static int getHeight(GUIStyle gUIStyle, string content)
 		{
-			return (int)gUIStyle.CalcSize(new GUIContent(content)).y / mGraphics.zoomLevel;
+			_sharedGuiContent.text = content;
+			return (int)gUIStyle.CalcSize(_sharedGuiContent).y / mGraphics.zoomLevel;
 		}
 
 		/// <summary>
@@ -533,14 +539,31 @@ namespace Mod
 
 		internal static string TrimUntilFit(string str, GUIStyle style, int width)
 		{
+			if (string.IsNullOrEmpty(str))
+				return str;
+			(string, int, int) key = (str, width, mGraphics.zoomLevel);
+			if (_trimCache.TryGetValue(key, out string cached))
+				return cached;
 			int originalWidth = (int)(getWidth(style, str) / 1.025f);
+			string result = str;
 			if (originalWidth > width)
 			{
-				while (getWidth(style, str + "...") > width)
-					str = str.Remove(str.Length - 1, 1);
-				str = str.Trim() + "...";
+				int lo = 0;
+				int hi = str.Length;
+				while (lo < hi)
+				{
+					int mid = (lo + hi + 1) >> 1;
+					if (getWidth(style, str.Substring(0, mid) + "...") <= width)
+						lo = mid;
+					else
+						hi = mid - 1;
+				}
+				result = str.Substring(0, lo).Trim() + "...";
 			}
-			return str;
+			if (_trimCache.Count > 4096)
+				_trimCache.Clear();
+			_trimCache[key] = result;
+			return result;
 		}
 
 		internal static bool HasActivateOption(Item item)
