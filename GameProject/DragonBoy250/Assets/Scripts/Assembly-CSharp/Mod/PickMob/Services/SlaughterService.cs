@@ -9,13 +9,18 @@ namespace Mod.PickMob.Services
 		const float ATTACK_DELAY = 0.1f;
 		const long BOSS_CHECK_COOLDOWN_MS = 4000;
 
+		static readonly WaitForSecondsRealtime AttackDelayWait = new WaitForSecondsRealtime(ATTACK_DELAY);
+		static readonly MyVector AttackMobTargets = new MyVector();
+		static readonly MyVector EmptyCharTargets = new MyVector();
+
 		static long _lastBossCheckMs;
 
 		public static IEnumerator DoSlaughter(Char myChar, bool isUseTDLT)
 		{
 			if (myChar.isCharge || myChar.stone)
 			{
-				yield return new WaitForSecondsRealtime(ATTACK_DELAY);
+				AttackDelayWait.Reset();
+				yield return AttackDelayWait;
 				yield break;
 			}
 
@@ -27,9 +32,9 @@ namespace Mod.PickMob.Services
 				yield break;
 			}
 
-			if (ZoneService.ShouldChangeZoneByPriority())
+			if (ZoneService.TryGetPriorityEmptyZone(out int priorityZoneId))
 			{
-				yield return ZoneService.ChangeToEmptyZone();
+				yield return ZoneService.ChangeToEmptyZone(priorityZoneId);
 				yield break;
 			}
 
@@ -79,7 +84,8 @@ namespace Mod.PickMob.Services
 				}
 			}
 
-			yield return new WaitForSecondsRealtime(ATTACK_DELAY);
+			AttackDelayWait.Reset();
+			yield return AttackDelayWait;
 		}
 
 		static void AttackMob(Char myChar, Skill skill)
@@ -131,9 +137,10 @@ namespace Mod.PickMob.Services
 			{
 				myChar.mobFocus = mobFocus;
 				skill.lastTimeUseThisSkill = mSystem.currentTimeMillis();
-				MyVector targets = new MyVector();
-				targets.addElement(mobFocus);
-				Service.gI().sendPlayerAttack(targets, new MyVector(), -1);
+				AttackMobTargets.removeAllElements();
+				AttackMobTargets.addElement(mobFocus);
+				EmptyCharTargets.removeAllElements();
+				Service.gI().sendPlayerAttack(AttackMobTargets, EmptyCharTargets, -1);
 			}
 		}
 

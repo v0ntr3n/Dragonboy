@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using JetBrains.Annotations;
 using Mod.PickMob;
 using Mod.Xmap;
@@ -85,6 +84,11 @@ namespace Mod.BoMong.QuestHandler
 
 		public int MapIDForThisQuest(string questMessage)
 		{
+			if (string.IsNullOrEmpty(questMessage))
+			{
+				return -1;
+			}
+
 			int startIdx = questMessage.IndexOf("hạ", StringComparison.OrdinalIgnoreCase) + 2;
 			int endIdx = questMessage.IndexOf("địa điểm", StringComparison.OrdinalIgnoreCase);
 
@@ -100,15 +104,15 @@ namespace Mod.BoMong.QuestHandler
 				return -1;
 			}
 
-			Dictionary<int, int> mapMobData = GetMapMobID(nameMob);
+			int mapId = GetMapMobID(nameMob);
 
-			if (mapMobData == null)
+			if (mapId < 0)
 			{
 				ChatPopup.addChatPopupMultiLine("Lỗi tìm map quái", 0, null);
 				return -1;
 			}
 
-			return mapMobData.Keys.First();
+			return mapId;
 		}
 
 		public void OnQuestCompleted()
@@ -125,9 +129,8 @@ namespace Mod.BoMong.QuestHandler
 				yield return null;
 			}
 
-			int playersInCurrentZone = GameScr.gI().numPlayer[TileMap.zoneID];
-			
-			if (playersInCurrentZone > 1)
+			int[] numPlayer = GameScr.gI()?.numPlayer;
+			if (numPlayer != null && TileMap.zoneID >= 0 && TileMap.zoneID < numPlayer.Length && numPlayer[TileMap.zoneID] > 1)
 			{
 				int? zoneId = FindLowestPlayerZoneId();
 
@@ -184,36 +187,30 @@ namespace Mod.BoMong.QuestHandler
 			return bestZoneId;
 		}
 
-		[CanBeNull]
-		static Dictionary<int, int> GetMapMobID(string mobName)
+		static int GetMapMobID(string mobName)
 		{
-			if (string.IsNullOrEmpty(mobName?.Trim()))
+			if (string.IsNullOrWhiteSpace(mobName))
 			{
-				return null;
+				return -1;
 			}
 
 			string searchName = mobName.ToLower().Trim();
 			int bestMatchLength = -1;
-			Dictionary<int, int> result = null;
+			int bestMapId = -1;
 
-			foreach ((string NameMob, int IdMap, int IdMob) mob in MobDatabase)
+			for (int i = 0; i < MobDatabase.Count; i++)
 			{
-				string dbName = mob.NameMob.ToLower().Trim();
+				(string NameMob, int IdMap, int _) = MobDatabase[i];
+				string dbName = NameMob.ToLower().Trim();
 
 				if (searchName.Contains(dbName) && dbName.Length > bestMatchLength)
 				{
 					bestMatchLength = dbName.Length;
-
-					result = new Dictionary<int, int>
-					{
-						{
-							mob.IdMap, mob.IdMob
-						}
-					};
+					bestMapId = IdMap;
 				}
 			}
 
-			return result;
+			return bestMapId;
 		}
 	}
 }

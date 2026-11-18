@@ -11,9 +11,12 @@ namespace Mod.PickMob.Services
 		const long ZONE_CHANGE_COOLDOWN_MS = 2000;
 		const long PRIORITY_ZONE_TRACK_MS = 30000; // 30 seconds
 
+		static readonly List<int> _candidateZones = new List<int>(32);
+
 		static long _noMobSinceMs;
 		static long _lastZoneChangeMs;
 		static long _priorityZoneTrackSinceMs;
+		static int? _cachedPriorityEmptyZoneId;
 
 		public static void ResetNoMobTimer()
 		{
@@ -23,6 +26,7 @@ namespace Mod.PickMob.Services
 		public static void ResetPriorityZoneTimer()
 		{
 			_priorityZoneTrackSinceMs = 0;
+			_cachedPriorityEmptyZoneId = null;
 		}
 
 		public static bool ShouldChangeZone()
@@ -43,8 +47,9 @@ namespace Mod.PickMob.Services
 			return now - _noMobSinceMs >= NO_MOB_WAIT_MS && now - _lastZoneChangeMs >= ZONE_CHANGE_COOLDOWN_MS;
 		}
 
-		public static bool ShouldChangeZoneByPriority()
+		public static bool TryGetPriorityEmptyZone(out int emptyZoneId)
 		{
+			emptyZoneId = -1;
 			if (!PickMobConfig.IsPriorityZone)
 			{
 				ResetPriorityZoneTimer();
@@ -69,34 +74,50 @@ namespace Mod.PickMob.Services
 			// After 30 seconds, check if still crowded
 			if (now - _priorityZoneTrackSinceMs >= PRIORITY_ZONE_TRACK_MS)
 			{
-				// Still crowded after 30s, try to find an empty zone
+				if (now - _lastZoneChangeMs < ZONE_CHANGE_COOLDOWN_MS)
+				{
+					return false;
+				}
+
 				int? emptyZone = FindEmptyZoneId();
+				ResetPriorityZoneTimer();
 				if (emptyZone.HasValue)
 				{
-					ResetPriorityZoneTimer();
+					_cachedPriorityEmptyZoneId = emptyZone.Value;
+					emptyZoneId = emptyZone.Value;
 					return true;
 				}
-				// No empty zone found, reset timer and keep current zone
-				ResetPriorityZoneTimer();
 			}
 
 			return false;
 		}
 
+		public static bool ShouldChangeZoneByPriority()
+		{
+			return TryGetPriorityEmptyZone(out _);
+		}
+
 		static int GetCurrentZonePlayerCount()
 		{
 			GameScr gameScr = GameScr.gI();
-			int[] numPlayer = gameScr.numPlayer;
-			int currentZone = TileMap.zoneID;
-
-			if (numPlayer == null)
+			if (gameScr == null)
 			{
 				return 0;
 			}
 
-			for (int i = 0; i < numPlayer.Length; i++)
+			int[] zones = gameScr.zones;
+			int[] numPlayer = gameScr.numPlayer;
+			int currentZone = TileMap.zoneID;
+
+			if (zones == null || numPlayer == null)
 			{
-				if (gameScr.zones[i] == currentZone)
+				return 0;
+			}
+
+			int count = System.Math.Min(zones.Length, numPlayer.Length);
+			for (int i = 0; i < count; i++)
+			{
+				if (i < zones.Length && zones[i] == currentZone)
 				{
 					return numPlayer[i];
 				}
@@ -108,6 +129,11 @@ namespace Mod.PickMob.Services
 		static int? FindEmptyZoneId()
 		{
 			GameScr gameScr = GameScr.gI();
+			if (gameScr == null)
+			{
+				return null;
+			}
+
 			int[] zones = gameScr.zones;
 			int[] numPlayer = gameScr.numPlayer;
 
@@ -117,28 +143,36 @@ namespace Mod.PickMob.Services
 			}
 
 			int count = System.Math.Min(zones.Length, numPlayer.Length);
-			List<int> emptyZones = new List<int>();
+			_candidateZones.Clear();
 
 			for (int i = 0; i < count; i++)
 			{
-				if (numPlayer[i] == 0 && zones[i] != TileMap.zoneID)
+				if (i < zones.Length && numPlayer[i] == 0 && zones[i] != TileMap.zoneID)
 				{
-					emptyZones.Add(zones[i]);
+					_candidateZones.Add(zones[i]);
 				}
 			}
 
-			if (emptyZones.Count == 0)
+			if (_candidateZones.Count == 0)
 			{
 				return null;
 			}
 
-			// Randomly pick one empty zone
-			int randomIndex = Random.Range(0, emptyZones.Count);
-			return emptyZones[randomIndex];
+			int randomIndex = Random.Range(0, _candidateZones.Count);
+			return _candidateZones[randomIndex];
 		}
 
 		public static IEnumerator ChangeToLowestPlayerZone()
 		{
+			long now = mSystem.currentTimeMillis();
+			if (now - _lastZoneChangeMs < ZONE_CHANGE_COOLDOWN_MS)
+			{
+				yield break;
+			}
+
+			_lastZoneChangeMs = now;
+			_noMobSinceMs = 0;
+
 			int? targetZone = FindLowestPlayerZoneId();
 			if (!targetZone.HasValue)
 			{
@@ -146,9 +180,6 @@ namespace Mod.PickMob.Services
 			}
 
 			int startMapId = TileMap.mapID;
-			_lastZoneChangeMs = mSystem.currentTimeMillis();
-			_noMobSinceMs = 0;
-
 			Service.gI().requestChangeZone(targetZone.Value, 0);
 
 			float deadline = Time.realtimeSinceStartup + ZONE_CHANGE_TIMEOUT;
@@ -170,23 +201,38 @@ namespace Mod.PickMob.Services
 
 		public static IEnumerator ChangeToEmptyZone()
 		{
-			int? targetZone = FindEmptyZoneId();
+			int? targetZone = _cachedPriorityEmptyZoneId ?? FindEmptyZoneId();
+			_cachedPriorityEmptyZoneId = null;
 			if (!targetZone.HasValue)
+			{
+				_lastZoneChangeMs = mSystem.currentTimeMillis();
+				ResetPriorityZoneTimer();
+				yield break;
+			}
+
+			yield return ChangeToEmptyZone(targetZone.Value);
+		}
+
+		public static IEnumerator ChangeToEmptyZone(int targetZone)
+		{
+			_cachedPriorityEmptyZoneId = null;
+			long now = mSystem.currentTimeMillis();
+			if (now - _lastZoneChangeMs < ZONE_CHANGE_COOLDOWN_MS)
 			{
 				yield break;
 			}
 
 			int startMapId = TileMap.mapID;
-			_lastZoneChangeMs = mSystem.currentTimeMillis();
+			_lastZoneChangeMs = now;
 			_noMobSinceMs = 0;
 			ResetPriorityZoneTimer();
 
-			Service.gI().requestChangeZone(targetZone.Value, 0);
+			Service.gI().requestChangeZone(targetZone, 0);
 
 			float deadline = Time.realtimeSinceStartup + ZONE_CHANGE_TIMEOUT;
 			while (Time.realtimeSinceStartup < deadline)
 			{
-				if (TileMap.zoneID == targetZone.Value || TileMap.mapID != startMapId)
+				if (TileMap.zoneID == targetZone || TileMap.mapID != startMapId)
 				{
 					yield break;
 				}
@@ -203,6 +249,11 @@ namespace Mod.PickMob.Services
 		static int? FindLowestPlayerZoneId()
 		{
 			GameScr gameScr = GameScr.gI();
+			if (gameScr == null)
+			{
+				return null;
+			}
+
 			int[] zones = gameScr.zones;
 			int[] numPlayer = gameScr.numPlayer;
 
@@ -212,52 +263,40 @@ namespace Mod.PickMob.Services
 			}
 
 			int count = System.Math.Min(zones.Length, numPlayer.Length);
+			_candidateZones.Clear();
 			int minPlayer = int.MaxValue;
 
-			// First pass: find the minimum player count
 			for (int i = 0; i < count; i++)
 			{
+				if (i >= zones.Length)
+				{
+					break;
+				}
+
+				int zoneId = zones[i];
 				int playerCount = numPlayer[i];
 				if (playerCount < minPlayer)
 				{
 					minPlayer = playerCount;
+					_candidateZones.Clear();
+					if (zoneId != TileMap.zoneID)
+					{
+						_candidateZones.Add(zoneId);
+					}
 				}
-			}
-
-			// Second pass: collect all zones tied for the lowest player count
-			List<int> tiedZones = new List<int>();
-			for (int i = 0; i < count; i++)
-			{
-				if (numPlayer[i] == minPlayer)
+				else if (playerCount == minPlayer && zoneId != TileMap.zoneID)
 				{
-					tiedZones.Add(zones[i]);
+					_candidateZones.Add(zoneId);
 				}
 			}
 
-			if (tiedZones.Count == 0)
+			if (_candidateZones.Count == 0)
 			{
 				return null;
 			}
 
-			// Filter out the current zone if there are other options
-			List<int> candidates = new List<int>();
-			foreach (int zoneId in tiedZones)
-			{
-				if (zoneId != TileMap.zoneID)
-				{
-					candidates.Add(zoneId);
-				}
-			}
-
-			// If all tied zones are the current zone, return null
-			if (candidates.Count == 0)
-			{
-				return null;
-			}
-
-			// Randomly pick from the candidates
-			int randomIndex = Random.Range(0, candidates.Count);
-			return candidates[randomIndex];
+			int randomIndex = Random.Range(0, _candidateZones.Count);
+			return _candidateZones[randomIndex];
 		}
 	}
 }

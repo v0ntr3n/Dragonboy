@@ -9,8 +9,15 @@ namespace Mod.Yardat
 {
 	public class AutoYardat : CoroutineMainThreadAction<AutoYardat>
 	{
+		const long USE_TDLT_COOLDOWN_MS = 2000L;
+
+		static readonly List<Char> ValidTargets = new List<Char>(16);
+		static readonly MyVector EmptyMobVector = new MyVector();
+		static readonly MyVector AttackCharVector = new MyVector();
+
 		long lastPorataTime;
 		long lastTimeChangeFocus;
+		long _lastUseTdltMs;
 		int targetIndex;
 
 		protected override float Interval => 0.1f;
@@ -21,6 +28,7 @@ namespace Mod.Yardat
 			AutoGoback.gI.Toggle(true);
 			lastPorataTime = 0;
 			lastTimeChangeFocus = 0;
+			_lastUseTdltMs = 0;
 			targetIndex = 0;
 			GameScr.info1.addInfo("[Auto Yardat] BẮT ĐẦU", 0);
 		}
@@ -136,7 +144,12 @@ namespace Mod.Yardat
 
 			if (!Utils.isUsingTDLT())
 			{
-				Utils.useItem(521);
+				long tdltNow = mSystem.currentTimeMillis();
+				if (tdltNow - _lastUseTdltMs >= USE_TDLT_COOLDOWN_MS)
+				{
+					_lastUseTdltMs = tdltNow;
+					Utils.useItem(521);
+				}
 			}
 
 			if (PickMobConfig.IsAutoPickItems)
@@ -153,53 +166,62 @@ namespace Mod.Yardat
 				return;
 			}
 
+			long cooldown = GetCooldownAutoChangeFocus(skill);
+			long now = mSystem.currentTimeMillis();
+			if (now - lastTimeChangeFocus < cooldown)
+			{
+				return;
+			}
+
 			List<Char> targets = GetValidTargets();
 			if (targets.Count == 0)
 			{
 				return;
 			}
 
-			long cooldown = GetCooldownAutoChangeFocus(skill);
-			long now = mSystem.currentTimeMillis();
-			if (now - lastTimeChangeFocus >= cooldown)
+			lastTimeChangeFocus = now;
+
+			if (targetIndex >= targets.Count)
 			{
-				lastTimeChangeFocus = now;
+				targetIndex = 0;
+			}
+			Char target = targets[targetIndex];
+			targetIndex = (targetIndex + 1) % targets.Count;
 
-				if (targetIndex >= targets.Count)
+			if (target != null)
+			{
+				Char.myCharz().charFocus = target;
+
+				int dist = System.Math.Abs(target.cx - Char.myCharz().cx);
+				int maxRange = (int)(skill.dx * 1.5f);
+				if (dist <= maxRange)
 				{
-					targetIndex = 0;
+					skill.lastTimeUseThisSkill = now;
+					EmptyMobVector.removeAllElements();
+					AttackCharVector.removeAllElements();
+					AttackCharVector.addElement(target);
+					Service.gI().sendPlayerAttack(EmptyMobVector, AttackCharVector, 2);
 				}
-				Char target = targets[targetIndex];
-				targetIndex = (targetIndex + 1) % targets.Count;
-
-				if (target != null)
+				else if (YardatSettings.AutoMoveToTarget)
 				{
-					Char.myCharz().charFocus = target;
-
-					int dist = System.Math.Abs(target.cx - Char.myCharz().cx);
-					int maxRange = (int)(skill.dx * 1.5f);
-					if (dist <= maxRange)
-					{
-						skill.lastTimeUseThisSkill = now;
-						MyVector vec = new MyVector();
-						vec.addElement(target);
-						Service.gI().sendPlayerAttack(new MyVector(), vec, 2);
-					}
-					else if (YardatSettings.AutoMoveToTarget)
-					{
-						Utils.TeleportMyChar(target.cx, target.cy);
-					}
+					Utils.TeleportMyChar(target.cx, target.cy);
 				}
 			}
 		}
 
 		static List<Char> GetValidTargets()
 		{
-			List<Char> result = new List<Char>();
+			ValidTargets.Clear();
+			if (GameScr.vCharInMap == null)
+			{
+				return ValidTargets;
+			}
+
+			int myCharId = Char.myCharz().charID;
 			for (int i = 0; i < GameScr.vCharInMap.size(); i++)
 			{
 				Char c = (Char)GameScr.vCharInMap.elementAt(i);
-				if (c == null || c.charID == Char.myCharz().charID || c.isPet || c.isMiniPet || c.statusMe == 14 || c.statusMe == 5 || string.IsNullOrEmpty(c.cName))
+				if (c == null || c.charID == myCharId || c.isPet || c.isMiniPet || c.statusMe == 14 || c.statusMe == 5 || string.IsNullOrEmpty(c.cName))
 				{
 					continue;
 				}
@@ -208,15 +230,15 @@ namespace Mod.Yardat
 				{
 					if (c.charID <= 0)
 					{
-						result.Add(c);
+						ValidTargets.Add(c);
 					}
 				}
 				else if (YardatSettings.CustomTargetIds.Contains(c.charID))
 				{
-					result.Add(c);
+					ValidTargets.Add(c);
 				}
 			}
-			return result;
+			return ValidTargets;
 		}
 	}
 }

@@ -149,12 +149,18 @@ namespace Mod.PickMob
 		{
 			int goalX = mob.xFirst - 24;
 			int goalY = mob.yFirst;
+			int manhattan = Res.abs(myChar.cx - goalX) + Res.abs(myChar.cy - goalY);
+
+			if (!PickMobConfig.IsVuotDiaHinh)
+			{
+				return manhattan;
+			}
 
 			int astar = AStarPathFinder.ComputeDistance(myChar.cx, myChar.cy, goalX, goalY);
 
 			if (astar >= int.MaxValue / 8)
 			{
-				return Res.abs(myChar.cx - goalX) + Res.abs(myChar.cy - goalY) + 1_000_000;
+				return manhattan + 1_000_000;
 			}
 
 			return astar;

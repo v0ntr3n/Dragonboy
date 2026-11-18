@@ -180,39 +180,41 @@ namespace Mod.PickMob.Pathfinding
 			{
 				for (int dx = -r; dx <= r; dx++)
 				{
-					int[] dys =
+					int nx = tx + dx;
+					int nyTop = ty - r;
+					if (IsWalkableTile(nx, nyTop))
 					{
-						-r, r
-					};
-					foreach (int dy in dys)
+						otx = nx;
+						oty = nyTop;
+						return true;
+					}
+
+					int nyBottom = ty + r;
+					if (IsWalkableTile(nx, nyBottom))
 					{
-						int nx = tx + dx;
-						int ny = ty + dy;
-						if (IsWalkableTile(nx, ny))
-						{
-							otx = nx;
-							oty = ny;
-							return true;
-						}
+						otx = nx;
+						oty = nyBottom;
+						return true;
 					}
 				}
 
 				for (int dy = -r + 1; dy <= r - 1; dy++)
 				{
-					int[] xxs =
+					int ny = ty + dy;
+					int nxLeft = tx - r;
+					if (IsWalkableTile(nxLeft, ny))
 					{
-						-r, r
-					};
-					foreach (int dx in xxs)
+						otx = nxLeft;
+						oty = ny;
+						return true;
+					}
+
+					int nxRight = tx + r;
+					if (IsWalkableTile(nxRight, ny))
 					{
-						int nx = tx + dx;
-						int ny = ty + dy;
-						if (IsWalkableTile(nx, ny))
-						{
-							otx = nx;
-							oty = ny;
-							return true;
-						}
+						otx = nxRight;
+						oty = ny;
+						return true;
 					}
 				}
 			}

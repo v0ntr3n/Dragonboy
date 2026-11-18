@@ -26,6 +26,7 @@ namespace Mod.PickMob
 
 		internal static bool IsTanSat { get; set; }
 		internal static bool IsNeSieuQuai { get; set; } = true;
+		internal static bool IsVuotDiaHinh { get; set; } = true;
 		internal static bool IsAutoPickItems { get; set; } = true;
 		internal static bool IsItemMe { get; set; } = true;
 		internal static bool IsLimitTimesPickItem { get; set; } = true;
@@ -64,6 +65,11 @@ namespace Mod.PickMob
 		internal static void SetAvoidSuperMonster(bool newState)
 		{
 			IsNeSieuQuai = newState;
+		}
+
+		internal static void SetCrossTerrain(bool newState)
+		{
+			IsVuotDiaHinh = newState;
 		}
 
 		internal static void SetAutoPickItems(bool newState)
