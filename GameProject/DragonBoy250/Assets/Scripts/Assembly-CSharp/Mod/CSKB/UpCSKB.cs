@@ -10,8 +10,12 @@ namespace Mod.CSKB
 		const string RMS_ACTION_ON_FULL_BAG = "upcskb_action_on_full_bag";
 		const string RMS_MONEY_TO_DEPOSIT = "upcskb_price_for_deposit";
 
-		public static ActionOnFullBag actionOnFullBag = ActionOnFullBag.Sell;
-		public static int moneyToDeposit = 40_000_000;
+		internal const ActionOnFullBag DefaultActionOnFullBag = ActionOnFullBag.Deposit;
+		internal const int DefaultMoneyToDeposit = 40_000_000;
+		internal const int MinMoneyToDeposit = 10_000;
+
+		public static ActionOnFullBag actionOnFullBag = DefaultActionOnFullBag;
+		public static int moneyToDeposit = DefaultMoneyToDeposit;
 
 		static ModMenuItemValues[] modMenuItemValues;
 		static ModMenuItemFunction[] modMenuItemFunctions;
@@ -228,24 +232,24 @@ namespace Mod.CSKB
 
 		static void LoadRMS()
 		{
-			int savedAction = ModStorage.ReadInt(RMS_ACTION_ON_FULL_BAG, (int)ActionOnFullBag.Deposit);
+			int savedAction = ModStorage.ReadInt(RMS_ACTION_ON_FULL_BAG, (int)DefaultActionOnFullBag);
 			if (savedAction == (int)ActionOnFullBag.PutToBox || savedAction == (int)ActionOnFullBag.Deposit || savedAction == (int)ActionOnFullBag.Sell)
 			{
 				ApplyActionOnFullBag((ActionOnFullBag)savedAction, false, false);
 			}
 			else
 			{
-				ApplyActionOnFullBag(actionOnFullBag, true, false);
+				ApplyActionOnFullBag(DefaultActionOnFullBag, true, false);
 			}
 
-			int savedMoney = ModStorage.ReadInt(RMS_MONEY_TO_DEPOSIT, moneyToDeposit);
-			if (savedMoney > 0)
+			int savedMoney = ModStorage.ReadInt(RMS_MONEY_TO_DEPOSIT, DefaultMoneyToDeposit);
+			if (savedMoney >= MinMoneyToDeposit)
 			{
 				ApplyMoneyToDeposit(savedMoney, false, false);
 			}
 			else
 			{
-				ApplyMoneyToDeposit(savedAction, true, false);
+				ApplyMoneyToDeposit(DefaultMoneyToDeposit, true, false);
 			}
 		}
 	}
@@ -260,12 +264,11 @@ namespace Mod.CSKB
 			}
 			else if (ChatTextField.gI().strChat.Equals("Nhập giá kí gửi"))
 			{
-				try
+				if (int.TryParse(ChatTextField.gI().tfChat.getText(), out int price) && price >= UpCSKB.MinMoneyToDeposit)
 				{
-					int price = int.Parse(ChatTextField.gI().tfChat.getText());
 					ApplyMoneyToDeposit(price, true, true);
 				}
-				catch
+				else
 				{
 					GameScr.info1.addInfo("Giá Không Hợp Lệ, Vui Lòng Nhập Lại!", 0);
 				}

@@ -1,7 +1,6 @@
 using System.Collections;
 using Mod.R;
 using UnityEngine;
-using Random = System.Random;
 
 namespace Mod.Xmap
 {
@@ -27,9 +26,9 @@ namespace Mod.Xmap
 
 	internal sealed class NpcMenuStepHandler : IMapStepHandler
 	{
-		static readonly Random random = new Random();
 		readonly MapLookupService mapLookup;
 		readonly MapNavigationService navigation;
+		int lastFutureSideMapId = 29;
 
 		internal NpcMenuStepHandler(MapLookupService mapLookup, MapNavigationService navigation)
 		{
@@ -89,7 +88,7 @@ namespace Mod.Xmap
 			for (int i = 0; i < GameScr.vNpc.size(); i++)
 			{
 				Npc npc = (Npc)GameScr.vNpc.elementAt(i);
-				if (npc.template.npcTemplateId == npcId)
+				if (npc?.template != null && npc.template.npcTemplateId == npcId)
 				{
 					return true;
 				}
@@ -100,14 +99,20 @@ namespace Mod.Xmap
 
 		Waypoint ResolveFutureWaypoint()
 		{
-			if (TileMap.mapID == 27 || TileMap.mapID == 29)
+			if (TileMap.mapID == 27)
 			{
+				lastFutureSideMapId = 27;
 				return mapLookup.FindWaypoint(28);
 			}
 
-			return random.Next(27, 29) == 27
-				? mapLookup.FindWaypoint(27)
-				: mapLookup.FindWaypoint(29);
+			if (TileMap.mapID == 29)
+			{
+				lastFutureSideMapId = 29;
+				return mapLookup.FindWaypoint(28);
+			}
+
+			int nextSideMapId = lastFutureSideMapId == 27 ? 29 : 27;
+			return mapLookup.FindWaypoint(nextSideMapId);
 		}
 	}
 
