@@ -183,147 +183,128 @@ namespace Mod
 			return ch.clanID == Char.myCharz().clan.ID;
 		}
 
+		static bool TryGetMySkill(int templateIndex, out Skill skill)
+		{
+			skill = null;
+			Char myChar = Char.myCharz();
+			SkillTemplate[] templates = myChar?.nClass?.skillTemplates;
+			if (templates == null || templateIndex < 0 || templateIndex >= templates.Length)
+				return false;
+			SkillTemplate template = templates[templateIndex];
+			if (template == null)
+				return false;
+			skill = myChar.getSkill(template);
+			return skill != null;
+		}
+
 		internal static int GetTimeHold(this Char ch)
 		{
-			int num = 35;
-			try
+			if (ch == null)
+				return 35;
+			Char myChar = Char.myCharz();
+			if (!ch.me)
 			{
-				if (!ch.me)
-				{
-					num = 35;
-					if (ch.charEffectTime.isTiedByMe && Char.myCharz().cgender == 2)
-						num = Char.myCharz().getSkill(Char.myCharz().nClass.skillTemplates[6]).point * 5;
-				}
-				else if (Char.myCharz().cgender == 2)
-					num = Char.myCharz().getSkill(Char.myCharz().nClass.skillTemplates[6]).point * 5;
+				if (ch.charEffectTime != null && ch.charEffectTime.isTiedByMe && myChar != null && myChar.cgender == 2 && TryGetMySkill(6, out Skill skill))
+					return skill.point * 5;
+				return 35;
 			}
-			catch
-			{
-				num = 35;
-			}
-			return num;
+			if (myChar != null && myChar.cgender == 2 && TryGetMySkill(6, out Skill mySkill))
+				return mySkill.point * 5;
+			return 35;
 		}
 
 		internal static int GetTimeMonkey(this Char ch)
 		{
-			int num = 60;
-			try
+			if (ch == null)
+				return 121;
+			if (!ch.me)
 			{
-				if (!ch.me)
+				switch (ch.head)
 				{
-					switch (ch.head)
-					{
-					case 192:
-						num = 60; //lv 1
-						break;
-					case 195:
-						num = 70; //lv 2
-						break;
-					case 196:
-						num = 80; //lv 3
-						break;
-					case 199:
-						num = 90; //lv 4
-						break;
-					case 197:
-						num = 100; //lv 5
-						break;
-					case 200:
-						num = 110; //lv 6
-						break;
-					case 198:
-						num = 120; //lv 7
-						break;
-					}
+				case 192:
+					return 60; //lv 1
+				case 195:
+					return 70; //lv 2
+				case 196:
+					return 80; //lv 3
+				case 199:
+					return 90; //lv 4
+				case 197:
+					return 100; //lv 5
+				case 200:
+					return 110; //lv 6
+				case 198:
+					return 120; //lv 7
+				default:
+					return 60;
 				}
-				else if (Char.myCharz().cgender == 2)
-					num = Char.myCharz().getSkill(Char.myCharz().nClass.skillTemplates[3]).point * 10 + 50;
 			}
-			catch
-			{
-				num = 121;
-			}
-			return num;
+			Char myChar = Char.myCharz();
+			if (myChar == null)
+				return 121;
+			if (myChar.cgender == 2)
+				return TryGetMySkill(3, out Skill skill) ? skill.point * 10 + 50 : 121;
+			return 60;
 		}
 
 		internal static int GetTimeShield(this Char ch)
 		{
-			int num;
-			try
-			{
-				if (!ch.me)
-					num = 45;
-				else
-					num = Char.myCharz().getSkill(Char.myCharz().nClass.skillTemplates[7]).point * 5 + 10;
-			}
-			catch
-			{
-				num = 45;
-			}
-			return num;
+			if (ch == null || !ch.me)
+				return 45;
+			return TryGetMySkill(7, out Skill skill) ? skill.point * 5 + 10 : 45;
 		}
 
 		internal static int GetTimeMobMe(this Char ch)
 		{
-			int num = 60;
-			try
+			if (ch == null)
+				return 270;
+			if (!ch.me)
 			{
-				if (!ch.me)
+				var mobTemplate = ch.mobMe != null && Mob.arrMobTemplate != null ? ch.mobMe.getTemplate() : null;
+				if (mobTemplate == null)
+					return 270;
+				switch (mobTemplate.mobTemplateId)
 				{
-					switch (ch.mobMe.getTemplate().mobTemplateId)
-					{
-					case 8:
-						num = 60;
-						break;
-					case 11:
-						num = 95;
-						break;
-					case 32:
-						num = 130;
-						break;
-					case 25:
-						num = 165;
-						break;
-					case 43:
-						num = 200;
-						break;
-					case 49:
-						num = 235;
-						break;
-					case 50:
-						num = 270;
-						break;
-					}
+				case 8:
+					return 60;
+				case 11:
+					return 95;
+				case 32:
+					return 130;
+				case 25:
+					return 165;
+				case 43:
+					return 200;
+				case 49:
+					return 235;
+				case 50:
+					return 270;
+				default:
+					return 60;
 				}
-				else if (Char.myCharz().cgender == 1)
-					num = (Char.myCharz().getSkill(Char.myCharz().nClass.skillTemplates[4]).point - 1) * 35 + 60;
 			}
-			catch
-			{
-				num = 270;
-			}
-			return num;
+			Char myChar = Char.myCharz();
+			if (myChar == null)
+				return 270;
+			if (myChar.cgender == 1)
+				return TryGetMySkill(4, out Skill skill) ? (skill.point - 1) * 35 + 60 : 270;
+			return 60;
 		}
 
 		internal static int GetTimeHypnotize(this Char ch)
 		{
-			int num = 12;
-			try
+			if (ch == null)
+				return 12;
+			if (!ch.me)
 			{
-				if (!ch.me)
-				{
-					num = 12;
-					if (ch.charEffectTime.isHypnotizedByMe)
-						num = Char.myCharz().getSkill(Char.myCharz().nClass.skillTemplates[6]).point + 5;
-				}
-				else if (Char.myCharz().cgender == 0)
-					num = Char.myCharz().getSkill(Char.myCharz().nClass.skillTemplates[6]).point + 5;
+				if (ch.charEffectTime != null && ch.charEffectTime.isHypnotizedByMe && TryGetMySkill(6, out Skill skill))
+					return skill.point + 5;
+				return 12;
 			}
-			catch
-			{
-				num = 12;
-			}
-			return num;
+			Char myChar = Char.myCharz();
+			if (myChar != null && myChar.cgender == 0 && TryGetMySkill(6, out Skill mySkill))
+				return mySkill.point + 5;
+			return 12;
 		}
 
 		internal static int GetTimeStone(this Char ch)
@@ -383,13 +364,28 @@ namespace Mod
 			return ch.cName.Substring(0, ch.cName.IndexOf(']') + 1);
 		}
 
+		internal static char GetFirstCharWithoutClanTag(this Char ch)
+		{
+			string cName = ch?.cName;
+			if (string.IsNullOrEmpty(cName))
+				return '\0';
+			int start = cName.IndexOf(']') + 1;
+			for (int i = start; i < cName.Length; i++)
+			{
+				char c = cName[i];
+				if (c != ' ' && c != '#' && c != '$')
+					return c;
+			}
+			return '\0';
+		}
+
 		internal static bool IsNormalChar(this Char ch, bool isIncludeBoss = false, bool isIncludePet = false)
 		{
 			bool result = !string.IsNullOrEmpty(ch.cName) && ch.cName != LocalizedString.arbitration;
 			if (!string.IsNullOrEmpty(ch.cName))
 			{
 				if (!isIncludeBoss)
-					result = result && !char.IsUpper(ch.GetNameWithoutClanTag()[0]);
+					result = result && !char.IsUpper(ch.GetFirstCharWithoutClanTag());
 				if (!isIncludePet)
 					result = result && !ch.IsPet();
 			}
@@ -398,7 +394,7 @@ namespace Mod
 
 		internal static bool IsBoss(this Char ch)
 		{
-			return !ch.IsPet() && ch.cName != LocalizedString.arbitration && char.IsUpper(ch.GetNameWithoutClanTag()[0]);
+			return !string.IsNullOrEmpty(ch?.cName) && !ch.IsPet() && ch.cName != LocalizedString.arbitration && char.IsUpper(ch.GetFirstCharWithoutClanTag());
 		}
 
 		internal static bool IsPet(this Char ch)
@@ -426,7 +422,7 @@ namespace Mod
 					result = c;
 				}
 			}
-			if (result != null && Res.distance(ch.cx, ch.cy, result.cx, result.cy) > maxDistance)
+			if (result != null && smallestDistance > maxDistance)
 				result = null;
 			return result;
 		}

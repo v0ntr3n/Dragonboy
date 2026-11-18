@@ -99,21 +99,33 @@ namespace Mod.ModHelper.Menu
 				ChatPopup.addChatPopup(chatPopup, 100000, new Npc(5, 0, -100, 100, 5, Utils.ID_NPC_MOD_FACE));
 		}
 
+		private sealed class MenuCommandPayload
+		{
+			public readonly int selected;
+			public readonly MenuAction action;
+			public readonly string[] captions;
+
+			public MenuCommandPayload(int selected, MenuAction action, string[] captions)
+			{
+				this.selected = selected;
+				this.action = action;
+				this.captions = captions;
+			}
+		}
+
 		MyVector getMyVectorStartMenu()
 		{
-			IEnumerable<string> captions = from menuItem in menuItems select menuItem.caption;
+			int count = menuItems.Count;
+			string[] captionsArray = new string[count];
+			for (int i = 0; i < count; i++)
+				captionsArray[i] = menuItems[i].caption;
 
 			MyVector myVector = new MyVector();
-			for (int i = 0; i < menuItems.Count; i++)
+			for (int i = 0; i < count; i++)
 			{
 				MenuItem menuItem = menuItems[i];
 				myVector.addElement(new Command(menuItem.caption, this, (int)IdAction.MenuSelect,
-					new
-					{
-						selected = i,
-						menuItem.action,
-						captions = captions.ToArray()
-					}));
+					new MenuCommandPayload(i, menuItem.action, captionsArray)));
 			}
 
 			return myVector;
@@ -121,9 +133,12 @@ namespace Mod.ModHelper.Menu
 
 		static void onMenuSelected(object p)
 		{
-			int selected = p.getValueProperty<int>("selected");
-			MenuAction action = p.getValueProperty<MenuAction>("action");
-			string[] captions = p.getValueProperty<string[]>("captions");
+			if (p is not MenuCommandPayload payload)
+				return;
+
+			int selected = payload.selected;
+			MenuAction action = payload.action;
+			string[] captions = payload.captions;
 
 			string caption = captions[selected];
 			if (Char.chatPopup != null && Char.chatPopup.c.avatar == Utils.ID_NPC_MOD_FACE)

@@ -534,7 +534,9 @@ namespace Mod.Graphics
 		{
 			InitializeTileMap(Level == ReduceGraphicsLevel.Level1);
 			//vertical
-			for (int x = 2; x < TileMap.tmw - 2; x++)
+			int startX = Math.max(2, GameScr.gssx);
+			int endX = Math.min(TileMap.tmw - 2, GameScr.gssxe + 1);
+			for (int x = startX; x < endX; x++)
 			{
 				for (int y = 0; y < TileMap.tmh - 1; y++)
 				{
@@ -552,11 +554,14 @@ namespace Mod.Graphics
 						if (x > 0 && (TileMap.tileTypeAt((x - 1) * TileMap.size, y2 * TileMap.size, 2) || Level < ReduceGraphicsLevel.Level2 && IsTileMapICantEnter((x - 1) * TileMap.size, y2 * TileMap.size)))
 							maxy2 = Math.max(maxy2, y2);
 					}
-					for (int i = y; i < maxy2 + 1; i++)
+					int startI = Math.max(y, GameScr.gssy);
+					int endI = Math.min(maxy2, GameScr.gssye);
+					for (int i = startI; i <= endI; i++)
 					{
-						if (x >= GameScr.gssx && x <= GameScr.gssxe && i >= GameScr.gssy && i <= GameScr.gssye)
-							g.drawImage(mapTile, x * TileMap.size, i * TileMap.size + 8);
+						g.drawImage(mapTile, x * TileMap.size, i * TileMap.size + 8);
 					}
+					if (maxy2 > y)
+						y = maxy2;
 				}
 			}
 			//horizontal
