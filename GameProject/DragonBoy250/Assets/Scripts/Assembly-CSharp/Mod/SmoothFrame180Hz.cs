@@ -43,15 +43,23 @@ namespace Mod
 			}
 		}
 
+		void OnGUI()
+		{
+			UnlockMainPaintGate();
+			GameEvents.PreProcessIncomingNetworkQueue();
+		}
+
 		void FixedUpdate()
 		{
 			UnlockMainPaintGate();
+			GameEvents.PreProcessIncomingNetworkQueue();
 			GameEvents.BeginFixedTick();
 		}
 
 		void Update()
 		{
 			UnlockMainPaintGate();
+			GameEvents.PreProcessIncomingNetworkQueue();
 			GameEvents.RestoreAuthoritativePose();
 		}
 

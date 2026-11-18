@@ -46,16 +46,216 @@ namespace Mod
 		static string currentHost = TEAMOBI2026_HOST;
 		static ushort currentPort = (ushort)TEAMOBI2026_PORT;
 
+		static FieldInfo _mainPaintCountField;
+		static FieldInfo _mainUpdateCountField;
+		static FieldInfo _midletIpField;
+		static FieldInfo _midletPortField;
+		static FieldInfo _myVectorListField;
+		static bool _reflectionInitialized;
+		static bool _endpointReflectionInitialized;
+
+		static void EnsureEndpointReflection()
+		{
+			if (_endpointReflectionInitialized)
+				return;
+			_endpointReflectionInitialized = true;
+			const BindingFlags staticFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+			_midletIpField = typeof(GameMidlet).GetField("IP", staticFlags);
+			_midletPortField = typeof(GameMidlet).GetField("PORT", staticFlags);
+			foreach (FieldInfo field in typeof(MyVector).GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+			{
+				if (typeof(System.Collections.IList).IsAssignableFrom(field.FieldType))
+				{
+					_myVectorListField = field;
+					break;
+				}
+			}
+		}
+
+		static bool IsLegacyOrWildcardHost(string candidate)
+		{
+			if (string.IsNullOrEmpty(candidate))
+				return true;
+			string trimmed = candidate.Trim();
+			return trimmed == "0.0.0.0"
+				|| trimmed.IndexOf("teamobi.com", StringComparison.OrdinalIgnoreCase) >= 0
+				|| trimmed.IndexOf("indonaga.com", StringComparison.OrdinalIgnoreCase) >= 0
+				|| trimmed.StartsWith("112.213.", StringComparison.Ordinal)
+				|| trimmed.StartsWith("210.211.", StringComparison.Ordinal)
+				|| trimmed.StartsWith("27.0.", StringComparison.Ordinal)
+				|| trimmed.StartsWith("52.74.", StringComparison.Ordinal);
+		}
+
+		internal static void SyncGameMidletEndpoints(string host, int port)
+		{
+			EnsureEndpointReflection();
+			string safeHost = IsLegacyOrWildcardHost(host) ? TEAMOBI2026_HOST : host;
+			int safePort = port > 0 ? port : TEAMOBI2026_PORT;
+			try
+			{
+				_midletIpField?.SetValue(null, safeHost);
+				if (_midletPortField != null)
+				{
+					_midletPortField.SetValue(null, Convert.ChangeType(safePort, _midletPortField.FieldType));
+				}
+			}
+			catch
+			{
+			}
+			if (IsLegacyOrWildcardHost(GameMidlet.IP2))
+			{
+				GameMidlet.IP2 = safeHost;
+			}
+			if (GameMidlet.PORT2 <= 0)
+			{
+				GameMidlet.PORT2 = safePort;
+			}
+		}
+
+		internal static void EnsureResVersionReady()
+		{
+			try
+			{
+				string resVer = Rms.loadRMSString(Rms.RMS_ResVersion);
+				if (string.IsNullOrEmpty(resVer))
+				{
+					Rms.saveRMSString(Rms.RMS_ResVersion, "1");
+				}
+			}
+			catch
+			{
+			}
+		}
+
 		internal static void ApplyTeamobi2026ServerConfig()
 		{
+			ServerListScreen.smartPhoneVN = TEAMOBI2026_SERVER_LIST;
+			ServerListScreen.javaVN = TEAMOBI2026_SERVER_LIST;
 			ServerListScreen.linkDefault = TEAMOBI2026_SERVER_LIST;
+			try
+			{
+				foreach (FieldInfo field in typeof(ServerListScreen).GetFields(BindingFlags.Public | BindingFlags.Static))
+				{
+					if (field.FieldType == typeof(string) && !field.IsLiteral && !field.IsInitOnly)
+					{
+						string val = field.GetValue(null) as string;
+						if (!string.IsNullOrEmpty(val) && (val.Contains(":14445:") || val.Contains("teamobi.com") || val.Contains("112.213.") || val.Contains("indonaga.com")))
+						{
+							field.SetValue(null, TEAMOBI2026_SERVER_LIST);
+						}
+					}
+				}
+			}
+			catch
+			{
+			}
+			EnsureResVersionReady();
 			ServerListScreen.getServerList(TEAMOBI2026_SERVER_LIST);
 			ServerListScreen.ipSelect = 0;
 			Rms.saveRMSInt("svselect", 0);
+			SyncGameMidletEndpoints(TEAMOBI2026_HOST, TEAMOBI2026_PORT);
 		}
-		static FieldInfo _mainPaintCountField;
-		static FieldInfo _mainUpdateCountField;
-		static bool _reflectionInitialized;
+
+		static string NormalizeServerListPayload(string rawList)
+		{
+			if (string.IsNullOrEmpty(rawList))
+				return TEAMOBI2026_SERVER_LIST;
+			string[] tokens = rawList.Split(',');
+			bool changed = false;
+			for (int i = 0; i < tokens.Length; i++)
+			{
+				if (tokens[i].IndexOf(':') < 0)
+					continue;
+				string[] cols = tokens[i].Split(':');
+				if (cols.Length >= 3 && IsLegacyOrWildcardHost(cols[1]))
+				{
+					cols[1] = TEAMOBI2026_HOST;
+					changed = true;
+				}
+				if (cols.Length == 4)
+				{
+					tokens[i] = string.Join(":", cols) + ":0:0";
+					changed = true;
+				}
+				else if (cols.Length == 5)
+				{
+					tokens[i] = string.Join(":", cols) + ":0";
+					changed = true;
+				}
+				else if (changed)
+				{
+					tokens[i] = string.Join(":", cols);
+				}
+			}
+			return changed ? string.Join(",", tokens) : rawList;
+		}
+
+		static void NormalizeQueueServerListMessages(MyVector queue)
+		{
+			if (queue == null || queue.size() <= 0)
+				return;
+			EnsureEndpointReflection();
+			System.Collections.IList backingList = _myVectorListField?.GetValue(queue) as System.Collections.IList;
+			if (backingList == null)
+				return;
+			try
+			{
+				lock (backingList.SyncRoot)
+				{
+					for (int i = 0; i < backingList.Count; i++)
+					{
+						Message msg = backingList[i] as Message;
+						if (msg == null || msg.command != -29)
+							continue;
+						sbyte[] data = msg.getData();
+						if (data == null || data.Length < 4 || data[0] != 2)
+							continue;
+						int utfLen = ((data[1] & 0xFF) << 8) | (data[2] & 0xFF);
+						if (utfLen <= 0 || 3 + utfLen > data.Length)
+							continue;
+						byte[] utfBytes = new byte[utfLen];
+						for (int k = 0; k < utfLen; k++)
+						{
+							utfBytes[k] = unchecked((byte)data[3 + k]);
+						}
+						string decoded = System.Text.Encoding.UTF8.GetString(utfBytes);
+						string normalized = NormalizeServerListPayload(decoded);
+						if (normalized == decoded)
+							continue;
+						byte[] newUtf = System.Text.Encoding.UTF8.GetBytes(normalized);
+						if (newUtf.Length > 65535)
+							continue;
+						int tailLen = data.Length - (3 + utfLen);
+						sbyte[] rebuilt = new sbyte[3 + newUtf.Length + tailLen];
+						rebuilt[0] = 2;
+						rebuilt[1] = unchecked((sbyte)((newUtf.Length >> 8) & 0xFF));
+						rebuilt[2] = unchecked((sbyte)(newUtf.Length & 0xFF));
+						for (int k = 0; k < newUtf.Length; k++)
+						{
+							rebuilt[3 + k] = unchecked((sbyte)newUtf[k]);
+						}
+						for (int k = 0; k < tailLen; k++)
+						{
+							rebuilt[3 + newUtf.Length + k] = data[3 + utfLen + k];
+						}
+						backingList[i] = new Message(-29, rebuilt);
+					}
+				}
+			}
+			catch
+			{
+			}
+		}
+
+		internal static void PreProcessIncomingNetworkQueue()
+		{
+			NormalizeQueueServerListMessages(Session_ME.recieveMsg);
+			NormalizeQueueServerListMessages(Session_ME2.recieveMsg);
+			if (IsLegacyOrWildcardHost(GameMidlet.IP2))
+			{
+				GameMidlet.IP2 = currentHost;
+			}
+		}
 		static bool _hasTickSnapshot;
 		static bool _isInterpolatingPose;
 		static int _prevCx, _prevCy, _authCx, _authCy, _interpCx, _interpCy;
@@ -233,6 +433,7 @@ namespace Mod
 			OnSetResolution();
 			OnCheckZoomLevel(Screen.width, Screen.height);
 			ModStorage.EnsureCommonDataDirectory();
+			ApplyTeamobi2026ServerConfig();
 			YardatSettings.Load();
 			AutoPean.LoadSettings();
 			CharEffectMain.Init();
@@ -302,6 +503,21 @@ namespace Mod
 		internal static void OnFixedUpdateMain()
 		{
 			UnlockMainPaintGate();
+			PreProcessIncomingNetworkQueue();
+			if (ServerListScreen.address == null || ServerListScreen.address.Length == 0 || string.IsNullOrEmpty(ServerListScreen.address[0]) || (InGameAccountManager.SelectedAccount == null && IsLegacyOrWildcardHost(ServerListScreen.address[0])))
+			{
+				ApplyTeamobi2026ServerConfig();
+			}
+			if (GameCanvas.currentScreen is ServerListScreen && !ServerListScreen.loadScreen && !ServerListScreen.isGetData)
+			{
+				EnsureResVersionReady();
+				ServerListScreen.loadScreen = true;
+				GameCanvas.loadBG(0);
+				if (GameCanvas.serverScreen != null && (GameCanvas.serverScreen.cmd == null || GameCanvas.serverScreen.cmd.Length == 0))
+				{
+					GameCanvas.serverScreen.initCommand();
+				}
+			}
 			if (GameCanvas.currentScreen != null)
 			{
 				if (!GameCanvas.panel.isShow && GameCanvas.panel2 != null && GameCanvas.panel2.isShow)
@@ -456,6 +672,8 @@ namespace Mod
 				{
 				}
 
+			EnsureResVersionReady();
+			Rms.saveRMSInt("svselect", 0);
 			return true;
 		}
 
@@ -600,25 +818,30 @@ namespace Mod
 				{
 					host = currentHost = TEAMOBI2026_HOST;
 					port = currentPort = (ushort)TEAMOBI2026_PORT;
+					SyncGameMidletEndpoints(host, port);
 					return;
 				}
 				Server server = InGameAccountManager.SelectedServer ?? InGameAccountManager.SelectedAccount.Server;
 				InGameAccountManager.SelectedServer = null;
 				if (server != null && server.IsCustomIP())
 				{
-					host = currentHost = server.hostnameOrIPAddress;
+					host = currentHost = (server.hostnameOrIPAddress == "0.0.0.0") ? TEAMOBI2026_HOST : server.hostnameOrIPAddress;
 					port = currentPort = server.port;
 					nameCustomServer = server.name;
 				}
 				else
 				{
+					if (ServerListScreen.address == null || ServerListScreen.address.Length == 0 || IsLegacyOrWildcardHost(ServerListScreen.address[0]))
+					{
+						ApplyTeamobi2026ServerConfig();
+					}
 					int idx = (server != null && ServerListScreen.address != null && server.index >= 0 && server.index < ServerListScreen.address.Length)
 						? server.index
 						: 0;
-					string resolvedHost = (ServerListScreen.address != null && ServerListScreen.address.Length > 0)
+					string resolvedHost = (ServerListScreen.address != null && ServerListScreen.address.Length > 0 && !IsLegacyOrWildcardHost(ServerListScreen.address[idx]))
 						? ServerListScreen.address[idx]
 						: TEAMOBI2026_HOST;
-					ushort resolvedPort = (ServerListScreen.port != null && ServerListScreen.port.Length > 0)
+					ushort resolvedPort = (ServerListScreen.port != null && ServerListScreen.port.Length > 0 && ServerListScreen.port[idx] > 0)
 						? (ushort)ServerListScreen.port[idx]
 						: (ushort)TEAMOBI2026_PORT;
 					host = currentHost = resolvedHost;
@@ -630,7 +853,8 @@ namespace Mod
 			{
 				if (Utils.server != null)
 				{
-					host = (string)Utils.server["ip"];
+					string extHost = (string)Utils.server["ip"];
+					host = (extHost == "0.0.0.0" || string.IsNullOrEmpty(extHost)) ? TEAMOBI2026_HOST : extHost;
 					port = (int)Utils.server["port"];
 				}
 				else
@@ -639,10 +863,16 @@ namespace Mod
 					port = currentPort = (ushort)TEAMOBI2026_PORT;
 				}
 			}
+			SyncGameMidletEndpoints(host, port);
 		}
 
 		internal static void OnScreenDownloadDataShow()
 		{
+			ApplyTeamobi2026ServerConfig();
+			ServerListScreen.isGetData = false;
+			ServerListScreen.loadScreen = true;
+			GameCanvas.loadBG(0);
+			GameCanvas.serverScreen?.switchToMe();
 		}
 
 		internal static bool OnCheckZoomLevel(int w, int h)
@@ -1645,6 +1875,13 @@ namespace Mod
 		internal static void OnLoadIP()
 		{
 			ApplyTeamobi2026ServerConfig();
+			try
+			{
+				SplashScr.loadIP();
+			}
+			catch
+			{
+			}
 		}
 
 		internal static void OnAfterPaintPanel(Panel panel, mGraphics g)
@@ -2112,6 +2349,12 @@ namespace Mod
 
 		internal static bool OnServerListScreenInitCommand(ServerListScreen screen)
 		{
+			EnsureResVersionReady();
+			if (ServerListScreen.address == null || ServerListScreen.address.Length == 0 || IsLegacyOrWildcardHost(ServerListScreen.address[0]))
+			{
+				ApplyTeamobi2026ServerConfig();
+			}
+			ServerListScreen.loadScreen = true;
 			screen.nCmdPlay = 0;
 			string text = Rms.loadRMSString("acc");
 			sbyte[] userAo = Rms.loadRMS("userAo" + ServerListScreen.ipSelect);
