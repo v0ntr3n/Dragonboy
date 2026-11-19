@@ -1377,6 +1377,9 @@ public class mGraphics
 
 	internal void drawRegion(Small img, int p1, int p2, int p3, int p4, int transform, int x, int y, int anchor)
 	{
-		throw new NotImplementedException();
+		if (img != null && img.img != null)
+		{
+			drawRegion(img.img, p1, p2, p3, p4, transform, x, y, anchor);
+		}
 	}
 }

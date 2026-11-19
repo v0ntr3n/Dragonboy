@@ -237,6 +237,10 @@ public class CreateCharScr : mScreen, IActionListener
 		{
 			SmallImage.loadBigRMS();
 		}
+		if (GameScr.parts == null)
+		{
+			GameScr.gI().readPart();
+		}
 		base.switchToMe();
 		indexGender = Res.random(0, 3);
 		indexHair = Res.random(0, 3);
@@ -441,6 +445,10 @@ public class CreateCharScr : mScreen, IActionListener
 		{
 			SmallImage.loadBigRMS();
 		}
+		if (GameScr.parts == null)
+		{
+			GameScr.gI().readPart();
+		}
 		GameCanvas.paintBGGameScr(g);
 		g.translate(-GameScr.cmx, -GameScr.cmy);
 		if (!GameCanvas.lowGraphic)
@@ -464,12 +472,21 @@ public class CreateCharScr : mScreen, IActionListener
 		int num3 = defaultLeg[indexGender];
 		int num4 = defaultBody[indexGender];
 		g.drawImage(TileMap.bong, cx, cy + dy, 3);
-		Part part = GameScr.parts[num2];
-		Part part2 = GameScr.parts[num3];
-		Part part3 = GameScr.parts[num4];
-		SmallImage.drawSmallImage(g, part.pi[Char.CharInfo[cf][0][0]].id, cx + Char.CharInfo[cf][0][1] + part.pi[Char.CharInfo[cf][0][0]].dx, cy - Char.CharInfo[cf][0][2] + part.pi[Char.CharInfo[cf][0][0]].dy + dy, 0, 0);
-		SmallImage.drawSmallImage(g, part2.pi[Char.CharInfo[cf][1][0]].id, cx + Char.CharInfo[cf][1][1] + part2.pi[Char.CharInfo[cf][1][0]].dx, cy - Char.CharInfo[cf][1][2] + part2.pi[Char.CharInfo[cf][1][0]].dy + dy, 0, 0);
-		SmallImage.drawSmallImage(g, part3.pi[Char.CharInfo[cf][2][0]].id, cx + Char.CharInfo[cf][2][1] + part3.pi[Char.CharInfo[cf][2][0]].dx, cy - Char.CharInfo[cf][2][2] + part3.pi[Char.CharInfo[cf][2][0]].dy + dy, 0, 0);
+		Part part = (GameScr.parts != null && num2 >= 0 && num2 < GameScr.parts.Length) ? GameScr.parts[num2] : null;
+		Part part2 = (GameScr.parts != null && num3 >= 0 && num3 < GameScr.parts.Length) ? GameScr.parts[num3] : null;
+		Part part3 = (GameScr.parts != null && num4 >= 0 && num4 < GameScr.parts.Length) ? GameScr.parts[num4] : null;
+		if (part != null && part.pi != null && Char.CharInfo[cf][0][0] < part.pi.Length && part.pi[Char.CharInfo[cf][0][0]] != null)
+		{
+			SmallImage.drawSmallImage(g, part.pi[Char.CharInfo[cf][0][0]].id, cx + Char.CharInfo[cf][0][1] + part.pi[Char.CharInfo[cf][0][0]].dx, cy - Char.CharInfo[cf][0][2] + part.pi[Char.CharInfo[cf][0][0]].dy + dy, 0, 0);
+		}
+		if (part2 != null && part2.pi != null && Char.CharInfo[cf][1][0] < part2.pi.Length && part2.pi[Char.CharInfo[cf][1][0]] != null)
+		{
+			SmallImage.drawSmallImage(g, part2.pi[Char.CharInfo[cf][1][0]].id, cx + Char.CharInfo[cf][1][1] + part2.pi[Char.CharInfo[cf][1][0]].dx, cy - Char.CharInfo[cf][1][2] + part2.pi[Char.CharInfo[cf][1][0]].dy + dy, 0, 0);
+		}
+		if (part3 != null && part3.pi != null && Char.CharInfo[cf][2][0] < part3.pi.Length && part3.pi[Char.CharInfo[cf][2][0]] != null)
+		{
+			SmallImage.drawSmallImage(g, part3.pi[Char.CharInfo[cf][2][0]].id, cx + Char.CharInfo[cf][2][1] + part3.pi[Char.CharInfo[cf][2][0]].dx, cy - Char.CharInfo[cf][2][2] + part3.pi[Char.CharInfo[cf][2][0]].dy + dy, 0, 0);
+		}
 		if (!GameCanvas.lowGraphic)
 		{
 			for (int j = 0; j < MapTemplate.vCurrItem[indexGender].size(); j++)
@@ -485,9 +502,18 @@ public class CreateCharScr : mScreen, IActionListener
 		if (GameCanvas.w < 200)
 		{
 			GameCanvas.paintz.paintFrame(GameScr.popupX, GameScr.popupY, GameScr.popupW, GameScr.popupH, g);
-			SmallImage.drawSmallImage(g, part.pi[Char.CharInfo[0][0][0]].id, GameCanvas.w / 2 + Char.CharInfo[0][0][1] + part.pi[Char.CharInfo[0][0][0]].dx, GameScr.popupY + 30 + 3 * num - Char.CharInfo[0][0][2] + part.pi[Char.CharInfo[0][0][0]].dy + dy, 0, 0);
-			SmallImage.drawSmallImage(g, part2.pi[Char.CharInfo[0][1][0]].id, GameCanvas.w / 2 + Char.CharInfo[0][1][1] + part2.pi[Char.CharInfo[0][1][0]].dx, GameScr.popupY + 30 + 3 * num - Char.CharInfo[0][1][2] + part2.pi[Char.CharInfo[0][1][0]].dy + dy, 0, 0);
-			SmallImage.drawSmallImage(g, part3.pi[Char.CharInfo[0][2][0]].id, GameCanvas.w / 2 + Char.CharInfo[0][2][1] + part3.pi[Char.CharInfo[0][2][0]].dx, GameScr.popupY + 30 + 3 * num - Char.CharInfo[0][2][2] + part3.pi[Char.CharInfo[0][2][0]].dy + dy, 0, 0);
+			if (part != null && part.pi != null && Char.CharInfo[0][0][0] < part.pi.Length && part.pi[Char.CharInfo[0][0][0]] != null)
+			{
+				SmallImage.drawSmallImage(g, part.pi[Char.CharInfo[0][0][0]].id, GameCanvas.w / 2 + Char.CharInfo[0][0][1] + part.pi[Char.CharInfo[0][0][0]].dx, GameScr.popupY + 30 + 3 * num - Char.CharInfo[0][0][2] + part.pi[Char.CharInfo[0][0][0]].dy + dy, 0, 0);
+			}
+			if (part2 != null && part2.pi != null && Char.CharInfo[0][1][0] < part2.pi.Length && part2.pi[Char.CharInfo[0][1][0]] != null)
+			{
+				SmallImage.drawSmallImage(g, part2.pi[Char.CharInfo[0][1][0]].id, GameCanvas.w / 2 + Char.CharInfo[0][1][1] + part2.pi[Char.CharInfo[0][1][0]].dx, GameScr.popupY + 30 + 3 * num - Char.CharInfo[0][1][2] + part2.pi[Char.CharInfo[0][1][0]].dy + dy, 0, 0);
+			}
+			if (part3 != null && part3.pi != null && Char.CharInfo[0][2][0] < part3.pi.Length && part3.pi[Char.CharInfo[0][2][0]] != null)
+			{
+				SmallImage.drawSmallImage(g, part3.pi[Char.CharInfo[0][2][0]].id, GameCanvas.w / 2 + Char.CharInfo[0][2][1] + part3.pi[Char.CharInfo[0][2][0]].dx, GameScr.popupY + 30 + 3 * num - Char.CharInfo[0][2][2] + part3.pi[Char.CharInfo[0][2][0]].dy + dy, 0, 0);
+			}
 			for (int k = 0; k < mResources.MENUNEWCHAR.Length; k++)
 			{
 				if (selected == k)
