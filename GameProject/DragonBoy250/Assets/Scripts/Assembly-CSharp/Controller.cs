@@ -3369,6 +3369,10 @@ public class Controller : IMessageHandler
 						Effect.vEffData.removeElementAt(0);
 					}
 				}
+				if (CreateCharScr.isCreateChar || GameCanvas.currentScreen == CreateCharScr.instance)
+				{
+					Service.gI().clientOk();
+				}
 				break;
 			case -70:
 			{
