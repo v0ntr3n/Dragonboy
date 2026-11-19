@@ -15,7 +15,7 @@ public class ServerListScreen : mScreen, IActionListener
 
 	public static bool[] hasConnected;
 
-	public static short[] port;
+	public static int[] port;
 
 	public static int selected;
 
@@ -544,7 +544,7 @@ public class ServerListScreen : mScreen, IActionListener
 		mResources.loadLanguague(sbyte.Parse(array[array.Length - 2]));
 		nameServer = new string[array.Length - 2];
 		address = new string[array.Length - 2];
-		port = new short[array.Length - 2];
+		port = new int[array.Length - 2];
 		language = new sbyte[array.Length - 2];
 		typeSv = new sbyte[array.Length - 2];
 		isNew = new sbyte[array.Length - 2];
@@ -554,7 +554,7 @@ public class ServerListScreen : mScreen, IActionListener
 			string[] array2 = Res.split(array[i].Trim(), ":", 0);
 			nameServer[i] = array2[0];
 			address[i] = array2[1];
-			port[i] = short.Parse(array2[2]);
+			port[i] = int.Parse(array2[2].Trim());
 			language[i] = sbyte.Parse(array2[3].Trim());
 			try
 			{
@@ -884,7 +884,7 @@ public class ServerListScreen : mScreen, IActionListener
 			{
 				dataOutputStream.writeUTF(nameServer[i]);
 				dataOutputStream.writeUTF(address[i]);
-				dataOutputStream.writeShort(port[i]);
+				dataOutputStream.writeShort((short)port[i]);
 				dataOutputStream.writeByte(language[i]);
 				try
 				{
