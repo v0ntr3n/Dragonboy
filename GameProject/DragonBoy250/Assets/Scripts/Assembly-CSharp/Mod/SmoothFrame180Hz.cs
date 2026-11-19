@@ -10,6 +10,8 @@ namespace Mod
 		static FieldInfo _paintCountField;
 		static FieldInfo _updateCountField;
 		static bool _reflectionReady;
+		static readonly object ZeroBox = 0;
+		static readonly object MaxBox = int.MaxValue;
 
 		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
 		static void Bootstrap()
@@ -29,6 +31,11 @@ namespace Mod
 			}
 		}
 
+		void Awake()
+		{
+			useGUILayout = false;
+		}
+
 		internal static void UnlockMainPaintGate()
 		{
 			if (!_reflectionReady)
@@ -39,15 +46,21 @@ namespace Mod
 			}
 			if (Main.main != null)
 			{
-				_paintCountField?.SetValue(Main.main, 0);
-				_updateCountField?.SetValue(Main.main, 1000000000);
+				_paintCountField?.SetValue(Main.main, ZeroBox);
+				_updateCountField?.SetValue(Main.main, MaxBox);
 			}
 		}
 
 		void OnGUI()
 		{
+			if (UnityEngine.Event.current == null || UnityEngine.Event.current.type != UnityEngine.EventType.Repaint)
+			{
+				GameEvents.RestoreAuthoritativePose();
+				return;
+			}
 			UnlockMainPaintGate();
 			GameEvents.PreProcessIncomingNetworkQueue();
+			GameEvents.ApplySubTickPoseForRender();
 		}
 
 		void FixedUpdate()
@@ -66,7 +79,7 @@ namespace Mod
 
 		void LateUpdate()
 		{
-			GameEvents.ApplySubTickPoseForRender();
+			GameEvents.RestoreAuthoritativePose();
 		}
 	}
 }
