@@ -1343,33 +1343,14 @@ public class Char : IMapObject
 		if (myCharz().taskMaint != null)
 		{
 			Cout.println("TASKx " + myCharz().taskMaint.taskId);
-			if (myCharz().taskMaint.taskId <= 2)
-			{
-				myCharz().canFly = false;
-			}
-			else
-			{
-				myCharz().canFly = true;
-			}
+			myCharz().canFly = true;
 		}
-		GameScr.gI().left = null;
+		MagicTree.isPaint = true;
+		GameScr.isPaintRada = 1;
+		GameScr.gI().left = GameScr.gI().cmdMenu;
+		GameScr.gI().right = GameScr.gI().cmdFocus;
 		if (task != null && task.taskId == 0)
 		{
-			Hint.isViewMap = false;
-			Hint.isViewPotential = false;
-			GameScr.gI().right = null;
-			GameScr.isHaveSelectSkill = false;
-			GameScr.gI().left = null;
-			if (task.index < 4)
-			{
-				MagicTree.isPaint = false;
-				GameScr.isPaintRada = -1;
-			}
-			if (task.index == 4)
-			{
-				GameScr.isPaintRada = 1;
-				MagicTree.isPaint = true;
-			}
 			if (task.index >= 5)
 			{
 				GameScr.gI().right = GameScr.gI().cmdFocus;
@@ -1379,7 +1360,7 @@ public class Char : IMapObject
 		{
 			GameScr.isHaveSelectSkill = true;
 		}
-		if (task.taskId >= 1)
+		if (task.taskId >= 0)
 		{
 			GameScr.gI().right = GameScr.gI().cmdFocus;
 			GameScr.gI().left = GameScr.gI().cmdMenu;

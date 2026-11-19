@@ -58,6 +58,12 @@ public class MagicTree : Npc, IActionListener
 	public MagicTree(int npcId, int status, int cx, int cy, int templateId, int iconId)
 		: base(npcId, status, cx, cy, templateId, iconId)
 	{
+		this.id = (iconId != 0 ? iconId : 84);
+		this.name = "Đậu thần";
+		this.currPeas = 5;
+		this.maxPeas = 5;
+		this.peaPostionX = new int[] { -15, -5, 10, -20, 15 };
+		this.peaPostionY = new int[] { -45, -55, -50, -30, -35 };
 		p = new PopUp(string.Empty, 0, 0);
 		p.command = new Command(null, this, 1, null);
 		PopUp.addPopUp(p);

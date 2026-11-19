@@ -2473,17 +2473,6 @@ public class GameScr : mScreen, IChatable
 				GameCanvas.clearKeyPressed();
 				if (tMenuDelay == 0)
 				{
-					if (Char.myCharz().taskMaint != null && Char.myCharz().taskMaint.taskId == 0)
-					{
-						if (Char.myCharz().taskMaint.index < 4 && Char.myCharz().npcFocus.template.npcTemplateId == 4)
-						{
-							return false;
-						}
-						if (Char.myCharz().taskMaint.index < 3 && Char.myCharz().npcFocus.template.npcTemplateId == 3)
-						{
-							return false;
-						}
-					}
 					tMenuDelay = 50;
 					InfoDlg.showWait();
 					Service.gI().charMove();
@@ -4258,7 +4247,7 @@ public class GameScr : mScreen, IChatable
 
 	public void doSelectSkill(Skill skill, bool isShortcut)
 	{
-		if (Char.myCharz().isCreateDark || isCharging() || (Char.myCharz().taskMaint != null && Char.myCharz().taskMaint.taskId <= 1))
+		if (Char.myCharz().isCreateDark || isCharging())
 		{
 			return;
 		}
