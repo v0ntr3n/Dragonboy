@@ -161,11 +161,11 @@ public class Session_ME : ISession
 		sendThread.Start();
 		MessageCollector messageCollector = new MessageCollector();
 		collectorThread = new Thread(messageCollector.run);
+		key = null;
 		collectorThread.Start();
 		timeConnected = currentTimeMillis();
 		connecting = false;
 		doSendMessage(new Message(-27));
-		key = null;
 	}
 
 	static void doSendMessage(Message m)
@@ -574,7 +574,7 @@ public class Session_ME : ISession
 				{
 					sbyte b4 = dis.ReadSByte();
 					sbyte b5 = dis.ReadSByte();
-					num = b4 & 0xFF00 | b5 & 0xFF;
+					num = ((b4 & 0xFF) << 8) | (b5 & 0xFF);
 				}
 				sbyte[] array = new sbyte[num];
 				int num2 = 0;

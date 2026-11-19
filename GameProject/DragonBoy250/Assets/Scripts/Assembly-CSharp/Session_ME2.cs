@@ -514,7 +514,7 @@ public class Session_ME2 : ISession
 				{
 					b = readKey(b);
 				}
-				if (b == -32 || b == -66 || b == 11 || b == -67 || b == -74 || b == -87)
+				if (b == -32 || b == -66 || b == 11 || b == -67 || b == -74 || b == -87 || b == 66 || b == 12)
 				{
 					return readMessage2(b);
 				}
@@ -529,7 +529,7 @@ public class Session_ME2 : ISession
 				{
 					sbyte b4 = dis.ReadSByte();
 					sbyte b5 = dis.ReadSByte();
-					num = b4 & 0xFF00 | b5 & 0xFF;
+					num = ((b4 & 0xFF) << 8) | (b5 & 0xFF);
 				}
 				sbyte[] array = new sbyte[num];
 				int num2 = 0;
