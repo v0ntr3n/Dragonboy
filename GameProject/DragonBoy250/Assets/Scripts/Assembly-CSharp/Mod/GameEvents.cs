@@ -155,12 +155,67 @@ namespace Mod
 			}
 		}
 
+		static bool _suboiReflectionScanned;
+		static FieldInfo[] _websiteStringFields;
+
+		internal static void EnforceSuboiLabel(bool rescan = false)
+		{
+			ServerListScreen.linkweb = "suboi";
+			if (rescan || !_suboiReflectionScanned)
+			{
+				_suboiReflectionScanned = true;
+				try
+				{
+					var found = new System.Collections.Generic.List<FieldInfo>();
+					const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+					Type[] targets = { typeof(ServerListScreen), typeof(mResources), typeof(LoginScr) };
+					for (int t = 0; t < targets.Length; t++)
+					{
+						FieldInfo[] fields = targets[t].GetFields(flags);
+						for (int i = 0; i < fields.Length; i++)
+						{
+							FieldInfo f = fields[i];
+							if (f.FieldType == typeof(string) && !f.IsLiteral && !f.IsInitOnly)
+							{
+								string val = f.GetValue(null) as string;
+								if (!string.IsNullOrEmpty(val) && (val.IndexOf("ngocrongonline", StringComparison.OrdinalIgnoreCase) >= 0 || val.IndexOf("dragonbabe", StringComparison.OrdinalIgnoreCase) >= 0))
+								{
+									found.Add(f);
+								}
+							}
+						}
+					}
+					_websiteStringFields = found.ToArray();
+				}
+				catch
+				{
+					_websiteStringFields = Array.Empty<FieldInfo>();
+				}
+			}
+			if (_websiteStringFields != null)
+			{
+				for (int i = 0; i < _websiteStringFields.Length; i++)
+				{
+					try
+					{
+						if (!string.Equals(_websiteStringFields[i].GetValue(null) as string, "suboi", StringComparison.Ordinal))
+						{
+							_websiteStringFields[i].SetValue(null, "suboi");
+						}
+					}
+					catch
+					{
+					}
+				}
+			}
+		}
+
 		internal static void ApplyStaticServerDefaultsOnly()
 		{
 			ServerListScreen.smartPhoneVN = TEAMOBI2026_SERVER_LIST;
 			ServerListScreen.javaVN = TEAMOBI2026_SERVER_LIST;
 			ServerListScreen.linkDefault = TEAMOBI2026_SERVER_LIST;
-			ServerListScreen.linkweb = "suboi";
+			EnforceSuboiLabel(true);
 			try
 			{
 				foreach (FieldInfo field in typeof(ServerListScreen).GetFields(BindingFlags.Public | BindingFlags.Static))
@@ -615,6 +670,10 @@ namespace Mod
 			EnsureMainThreadRegistered();
 			UnlockMainPaintGate();
 			PreProcessIncomingNetworkQueue();
+			if (!string.Equals(ServerListScreen.linkweb, "suboi", StringComparison.Ordinal))
+			{
+				EnforceSuboiLabel(false);
+			}
 			if (ServerListScreen.address == null || ServerListScreen.address.Length == 0 || string.IsNullOrEmpty(ServerListScreen.address[0]) || (InGameAccountManager.SelectedAccount == null && IsLegacyOrWildcardHost(ServerListScreen.address[0])))
 			{
 				ApplyTeamobi2026ServerConfig();
@@ -722,6 +781,7 @@ namespace Mod
 		{
 			Strings.LoadLanguage(newLanguage);
 			ModMenuMain.UpdateLanguage(newLanguage);
+			EnforceSuboiLabel(true);
 		}
 
 		internal static void OnSetResolution()
@@ -969,6 +1029,7 @@ namespace Mod
 
 		internal static void OnServerListScreenLoaded(ServerListScreen serverListScreen)
 		{
+			EnforceSuboiLabel(true);
 			ModMenuMain.Initialize();
 			TeleportMenuMain.LoadData();
 			AutoTrainPet.isFirstTimeCheckPet = true;
@@ -2566,6 +2627,7 @@ namespace Mod
 		internal static bool OnServerListScreenInitCommand(ServerListScreen screen)
 		{
 			EnsureMainThreadRegistered();
+			EnforceSuboiLabel(true);
 			EnsureResVersionReady();
 			if (ServerListScreen.address == null || ServerListScreen.address.Length == 0 || IsLegacyOrWildcardHost(ServerListScreen.address[0]))
 			{
