@@ -1,4 +1,4 @@
-﻿using Mod.Constants;
+using Mod.Constants;
 using Mod.CustomPanel;
 using Mod.R;
 using UnityEngine;
@@ -505,10 +505,16 @@ namespace Mod
 
 		internal static bool HasManaToUseSkill(this Skill skill)
 		{
+			if (skill?.template == null || Char.myCharz() == null)
+				return false;
 			switch (skill.template.manaUseType)
 			{
+			case 0:
+				return Char.myCharz().cMP >= skill.manaUse;
 			case 1:
-				return Char.myCharz().cMP >= Char.myCharz().cMPFull * (skill.manaUse / 100);
+				return Char.myCharz().cMP >= (long)skill.manaUse * Char.myCharz().cMPFull / 100;
+			case 2:
+				return Char.myCharz().cMP > 0;
 			default:
 				return false;
 			}

@@ -285,7 +285,7 @@ namespace Mod
 		{
 			if (lastBoss != -1 && mSystem.currentTimeMillis() - Utils.GetLastTimePress() > 200)
 				lastBoss = -1;
-			if (!isEnabled)
+			if (!isEnabled || listBosses.Count <= 0)
 				return;
 			if (!GameCanvas.isTouch || ChatTextField.gI().isShow || GameCanvas.menu.showMenu)
 				return;
@@ -293,7 +293,7 @@ namespace Mod
 			ClampOffset();
 			getCollapseButton(out int collapseButtonX, out int collapseButtonY);
 			getScrollBar(out int scrollBarWidth, out int scrollBarHeight, out _);
-			if (GameCanvas.isPointerHoldIn(collapseButtonX, collapseButtonY, 6, 9) || GameCanvas.isMouseFocus(GameCanvas.w - (x + offsetX) - titleWidth + scrollBarWidth, y - distanceBetweenLines, titleWidth, 8))
+			if (GameCanvas.isPointerHoldIn(collapseButtonX, collapseButtonY, 9, 6) || GameCanvas.isPointerHoldIn(GameCanvas.w - (x + offsetX) - titleWidth + scrollBarWidth, y - distanceBetweenLines, titleWidth, 8))
 			{
 				GameCanvas.isPointerJustDown = false;
 				GameScr.gI().isPointerDowning = false;

@@ -12,6 +12,7 @@ namespace Mod.CSKB
 {
 	internal class UpCSKBController : CoroutineMainThreadAction<UpCSKBController>
 	{
+		internal static bool IsRunning => gI != null && gI.IsActing;
 		const long MD_IDLE_TIMEOUT_TICKS = 2 * 60 * TimeSpan.TicksPerSecond;
 		static readonly int[] mapCanTrain =
 		{

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Mod.Constants;
 using Mod.PickMob;
 using Mod.Xmap;
@@ -44,6 +44,7 @@ namespace Mod.Auto
 
 		internal static bool saoMayLuoiThe;
 		internal static AutoTrainPetMode Mode { get; set; }
+		internal static bool isEnabled => Mode != AutoTrainPetMode.Disabled;
 		internal static AutoTrainPetAttackMode ModeAttackWhenNeeded { get; set; }
 
 		internal static void SetState(int value)
