@@ -116,6 +116,15 @@ namespace DragonBoy.Build
 					ApplyAndroidFormat(androidFormat);
 				}
 
+				if (target == BuildTarget.StandaloneWindows64)
+				{
+					PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
+					PlayerSettings.defaultIsNativeResolution = false;
+					PlayerSettings.defaultScreenWidth = 1024;
+					PlayerSettings.defaultScreenHeight = 600;
+					PlayerSettings.resizableWindow = true;
+				}
+
 				string folderRel = ExpandPattern(outputFolderPattern, target);
 				string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
 				string folderAbs = Path.IsPathRooted(folderRel)
