@@ -240,7 +240,8 @@ namespace Mod
 		{
 			try
 			{
-				string filename = "x" + mGraphics.zoomLevel + "Big0";
+				int zoom = mGraphics.zoomLevel > 0 ? mGraphics.zoomLevel : 2;
+				string filename = "x" + zoom + "Big0";
 				sbyte[] data = Rms.loadRMS(filename);
 				return data != null && data.Length > 0;
 			}
@@ -256,6 +257,7 @@ namespace Mod
 			{
 				if (!HasRequiredResources())
 				{
+					Rms.DeleteStorage(Rms.RMS_ResVersion);
 					return;
 				}
 				string resVer = Rms.loadRMSString(Rms.RMS_ResVersion);
@@ -290,15 +292,23 @@ namespace Mod
 			{
 				ApplyTeamobi2026ServerConfig();
 				SplashScr.imgLogo = null;
-				ServerListScreen.bigOk = true;
-				ServerListScreen.loadScreen = true;
-				ServerListScreen.isGetData = false;
+				bool hasRes = HasRequiredResources();
+				ServerListScreen.bigOk = hasRes;
+				ServerListScreen.loadScreen = hasRes;
+				ServerListScreen.isGetData = !hasRes;
 				ServerListScreen.waitToLogin = false;
-				GameCanvas.loadBG(0);
-				GameCanvas.instance.perform(9000, null);
-				if (GameCanvas.currentScreen != GameCanvas.serverScreen)
+				if (hasRes)
 				{
-					GameCanvas.serverScreen.switchToMe();
+					GameCanvas.loadBG(0);
+					GameCanvas.instance.perform(9000, null);
+					if (GameCanvas.currentScreen != GameCanvas.serverScreen)
+					{
+						GameCanvas.serverScreen.switchToMe();
+					}
+				}
+				else
+				{
+					GameCanvas.serverScreen.show2();
 				}
 			}
 			catch (Exception ex)
@@ -309,13 +319,22 @@ namespace Mod
 			{
 				try
 				{
-					ServerListScreen.loadScreen = true;
+					bool hasRes = HasRequiredResources();
+					ServerListScreen.loadScreen = hasRes;
+					ServerListScreen.isGetData = !hasRes;
 					GameCanvas.loadBG(0);
 					GameCanvas.clearKeyPressed();
 					GameCanvas.clearKeyHold();
 					GameCanvas.serverScreen.initCommand();
 					GameCanvas.currentScreen = GameCanvas.serverScreen;
-					OnServerListScreenLoaded(GameCanvas.serverScreen);
+					if (hasRes)
+					{
+						OnServerListScreenLoaded(GameCanvas.serverScreen);
+					}
+					else
+					{
+						GameCanvas.serverScreen.show2();
+					}
 				}
 				catch (Exception ex2)
 				{
@@ -1156,8 +1175,11 @@ namespace Mod
 			}
 			else
 			{
+				ServerListScreen.stopDownload = false;
 				ServerListScreen.loadScreen = false;
 				ServerListScreen.isGetData = true;
+				Rms.DeleteStorage(Rms.RMS_ResVersion);
+				Service.gI().setClientType();
 				Service.gI().getResource(1, null);
 			}
 		}
@@ -2674,6 +2696,12 @@ namespace Mod
 			if (HasRequiredResources())
 			{
 				ServerListScreen.loadScreen = true;
+				ServerListScreen.isGetData = false;
+			}
+			else
+			{
+				ServerListScreen.loadScreen = false;
+				ServerListScreen.isGetData = true;
 			}
 			screen.nCmdPlay = 0;
 			string text = Rms.loadRMSString("acc");

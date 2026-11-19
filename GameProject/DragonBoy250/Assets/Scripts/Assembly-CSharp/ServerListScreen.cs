@@ -232,6 +232,7 @@ public class ServerListScreen : mScreen, IActionListener
 			center = new Command(string.Empty, this, 4, null);
 			if (!isGetData)
 			{
+				Service.gI().setClientType();
 				Service.gI().getResource(1, null);
 				if (!GameCanvas.isTouch)
 				{
@@ -1080,6 +1081,7 @@ public class ServerListScreen : mScreen, IActionListener
 	public void show2()
 	{
 		Debug.LogError(">>>>ServerListScreen show2: ");
+		stopDownload = false;
 		GameScr.cmx = 0;
 		GameScr.cmy = 0;
 		initCommand();

@@ -30,11 +30,17 @@ public class SmallImage
 
 	public static void loadBigRMS()
 	{
-		if (imgbig == null)
+		if (imgbig == null || imgbig[0] == null)
 		{
+			Image b0 = GameCanvas.loadImageRMS("/img/Big0.png");
+			if (b0 == null)
+			{
+				imgbig = null;
+				return;
+			}
 			imgbig = new Image[5]
 			{
-				GameCanvas.loadImageRMS("/img/Big0.png"),
+				b0,
 				GameCanvas.loadImageRMS("/img/Big1.png"),
 				GameCanvas.loadImageRMS("/img/Big2.png"),
 				GameCanvas.loadImageRMS("/img/Big3.png"),
@@ -194,6 +200,18 @@ public class SmallImage
 			else if (imgbig[smallImg[id][0]] != null)
 			{
 				g.drawRegion(imgbig[smallImg[id][0]], smallImg[id][1], smallImg[id][2], smallImg[id][3], smallImg[id][4], transform, x, y, anchor);
+			}
+			else
+			{
+				Small small2 = imgNew[id];
+				if (small2 == null)
+				{
+					createImage(id);
+				}
+				else
+				{
+					small2.paint(g, transform, x, y, anchor);
+				}
 			}
 		}
 		else if (GameCanvas.currentScreen != GameScr.gI())

@@ -1227,7 +1227,7 @@ public class Controller : IMessageHandler
 					string text2 = Rms.loadRMSString(Rms.RMS_ResVersion);
 					int num23 = ((text2 == null || !(text2 != string.Empty)) ? (-1) : int.Parse(text2));
 					Res.outz("4>>>GET_IMAGE_SOURCE: version>> " + text2 + " <> " + num23 + "!=" + num22);
-					if (num23 == -1 || num23 != num22)
+					if (num23 == -1 || num23 != num22 || !Mod.GameEvents.HasRequiredResources())
 					{
 						GameCanvas.serverScreen.show2();
 					}
