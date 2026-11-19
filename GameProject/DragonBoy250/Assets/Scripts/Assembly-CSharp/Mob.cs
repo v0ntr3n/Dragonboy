@@ -985,7 +985,7 @@ public class Mob : IMapObject
 			if ((injureBy != null && injureThenDie) || hp == 0)
 			{
 				status = 1;
-				p2 = injureBy.cdir << 1;
+				p2 = ((injureBy != null) ? (injureBy.cdir << 1) : 0);
 				p1 = -3;
 				p3 = 0;
 			}
@@ -1070,6 +1070,11 @@ public class Mob : IMapObject
 
 	public void updateMobAttack()
 	{
+		if (cFocus == null && mobToAttack == null)
+		{
+			status = 2;
+			return;
+		}
 		int[] array = ((p3 != 0) ? attack2 : attack1);
 		if (tick < array.Length)
 		{
@@ -1169,7 +1174,7 @@ public class Mob : IMapObject
 			if (injureThenDie)
 			{
 				status = 1;
-				p2 = injureBy.cdir << 3;
+				p2 = ((injureBy != null) ? (injureBy.cdir << 3) : 0);
 				p1 = -5;
 				p3 = 0;
 			}
@@ -1402,6 +1407,13 @@ public class Mob : IMapObject
 
 	public void updateHp_bar()
 	{
+		if (maxHp <= 0)
+		{
+			len = 0;
+			per = 0;
+			per_tem = 0;
+			return;
+		}
 		len = (int)(hp * 100 / maxHp * w_hp_bar) / 100;
 		per = (int)(hp * 100 / maxHp);
 		if (per == 100)
