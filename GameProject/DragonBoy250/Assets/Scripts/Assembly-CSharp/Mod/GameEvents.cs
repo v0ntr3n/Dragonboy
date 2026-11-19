@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -19,6 +20,7 @@ using Mod.R;
 using Mod.TeleportMenu;
 using Mod.Xmap;
 using Mod.Yardat;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 using CharacterInfo = Mod.AccountManager.CharacterInfo;
 
@@ -26,8 +28,8 @@ namespace Mod
 {
 	internal static class GameEvents
 	{
-		static float _previousWidth = Screen.width;
-		static float _previousHeight = Screen.height;
+		static float _previousWidth = -1f;
+		static float _previousHeight = -1f;
 		static bool isHaveSelectSkill_old;
 		static long lastTimeGamePause;
 		static long lastTimeRequestPetInfo;
@@ -36,7 +38,12 @@ namespace Mod
 		static long delayRequestZoneInfo = 100;
 		static bool isFirstPause = true;
 		static bool isOpenZoneUI;
-		static GUIStyle style;
+		static GUIStyle _hpStyle;
+		static GUIStyle _mpStyle;
+		static int _hudStyleZoomLevel = -1;
+		static float _lastFpsSampleTime = -1f;
+		static string _cachedFpsStr = "0.0";
+		static bool _rmsBootstrapResetDone;
 		internal const string TEAMOBI2026_SERVER_NAME = "Ngọc Rồng Teamobi2026";
 		internal const string TEAMOBI2026_HOST = "127.0.0.1";
 		internal const int TEAMOBI2026_PORT = 14445;
@@ -46,13 +53,10 @@ namespace Mod
 		static string currentHost = TEAMOBI2026_HOST;
 		static ushort currentPort = (ushort)TEAMOBI2026_PORT;
 
-		static FieldInfo _mainPaintCountField;
-		static FieldInfo _mainUpdateCountField;
 		static FieldInfo _midletIpField;
 		static FieldInfo _midletPortField;
 		static FieldInfo _myVectorListField;
 		static FieldInfo _myReaderBufferField;
-		static bool _reflectionInitialized;
 		static bool _endpointReflectionInitialized;
 		static int _splashTicksObserved;
 		static bool _splashLoadIpTriggered;
@@ -74,9 +78,13 @@ namespace Mod
 			{
 				Main.mainThreadName = Thread.CurrentThread.Name;
 			}
-			if (Rms.status != 0)
+			if (!_rmsBootstrapResetDone)
 			{
-				Rms.status = 0;
+				_rmsBootstrapResetDone = true;
+				if (Rms.status != 0)
+				{
+					Rms.status = 0;
+				}
 			}
 		}
 
@@ -213,9 +221,7 @@ namespace Mod
 				ServerListScreen.loadScreen = true;
 				ServerListScreen.isGetData = false;
 				ServerListScreen.waitToLogin = false;
-				ServerListScreen.testConnect = 2;
 				GameCanvas.loadBG(0);
-				GameCanvas.serverScreen.initCommand();
 				GameCanvas.instance.perform(9000, null);
 				if (GameCanvas.currentScreen != GameCanvas.serverScreen)
 				{
@@ -232,6 +238,8 @@ namespace Mod
 				{
 					ServerListScreen.loadScreen = true;
 					GameCanvas.loadBG(0);
+					GameCanvas.clearKeyPressed();
+					GameCanvas.clearKeyHold();
 					GameCanvas.serverScreen.initCommand();
 					GameCanvas.currentScreen = GameCanvas.serverScreen;
 					OnServerListScreenLoaded(GameCanvas.serverScreen);
@@ -286,22 +294,13 @@ namespace Mod
 				myReader r = msg.reader();
 				if (r != null && _myReaderBufferField != null)
 				{
-					sbyte[] buf = _myReaderBufferField.GetValue(r) as sbyte[];
-					if (buf != null)
-						return buf;
+					return _myReaderBufferField.GetValue(r) as sbyte[];
 				}
 			}
 			catch
 			{
 			}
-			try
-			{
-				return msg.getData();
-			}
-			catch
-			{
-				return null;
-			}
+			return null;
 		}
 
 		static void NormalizeQueueServerListMessages(MyVector queue)
@@ -369,6 +368,10 @@ namespace Mod
 			{
 				GameMidlet.IP2 = currentHost;
 			}
+			if (GameMidlet.PORT2 <= 0)
+			{
+				GameMidlet.PORT2 = currentPort > 0 ? currentPort : TEAMOBI2026_PORT;
+			}
 		}
 		static bool _hasTickSnapshot;
 		static bool _isInterpolatingPose;
@@ -377,22 +380,12 @@ namespace Mod
 
 		static void UnlockMainPaintGate()
 		{
-			if (!_reflectionInitialized)
-			{
-				_reflectionInitialized = true;
-				_mainPaintCountField = typeof(Main).GetField("paintCount", BindingFlags.Instance | BindingFlags.NonPublic);
-				_mainUpdateCountField = typeof(Main).GetField("updateCount", BindingFlags.Instance | BindingFlags.NonPublic);
-			}
-			if (Main.main != null)
-			{
-				_mainPaintCountField?.SetValue(Main.main, 0);
-				_mainUpdateCountField?.SetValue(Main.main, 1000000000);
-			}
+			SmoothFrame180Hz.UnlockMainPaintGate();
 		}
 
 		internal static void RestoreAuthoritativePose()
 		{
-			if (!_hasTickSnapshot)
+			if (!_hasTickSnapshot || !_isInterpolatingPose)
 				return;
 			Char me = Char.myCharz();
 			if (me != null && _isInterpolatingPose)
@@ -528,6 +521,7 @@ namespace Mod
 			Application.runInBackground = true;
 			Time.timeScale = 2f;
 			Time.fixedDeltaTime = 0.02f;
+			OnSetResolution();
 		}
 
 		internal static void OnGameStart()
@@ -629,7 +623,7 @@ namespace Mod
 			{
 				ServerListScreen.ipSelect = 0;
 			}
-			if (GameCanvas.currentScreen is SplashScr)
+			if (!_splashCompleted && GameCanvas.currentScreen is SplashScr)
 			{
 				_splashTicksObserved++;
 				if ((_splashLoadIpTriggered && _splashTicksObserved >= 32) || _splashTicksObserved >= 36)
@@ -637,9 +631,16 @@ namespace Mod
 					CompleteSplashAndOpenServerList();
 				}
 			}
-			else if (!_splashCompleted && GameCanvas.currentScreen == null && GameCanvas.serverScreen != null && GameCanvas.gameTick > 40)
+			else
 			{
-				CompleteSplashAndOpenServerList();
+				if (!(GameCanvas.currentScreen is SplashScr))
+				{
+					_splashTicksObserved = 0;
+				}
+				if (!_splashCompleted && GameCanvas.currentScreen == null && GameCanvas.serverScreen != null && GameCanvas.gameTick > 40)
+				{
+					CompleteSplashAndOpenServerList();
+				}
 			}
 			if (GameCanvas.currentScreen is ServerListScreen && !ServerListScreen.loadScreen && !ServerListScreen.isGetData)
 			{
@@ -682,12 +683,18 @@ namespace Mod
 			if (!Main.started)
 				return;
 			UnlockMainPaintGate();
+			if (GameCanvas.instance == null || MotherCanvas.instance == null)
+				return;
 			if (!_previousWidth.Equals(Screen.width) || !_previousHeight.Equals(Screen.height))
 			{
 				_previousWidth = Screen.width;
 				_previousHeight = Screen.height;
 				ScaleGUI.initScaleGUI();
-				GameCanvas.instance?.ResetSize();
+				GameCanvas.instance.ResetSize();
+				if (GameCanvas.currentScreen == GameCanvas.serverScreen)
+				{
+					GameCanvas.serverScreen?.initCommand();
+				}
 				Utils.ResetTextField(ChatTextField.gI());
 				GameScr.gamePad?.SetGamePadZone();
 				GameScr.loadCamera(false, -1, -1);
@@ -726,24 +733,33 @@ namespace Mod
 			bool fullScreen = false;
 			if (Utils.sizeData != null)
 			{
-				width = (int)Utils.sizeData["width"];
-				height = (int)Utils.sizeData["height"];
-				fullScreen = (bool)Utils.sizeData["fullScreen"];
-			}
-			if (Screen.width != width || Screen.height != height || Screen.fullScreen != fullScreen)
-				Screen.SetResolution(width, height, fullScreen);
-			if (!fullScreen && Screen.fullScreen)
-				Screen.fullScreen = false;
-			if (Utils.sizeData != null)
-			{
-				new Thread(() =>
+				try
 				{
-					while (Screen.fullScreen != fullScreen)
+					if (Utils.sizeData.TryGetValue("width", out JToken widthToken) && widthToken != null && widthToken.Type != JTokenType.Null)
 					{
-						Screen.fullScreen = fullScreen;
-						Thread.Sleep(100);
+						int parsedWidth = widthToken.Value<int>();
+						if (parsedWidth > 0)
+							width = parsedWidth;
 					}
-				}).Start();
+					if (Utils.sizeData.TryGetValue("height", out JToken heightToken) && heightToken != null && heightToken.Type != JTokenType.Null)
+					{
+						int parsedHeight = heightToken.Value<int>();
+						if (parsedHeight > 0)
+							height = parsedHeight;
+					}
+					if (Utils.sizeData.TryGetValue("fullScreen", out JToken fsToken) && fsToken != null && fsToken.Type != JTokenType.Null)
+					{
+						fullScreen = fsToken.Value<bool>();
+					}
+				}
+				catch
+				{
+				}
+			}
+			FullScreenMode mode = fullScreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
+			if (Screen.width != width || Screen.height != height || Screen.fullScreenMode != mode || Screen.fullScreen != fullScreen)
+			{
+				Screen.SetResolution(width, height, mode);
 			}
 		}
 
@@ -820,35 +836,45 @@ namespace Mod
 
 		internal static void OnUpdateGameScr()
 		{
-			if (!Utils.IsOpenedByExternalAccountManager && GameCanvas.gameTick % (60 * Time.timeScale) == 0)
+			int syncInterval = Mathf.Max(1, Mathf.RoundToInt(60f * Time.timeScale));
+			Char myChar = Char.myCharz();
+			if (!Utils.IsOpenedByExternalAccountManager && myChar != null && GameCanvas.gameTick % syncInterval == 0)
 			{
 				Account account = InGameAccountManager.SelectedAccount;
 				if (account != null)
 				{
-					account.Gold = Char.myCharz().xu;
-					account.Gem = Char.myCharz().luong;
-					account.Ruby = Char.myCharz().luongKhoa;
+					account.Gold = myChar.xu;
+					account.Gem = myChar.luong;
+					account.Ruby = myChar.luongKhoa;
 
-					account.Info.Name = Char.myCharz().cName;
-					account.Info.CharID = Char.myCharz().charID;
-					account.Info.Gender = (sbyte)Char.myCharz().cgender;
-					account.Info.EXP = Char.myCharz().cPower;
-					account.Info.MaxHP = Char.myCharz().cHPFull;
-					account.Info.MaxMP = Char.myCharz().cMPFull;
-					account.Info.Icon = Char.myCharz().avatarz();
-					if (Char.myCharz().havePet)
+					if (account.Info == null)
 					{
-						if (account.PetInfo == null)
+						account.Info = new CharacterInfo();
+					}
+					account.Info.Name = myChar.cName;
+					account.Info.CharID = myChar.charID;
+					account.Info.Gender = (sbyte)myChar.cgender;
+					account.Info.EXP = myChar.cPower;
+					account.Info.MaxHP = myChar.cHPFull;
+					account.Info.MaxMP = myChar.cMPFull;
+					account.Info.Icon = myChar.avatarz();
+					if (myChar.havePet)
+					{
+						Char myPet = Char.myPetz();
+						if (myPet != null)
 						{
-							account.PetInfo = new CharacterInfo();
+							if (account.PetInfo == null)
+							{
+								account.PetInfo = new CharacterInfo();
+							}
+							account.PetInfo.Name = myPet.cName;
+							account.PetInfo.CharID = myPet.charID;
+							account.PetInfo.Gender = (sbyte)Utils.GetPetGender();
+							account.PetInfo.EXP = myPet.cPower;
+							account.PetInfo.MaxHP = myPet.cHPFull;
+							account.PetInfo.MaxMP = myPet.cMPFull;
+							account.PetInfo.Icon = myPet.avatarz();
 						}
-						account.PetInfo.Name = Char.myPetz().cName;
-						account.PetInfo.CharID = Char.myPetz().charID;
-						account.PetInfo.Gender = (sbyte)Utils.GetPetGender();
-						account.PetInfo.EXP = Char.myPetz().cPower;
-						account.PetInfo.MaxHP = Char.myPetz().cHPFull;
-						account.PetInfo.MaxMP = Char.myPetz().cMPFull;
-						account.PetInfo.Icon = Char.myPetz().avatarz();
 					}
 					else
 					{
@@ -857,7 +883,7 @@ namespace Mod
 				}
 			}
 
-			if (Char.myCharz().havePet && mSystem.currentTimeMillis() - lastTimeRequestPetInfo > delayRequestPetInfo)
+			if (myChar != null && myChar.havePet && mSystem.currentTimeMillis() - lastTimeRequestPetInfo > delayRequestPetInfo)
 			{
 				delayRequestPetInfo = Res.random(750, 1000);
 				lastTimeRequestPetInfo = mSystem.currentTimeMillis();
@@ -871,7 +897,10 @@ namespace Mod
 				Service.gI().openUIZone();
 			}
 
-			Char.myCharz().cspeed = Utils.myCharSpeed;
+			if (myChar != null)
+			{
+				myChar.cspeed = Utils.myCharSpeed;
+			}
 			Time.timeScale = Utils.timeScale;
 			Boss.Update();
 			ListCharsInMap.Update();
@@ -908,23 +937,32 @@ namespace Mod
 				else
 				{
 					pass = string.Empty;
-					Rms.DeleteStorage("userAo" + acc.Server.index);
+					int serverIndex = acc.Server != null ? acc.Server.index : ServerListScreen.ipSelect;
+					Rms.DeleteStorage("userAo" + serverIndex);
 				}
 
 				acc.LastTimeLogin = DateTime.Now;
 			}
 			else
 			{
-				username = Utils.username == "" ? username : Utils.username;
-				if (username.StartsWith("User"))
+				username = string.IsNullOrEmpty(Utils.username) ? username : Utils.username;
+				if (!string.IsNullOrEmpty(username) && username.StartsWith("User", StringComparison.Ordinal))
 				{
 					pass = string.Empty;
 					type = 1;
 				}
 				else
 				{
-					pass = Utils.password == "" ? pass : Utils.password;
+					pass = string.IsNullOrEmpty(Utils.password) ? pass : Utils.password;
 				}
+			}
+			if (ServerListScreen.nameServer != null && ServerListScreen.nameServer.Length > 0)
+			{
+				ServerListScreen.ipSelect = Mathf.Clamp(ServerListScreen.ipSelect, 0, ServerListScreen.nameServer.Length - 1);
+			}
+			else if (ServerListScreen.ipSelect < 0)
+			{
+				ServerListScreen.ipSelect = 0;
 			}
 			AutoLogin.SetServer(ServerListScreen.ipSelect);
 		}
@@ -942,12 +980,29 @@ namespace Mod
 				}
 				return;
 			}
+			if (serverListScreen == null || serverListScreen.cmd == null)
+			{
+				return;
+			}
+			if (string.IsNullOrEmpty(Strings.accounts))
+			{
+				Strings.LoadLanguage(mResources.language);
+			}
+			int accountCmdIdx = 1 + serverListScreen.nCmdPlay;
+			if (accountCmdIdx >= 0 && accountCmdIdx < serverListScreen.cmd.Length && serverListScreen.cmd[accountCmdIdx] != null)
+			{
+				serverListScreen.cmd[accountCmdIdx].caption = Strings.accounts;
+			}
 			if (string.IsNullOrEmpty(nameCustomServer))
 			{
 				return;
 			}
-			serverListScreen.cmd[2 + serverListScreen.nCmdPlay].caption =
-				mResources.server + ": [custom] " + nameCustomServer;
+			int serverCmdIdx = 2 + serverListScreen.nCmdPlay;
+			if (serverCmdIdx >= 0 && serverCmdIdx < serverListScreen.cmd.Length && serverListScreen.cmd[serverCmdIdx] != null)
+			{
+				serverListScreen.cmd[serverCmdIdx].caption =
+					mResources.server + ": [custom] " + nameCustomServer;
+			}
 		}
 
 		internal static void OnSessionConnecting(ref string host, ref int port)
@@ -966,8 +1021,8 @@ namespace Mod
 				InGameAccountManager.SelectedServer = null;
 				if (server != null && server.IsCustomIP())
 				{
-					host = currentHost = (server.hostnameOrIPAddress == "0.0.0.0") ? TEAMOBI2026_HOST : server.hostnameOrIPAddress;
-					port = currentPort = server.port;
+					host = currentHost = IsLegacyOrWildcardHost(server.hostnameOrIPAddress) ? TEAMOBI2026_HOST : server.hostnameOrIPAddress;
+					port = currentPort = server.port > 0 ? server.port : (ushort)TEAMOBI2026_PORT;
 					nameCustomServer = server.name;
 				}
 				else
@@ -979,10 +1034,10 @@ namespace Mod
 					int idx = (server != null && ServerListScreen.address != null && server.index >= 0 && server.index < ServerListScreen.address.Length)
 						? server.index
 						: 0;
-					string resolvedHost = (ServerListScreen.address != null && ServerListScreen.address.Length > 0 && !IsLegacyOrWildcardHost(ServerListScreen.address[idx]))
+					string resolvedHost = (ServerListScreen.address != null && idx >= 0 && idx < ServerListScreen.address.Length && !IsLegacyOrWildcardHost(ServerListScreen.address[idx]))
 						? ServerListScreen.address[idx]
 						: TEAMOBI2026_HOST;
-					ushort resolvedPort = (ServerListScreen.port != null && ServerListScreen.port.Length > 0 && ServerListScreen.port[idx] > 0)
+					ushort resolvedPort = (ServerListScreen.port != null && idx >= 0 && idx < ServerListScreen.port.Length && ServerListScreen.port[idx] > 0)
 						? (ushort)ServerListScreen.port[idx]
 						: (ushort)TEAMOBI2026_PORT;
 					host = currentHost = resolvedHost;
@@ -1324,8 +1379,12 @@ namespace Mod
 			string filePath = Path.Combine(customAssetsPath, filename.Replace('/', Path.DirectorySeparatorChar) + ".png");
 			if (File.Exists(filePath))
 			{
-				texture2D = new Texture2D(1, 1);
-				texture2D.LoadImage(File.ReadAllBytes(filePath));
+				texture2D = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+				if (!texture2D.LoadImage(File.ReadAllBytes(filePath)))
+				{
+					UnityEngine.Object.Destroy(texture2D);
+					texture2D = Resources.Load<Texture2D>(filename);
+				}
 			}
 			else
 			{
@@ -1637,7 +1696,8 @@ namespace Mod
 			mFont.tahoma_7b_white.drawString(g, Strings.communityMod, 60, 4, mFont.LEFT, mFont.tahoma_7b_dark);
 			mFont.tahoma_7_yellow.drawString(g, Strings.gameVersion + ": v" + GameMidlet.VERSION, 60, 16, mFont.LEFT,
 				mFont.tahoma_7_grey);
-			mFont.tahoma_7_yellow.drawString(g, mResources.character + ": " + Char.myCharz().cName, 60, 27, mFont.LEFT,
+			string charName = Char.myCharz()?.cName ?? string.Empty;
+			mFont.tahoma_7_yellow.drawString(g, mResources.character + ": " + charName, 60, 27, mFont.LEFT,
 				mFont.tahoma_7_grey);
 			Account account = InGameAccountManager.SelectedAccount;
 			string serverName = account == null || account.Server == null
@@ -1765,17 +1825,34 @@ namespace Mod
 			return true;
 		}
 
-		internal static void OnPaintGameCanvas(GameCanvas instance, mGraphics g)
+		static bool EnsureHudStyles()
 		{
-			if (style == null)
+			if (GUI.skin == null)
+				return false;
+			int zoom = mGraphics.zoomLevel;
+			if (_hpStyle == null || _mpStyle == null || _hudStyleZoomLevel != zoom)
 			{
-				style = new GUIStyle(GUI.skin.label)
+				_hudStyleZoomLevel = zoom;
+				_hpStyle = new GUIStyle(GUI.skin.label)
 				{
 					fontStyle = FontStyle.Bold,
-					fontSize = (int)(8.5 * mGraphics.zoomLevel)
+					fontSize = (int)(8.5 * zoom)
 				};
-				style.normal.textColor = style.hover.textColor = Color.yellow;
+				_hpStyle.normal.textColor = _hpStyle.hover.textColor = Color.yellow;
+
+				_mpStyle = new GUIStyle(GUI.skin.label)
+				{
+					fontStyle = FontStyle.Bold,
+					fontSize = 5 * zoom
+				};
+				_mpStyle.normal.textColor = _mpStyle.hover.textColor = Color.yellow;
 			}
+			return true;
+		}
+
+		internal static void OnPaintGameCanvas(GameCanvas instance, mGraphics g)
+		{
+			EnsureHudStyles();
 
 			if (!GameCanvas.panel.isShow)
 			{
@@ -1796,10 +1873,16 @@ namespace Mod
 
 			UnlockMainPaintGate();
 			g.setColor(new Color(0.2f, 0.2f, 0.2f, 0.6f));
-			double fps = System.Math.Round(1f / Mathf.Max(0.0001f, Time.unscaledDeltaTime), 1);
-			string fpsStr = fps.ToString("F1").Replace(',', '.');
-			g.fillRect(0, 0, mFont.tahoma_7b_red.getWidth(fpsStr) + 2, 12);
-			mFont.tahoma_7b_red.drawString(g, fpsStr, 2, 0, 0);
+			float now = Time.realtimeSinceStartup;
+			if (_lastFpsSampleTime < 0f || now - _lastFpsSampleTime >= 0.25f)
+			{
+				_lastFpsSampleTime = now;
+				double fps = System.Math.Round(1f / Mathf.Max(0.0001f, Time.unscaledDeltaTime), 1);
+				_cachedFpsStr = fps.ToString("F1", CultureInfo.InvariantCulture);
+			}
+			g.fillRect(0, 0, mFont.tahoma_7b_red.getWidth(_cachedFpsStr) + 2, 12);
+			mFont.tahoma_7b_red.drawString(g, _cachedFpsStr, 2, 0, 0);
+			RestoreAuthoritativePose();
 		}
 
 		internal static bool OnUpdatePanel(Panel instance)
@@ -1993,14 +2076,12 @@ namespace Mod
 			string cHP = Utils.FormatWithSIPrefix(Char.myCharz().cHP);
 			string cMP = Utils.FormatWithSIPrefix(Char.myCharz().cMP);
 			g.setColor(new Color(0.2f, 0.2f, 0.2f, 0.6f));
-			if (mGraphics.zoomLevel > 1)
+			if (mGraphics.zoomLevel > 1 && EnsureHudStyles())
 			{
-				style.fontSize = (int)(8.5 * mGraphics.zoomLevel);
-				g.fillRect(xHP, yHP + 1, Utils.getWidth(style, cHP) + 1, Utils.getHeight(style, cHP) - 2);
-				g.drawString(cHP, xHP, yHP, style);
-				style.fontSize = 5 * mGraphics.zoomLevel;
-				g.fillRect(xMP - 1, yMP + 1, Utils.getWidth(style, cMP) + 1, Utils.getHeight(style, cMP) - 2);
-				g.drawString(cMP, xMP, yMP, style);
+				g.fillRect(xHP, yHP + 1, Utils.getWidth(_hpStyle, cHP) + 1, Utils.getHeight(_hpStyle, cHP) - 2);
+				g.drawString(cHP, xHP, yHP, _hpStyle);
+				g.fillRect(xMP - 1, yMP + 1, Utils.getWidth(_mpStyle, cMP) + 1, Utils.getHeight(_mpStyle, cMP) - 2);
+				g.drawString(cMP, xMP, yMP, _mpStyle);
 			}
 			else
 			{
@@ -2534,10 +2615,11 @@ namespace Mod
 					else if (!Utils.IsOpenedByExternalAccountManager)
 					{
 						Account acc = InGameAccountManager.SelectedAccount;
-						if (acc == null)
+						string displayName = acc?.Info?.Name;
+						if (string.IsNullOrEmpty(displayName))
 							screen.cmd[0].caption = mResources.playAcc + ": " + new string('*', text.Length);
 						else
-							screen.cmd[0].caption = mResources.playAcc + ": " + acc.Info.Name;
+							screen.cmd[0].caption = mResources.playAcc + ": " + displayName;
 					}
 					else
 					{
