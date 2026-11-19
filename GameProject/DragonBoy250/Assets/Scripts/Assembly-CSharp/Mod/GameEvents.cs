@@ -236,10 +236,28 @@ namespace Mod
 			SyncGameMidletEndpoints(TEAMOBI2026_HOST, TEAMOBI2026_PORT);
 		}
 
+		internal static bool HasRequiredResources()
+		{
+			try
+			{
+				string filename = "x" + mGraphics.zoomLevel + "Big0";
+				sbyte[] data = Rms.loadRMS(filename);
+				return data != null && data.Length > 0;
+			}
+			catch
+			{
+				return false;
+			}
+		}
+
 		internal static void EnsureResVersionReady()
 		{
 			try
 			{
+				if (!HasRequiredResources())
+				{
+					return;
+				}
 				string resVer = Rms.loadRMSString(Rms.RMS_ResVersion);
 				if (string.IsNullOrEmpty(resVer))
 				{
@@ -703,12 +721,15 @@ namespace Mod
 			}
 			if (GameCanvas.currentScreen is ServerListScreen && !ServerListScreen.loadScreen && !ServerListScreen.isGetData)
 			{
-				EnsureResVersionReady();
-				ServerListScreen.loadScreen = true;
-				GameCanvas.loadBG(0);
-				if (GameCanvas.serverScreen != null && (GameCanvas.serverScreen.cmd == null || GameCanvas.serverScreen.cmd.Length == 0))
+				if (HasRequiredResources())
 				{
-					GameCanvas.serverScreen.initCommand();
+					EnsureResVersionReady();
+					ServerListScreen.loadScreen = true;
+					GameCanvas.loadBG(0);
+					if (GameCanvas.serverScreen != null && (GameCanvas.serverScreen.cmd == null || GameCanvas.serverScreen.cmd.Length == 0))
+					{
+						GameCanvas.serverScreen.initCommand();
+					}
 				}
 			}
 			if (GameCanvas.currentScreen != null)
@@ -1126,10 +1147,19 @@ namespace Mod
 		internal static void OnScreenDownloadDataShow()
 		{
 			ApplyTeamobi2026ServerConfig();
-			ServerListScreen.isGetData = false;
-			ServerListScreen.loadScreen = true;
-			GameCanvas.loadBG(0);
-			GameCanvas.serverScreen?.switchToMe();
+			if (HasRequiredResources())
+			{
+				ServerListScreen.isGetData = false;
+				ServerListScreen.loadScreen = true;
+				GameCanvas.loadBG(0);
+				GameCanvas.serverScreen?.switchToMe();
+			}
+			else
+			{
+				ServerListScreen.loadScreen = false;
+				ServerListScreen.isGetData = true;
+				Service.gI().getResource(1, null);
+			}
 		}
 
 		internal static bool OnCheckZoomLevel(int w, int h)
@@ -2641,7 +2671,10 @@ namespace Mod
 			{
 				Strings.LoadLanguage(mResources.language);
 			}
-			ServerListScreen.loadScreen = true;
+			if (HasRequiredResources())
+			{
+				ServerListScreen.loadScreen = true;
+			}
 			screen.nCmdPlay = 0;
 			string text = Rms.loadRMSString("acc");
 			sbyte[] userAo = Rms.loadRMS("userAo" + ServerListScreen.ipSelect);

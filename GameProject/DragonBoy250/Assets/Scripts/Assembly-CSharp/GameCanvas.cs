@@ -877,7 +877,7 @@ public class GameCanvas : IActionListener
 
 	public void update()
 	{
-		if (currentScreen == _SelectCharScr)
+		if (currentScreen == _SelectCharScr || currentScreen == CreateCharScr.instance)
 		{
 			if (gameTick % 2 == 0 && SmallImage.vt_images_watingDowload.size() > 0)
 			{

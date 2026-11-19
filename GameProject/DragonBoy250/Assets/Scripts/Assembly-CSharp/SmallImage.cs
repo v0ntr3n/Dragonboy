@@ -108,7 +108,7 @@ public class SmallImage
 				return;
 			}
 			imgNew[id] = new Small(imgEmpty, id);
-			if (GameCanvas.currentScreen == GameCanvas._SelectCharScr)
+			if (GameCanvas.currentScreen == GameCanvas._SelectCharScr || GameCanvas.currentScreen == CreateCharScr.instance)
 			{
 				Service.gI().requestIcon(id);
 			}
@@ -152,7 +152,7 @@ public class SmallImage
 		if (flag)
 		{
 			imgNew[id] = new Small(imgEmpty, id);
-			if (GameCanvas.currentScreen == GameCanvas._SelectCharScr)
+			if (GameCanvas.currentScreen == GameCanvas._SelectCharScr || GameCanvas.currentScreen == CreateCharScr.instance)
 			{
 				Service.gI().requestIcon(id);
 			}

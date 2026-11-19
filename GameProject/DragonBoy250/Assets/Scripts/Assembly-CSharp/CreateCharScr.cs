@@ -233,6 +233,10 @@ public class CreateCharScr : mScreen, IActionListener
 		LoginScr.isContinueToLogin = false;
 		GameCanvas.menu.showMenu = false;
 		GameCanvas.endDlg();
+		if (SmallImage.imgbig == null)
+		{
+			SmallImage.loadBigRMS();
+		}
 		base.switchToMe();
 		indexGender = Res.random(0, 3);
 		indexHair = Res.random(0, 3);
@@ -432,6 +436,10 @@ public class CreateCharScr : mScreen, IActionListener
 		if (Char.isLoadingMap)
 		{
 			return;
+		}
+		if (SmallImage.imgbig == null)
+		{
+			SmallImage.loadBigRMS();
 		}
 		GameCanvas.paintBGGameScr(g);
 		g.translate(-GameScr.cmx, -GameScr.cmy);

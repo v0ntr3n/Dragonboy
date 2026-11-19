@@ -1185,6 +1185,10 @@ public class GameScr : mScreen, IChatable
 	{
 		readPart();
 		SmallImage.init();
+		if (SmallImage.imgbig == null)
+		{
+			SmallImage.loadBigRMS();
+		}
 	}
 
 	public static void paintOngMauPercent(Image img0, Image img1, Image img2, float x, float y, int size, float pixelPercent, mGraphics g)
