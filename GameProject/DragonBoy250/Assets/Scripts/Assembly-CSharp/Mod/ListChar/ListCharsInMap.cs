@@ -49,7 +49,7 @@ namespace Mod.ListChar
 			for (int i = 0; i < GameScr.vCharInMap.size(); i++)
 			{
 				Char ch = (Char)GameScr.vCharInMap.elementAt(i);
-				if (ch.IsNormalChar(true))
+				if (ch != null && ch.IsNormalChar(true))
 				{
 					listChars.Add(ch);
 					if (isShowPet && ch.charID > 0)
@@ -67,7 +67,7 @@ namespace Mod.ListChar
 				for (int i = 0; i < GameScr.vCharInMap.size(); i++)
 				{
 					Char ch = (Char)GameScr.vCharInMap.elementAt(i);
-					if (ch.IsNormalChar(false, true) && !listChars.Contains(ch))
+					if (ch != null && ch.IsNormalChar(false, true) && !listChars.Contains(ch))
 					{
 						listChars.Add(ch);
 					}
@@ -146,9 +146,21 @@ namespace Mod.ListChar
 
 		static string BuildTitleText()
 		{
-			int maxPlayers = GameScr.gI().maxPlayer[TileMap.zoneID];
-			int players = GameScr.gI().numPlayer[TileMap.zoneID];
-			return $"{TileMap.mapName} • {Strings.zone} {TileMap.zoneID} [{players}/{maxPlayers}]";
+			GameScr gs = GameScr.gI();
+			int zoneId = TileMap.zoneID;
+			if (gs?.zones != null && gs.numPlayer != null && gs.maxPlayer != null)
+			{
+				int idx = (zoneId >= 0 && zoneId < gs.zones.Length && gs.zones[zoneId] == zoneId)
+					? zoneId
+					: System.Array.IndexOf(gs.zones, zoneId);
+				if (idx >= 0 && idx < gs.numPlayer.Length && idx < gs.maxPlayer.Length)
+				{
+					int maxPlayers = gs.maxPlayer[idx];
+					int players = gs.numPlayer[idx];
+					return $"{TileMap.mapName} • {Strings.zone} {zoneId} [{players}/{maxPlayers}]";
+				}
+			}
+			return $"{TileMap.mapName} • {Strings.zone} {zoneId}";
 		}
 
 		static Color GetRowColor(Char ch, bool isHovered)

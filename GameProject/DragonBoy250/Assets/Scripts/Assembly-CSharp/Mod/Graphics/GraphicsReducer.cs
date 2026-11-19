@@ -11,7 +11,7 @@ namespace Mod.Graphics
 
 		internal static ReduceGraphicsLevel Level { get; set; }
 
-		public static bool IsSimpleUI { get; set; } = true;
+		public static bool IsSimpleUI { get; set; } = false;
 
 		internal static bool IsEnabled => Level != ReduceGraphicsLevel.Off;
 
@@ -522,8 +522,8 @@ namespace Mod.Graphics
 					{
 						mapTile.texture.SetPixel(i, j, colorMap);
 						mapTile.texture.SetPixel(j, i, colorMap);
-						mapTile.texture.SetPixel(mapTile.texture.width - j, i, colorMap);
-						mapTile.texture.SetPixel(i, mapTile.texture.height - j, colorMap);
+						mapTile.texture.SetPixel(mapTile.texture.width - 1 - j, i, colorMap);
+						mapTile.texture.SetPixel(i, mapTile.texture.height - 1 - j, colorMap);
 					}
 				}
 			}
