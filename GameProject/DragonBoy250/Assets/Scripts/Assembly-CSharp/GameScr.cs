@@ -4258,7 +4258,7 @@ public class GameScr : mScreen, IChatable
 
 	public void doSelectSkill(Skill skill, bool isShortcut)
 	{
-		if (Char.myCharz().isCreateDark || isCharging() || Char.myCharz().taskMaint.taskId <= 1)
+		if (Char.myCharz().isCreateDark || isCharging() || (Char.myCharz().taskMaint != null && Char.myCharz().taskMaint.taskId <= 1))
 		{
 			return;
 		}
@@ -6254,7 +6254,7 @@ public class GameScr : mScreen, IChatable
 		}
 		else
 		{
-			if (GameCanvas.currentDialog != null || ChatPopup.currChatPopup != null || GameCanvas.menu.showMenu || isPaintPopup() || GameCanvas.panel.isShow || Char.myCharz().taskMaint.taskId == 0 || ChatTextField.gI().isShow || GameCanvas.currentScreen == MoneyCharge.instance)
+			if (GameCanvas.currentDialog != null || ChatPopup.currChatPopup != null || GameCanvas.menu.showMenu || isPaintPopup() || GameCanvas.panel.isShow || (Char.myCharz().taskMaint != null && Char.myCharz().taskMaint.taskId == 0) || ChatTextField.gI().isShow || GameCanvas.currentScreen == MoneyCharge.instance)
 			{
 				return;
 			}

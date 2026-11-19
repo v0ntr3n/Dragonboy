@@ -1340,17 +1340,20 @@ public class Char : IMapObject
 			}
 		}
 		GameScr.isHaveSelectSkill = true;
-		Cout.println("TASKx " + myCharz().taskMaint.taskId);
-		if (myCharz().taskMaint.taskId <= 2)
+		if (myCharz().taskMaint != null)
 		{
-			myCharz().canFly = false;
-		}
-		else
-		{
-			myCharz().canFly = true;
+			Cout.println("TASKx " + myCharz().taskMaint.taskId);
+			if (myCharz().taskMaint.taskId <= 2)
+			{
+				myCharz().canFly = false;
+			}
+			else
+			{
+				myCharz().canFly = true;
+			}
 		}
 		GameScr.gI().left = null;
-		if (task.taskId == 0)
+		if (task != null && task.taskId == 0)
 		{
 			Hint.isViewMap = false;
 			Hint.isViewPotential = false;
@@ -1398,7 +1401,7 @@ public class Char : IMapObject
 			GameCanvas.panel.mainTabName = mResources.mainTab2;
 		}
 		GameCanvas.panel.tabName[0] = GameCanvas.panel.mainTabName;
-		if (myChar.taskMaint.taskId > 10)
+		if (myChar.taskMaint != null && myChar.taskMaint.taskId > 10)
 		{
 			Rms.saveRMSString("fake", "aa");
 		}

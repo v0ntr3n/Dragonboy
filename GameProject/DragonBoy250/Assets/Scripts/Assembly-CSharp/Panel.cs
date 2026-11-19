@@ -8742,7 +8742,7 @@ public class Panel : IActionListener, IChatable
 				}
 			}
 			hideNow();
-			if (Char.myCharz().taskMaint.taskId <= 10)
+			if (Char.myCharz().taskMaint != null && Char.myCharz().taskMaint.taskId <= 10)
 				GameCanvas.startOKDlg(mResources.finishBomong);
 			else
 				MoneyCharge.gI().switchToMe();

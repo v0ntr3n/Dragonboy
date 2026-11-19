@@ -4906,7 +4906,7 @@ public class Controller : IMessageHandler
 				short num2 = msg.reader().readShort();
 				sbyte b4 = msg.reader().readByte();
 				short num3 = msg.reader().readShort();
-				if (b4 != 6 && ((Char.myCharz().taskMaint.taskId >= 7 && (Char.myCharz().taskMaint.taskId != 7 || Char.myCharz().taskMaint.index > 1)) || (b4 != 7 && b4 != 8 && b4 != 9)) && (Char.myCharz().taskMaint.taskId >= 6 || b4 != 16))
+				if (b4 != 6 && (Char.myCharz().taskMaint == null || (((Char.myCharz().taskMaint.taskId >= 7 && (Char.myCharz().taskMaint.taskId != 7 || Char.myCharz().taskMaint.index > 1)) || (b4 != 7 && b4 != 8 && b4 != 9)) && (Char.myCharz().taskMaint.taskId >= 6 || b4 != 16))))
 				{
 					if (b4 == 4)
 					{
