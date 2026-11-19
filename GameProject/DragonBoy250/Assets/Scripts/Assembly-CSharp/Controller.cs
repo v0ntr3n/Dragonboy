@@ -3441,6 +3441,7 @@ public class Controller : IMessageHandler
 			case 32:
 			{
 				GameCanvas.debug("SA68", 2);
+				InfoDlg.hide();
 				int num76 = msg.reader().readShort();
 				for (int num77 = 0; num77 < GameScr.vNpc.size(); num77++)
 				{
