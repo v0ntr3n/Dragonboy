@@ -62,6 +62,12 @@ namespace Mod.BoMong
 
 		protected override IEnumerator OnUpdate()
 		{
+			Char myChar = Char.myCharz();
+			if (myChar == null)
+			{
+				yield break;
+			}
+
 			if (!Utils.isUsingTDLT())
 			{
 				long now = mSystem.currentTimeMillis();
@@ -72,7 +78,7 @@ namespace Mod.BoMong
 				}
 			}
 
-			if (Char.myCharz().IsCharDead())
+			if (myChar.IsCharDead())
 			{
 				yield return new WaitForSecondsRealtime(0.5f);
 				Service.gI().returnTownFromDead();
@@ -152,9 +158,9 @@ namespace Mod.BoMong
 				// ==========================================
 				// NEU MÁU THẤP -> VỀ NHÀ HỒI PHỤC
 				// ==========================================
-				if (Char.myCharz().cHP < Char.myCharz().cHPFull * 0.1)
+				if (myChar.cHP < myChar.cHPFull * 0.1)
 				{
-					yield return XmapController.StartAndWait(Char.myCharz().cgender + 21);
+					yield return XmapController.StartAndWait(myChar.cgender + 21);
 
 					if (Utils.IsMyCharHome() && GameScr.vItemMap.size() > 0)
 					{
@@ -164,7 +170,13 @@ namespace Mod.BoMong
 				}
 
 				int mapId = questHandler.MapIDForThisQuest(BoMongMessageEvent.CurrentQuestMessage);
-				if (mapId >= 0 && mapId != TileMap.mapID)
+				if (mapId < 0)
+				{
+					questHandler = null;
+					yield break;
+				}
+
+				if (mapId != TileMap.mapID)
 				{
 					yield return XmapController.StartAndWait(mapId);
 				}

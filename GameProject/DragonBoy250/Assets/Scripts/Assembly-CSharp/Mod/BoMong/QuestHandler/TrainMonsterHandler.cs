@@ -117,8 +117,11 @@ namespace Mod.BoMong.QuestHandler
 
 		public void OnQuestCompleted()
 		{
- 		PickMobConfig.SetSlaughter(false);
-			Char.myCharz().currentMovePoint = null;
+			PickMobConfig.SetSlaughter(false);
+			if (Char.myCharz() != null)
+			{
+				Char.myCharz().currentMovePoint = null;
+			}
 		}
 
 		public IEnumerator HandleQuest(int mapId)
@@ -129,8 +132,7 @@ namespace Mod.BoMong.QuestHandler
 				yield return null;
 			}
 
-			int[] numPlayer = GameScr.gI()?.numPlayer;
-			if (numPlayer != null && TileMap.zoneID >= 0 && TileMap.zoneID < numPlayer.Length && numPlayer[TileMap.zoneID] > 1)
+			if (GetCurrentZonePlayerCount() > 1)
 			{
 				int? zoneId = FindLowestPlayerZoneId();
 
@@ -141,19 +143,51 @@ namespace Mod.BoMong.QuestHandler
 				yield return null;
 			}
 
- 		// Slaughter is handled by PickMobConfig, so we just yield return null here to keep the coroutine running.
+			// Slaughter is handled by PickMobConfig, so we just yield return null here to keep the coroutine running.
 			yield return null;
 		}
 
 		public void PreHandleQuest()
 		{
- 		PickMobConfig.SetSlaughter(true);
+			PickMobConfig.SetSlaughter(true);
+		}
+
+		static int GetCurrentZonePlayerCount()
+		{
+			GameScr gameScr = GameScr.gI();
+			if (gameScr == null)
+			{
+				return 0;
+			}
+
+			int[] zones = gameScr.zones;
+			int[] numPlayer = gameScr.numPlayer;
+			if (zones == null || numPlayer == null)
+			{
+				return 0;
+			}
+
+			int count = System.Math.Min(zones.Length, numPlayer.Length);
+			for (int i = 0; i < count; i++)
+			{
+				if (zones[i] == TileMap.zoneID)
+				{
+					return numPlayer[i];
+				}
+			}
+
+			return 0;
 		}
 
 		[CanBeNull]
 		static int? FindLowestPlayerZoneId()
 		{
 			GameScr gameScr = GameScr.gI();
+			if (gameScr == null)
+			{
+				return null;
+			}
+
 			int[] zones = gameScr.zones;
 			int[] numPlayer = gameScr.numPlayer;
 

@@ -162,7 +162,7 @@ namespace Mod.PickMob.Services
 			return _candidateZones[randomIndex];
 		}
 
-		public static IEnumerator ChangeToLowestPlayerZone()
+		public static IEnumerator ChangeToLowestPlayerZone(bool abortOnAttackableMob = false)
 		{
 			long now = mSystem.currentTimeMillis();
 			if (now - _lastZoneChangeMs < ZONE_CHANGE_COOLDOWN_MS)
@@ -190,7 +190,7 @@ namespace Mod.PickMob.Services
 					yield break;
 				}
 
-				if (MobPicker.HasAttackableMob())
+				if (abortOnAttackableMob && MobPicker.HasAttackableMob())
 				{
 					yield break;
 				}
@@ -199,7 +199,7 @@ namespace Mod.PickMob.Services
 			}
 		}
 
-		public static IEnumerator ChangeToEmptyZone()
+		public static IEnumerator ChangeToEmptyZone(bool abortOnAttackableMob = false)
 		{
 			int? targetZone = _cachedPriorityEmptyZoneId ?? FindEmptyZoneId();
 			_cachedPriorityEmptyZoneId = null;
@@ -210,10 +210,10 @@ namespace Mod.PickMob.Services
 				yield break;
 			}
 
-			yield return ChangeToEmptyZone(targetZone.Value);
+			yield return ChangeToEmptyZone(targetZone.Value, abortOnAttackableMob);
 		}
 
-		public static IEnumerator ChangeToEmptyZone(int targetZone)
+		public static IEnumerator ChangeToEmptyZone(int targetZone, bool abortOnAttackableMob = false)
 		{
 			_cachedPriorityEmptyZoneId = null;
 			long now = mSystem.currentTimeMillis();
@@ -237,7 +237,7 @@ namespace Mod.PickMob.Services
 					yield break;
 				}
 
-				if (MobPicker.HasAttackableMob())
+				if (abortOnAttackableMob && MobPicker.HasAttackableMob())
 				{
 					yield break;
 				}

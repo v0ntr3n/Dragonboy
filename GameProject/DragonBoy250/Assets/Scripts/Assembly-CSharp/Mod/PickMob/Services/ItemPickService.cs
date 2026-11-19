@@ -140,6 +140,9 @@ namespace Mod.PickMob.Services
 
 		static TypePickItem GetTypePickItem(Char myChar, ItemMap itemMap)
 		{
+			if (itemMap == null || itemMap.template == null)
+				return TypePickItem.CanNotPickItem;
+
 			if (PickMobConfig.IsItemMe && itemMap.playerId != myChar.charID && itemMap.playerId != -1)
 				return TypePickItem.CanNotPickItem;
 
@@ -168,7 +171,7 @@ namespace Mod.PickMob.Services
 		{
 			if (!_eventItemCache.TryGetValue(templateId, out bool isEvent))
 			{
-				isEvent = description.Contains("Vật phẩm sự kiện");
+				isEvent = !string.IsNullOrEmpty(description) && description.Contains("Vật phẩm sự kiện");
 				_eventItemCache[templateId] = isEvent;
 			}
 
@@ -177,6 +180,9 @@ namespace Mod.PickMob.Services
 
 		static bool FilterItemPick(ItemMap itemMap)
 		{
+			if (itemMap == null || itemMap.template == null)
+				return false;
+
 			if (PickMobConfig.IdItemPicks.Count != 0 && !PickMobConfig.IdItemPicks.Contains(itemMap.template.id))
 				return false;
 

@@ -70,7 +70,7 @@ namespace Mod.PickMob.Services
 			{
 				if (ZoneService.ShouldChangeZone())
 				{
-					yield return ZoneService.ChangeToLowestPlayerZone();
+					yield return ZoneService.ChangeToLowestPlayerZone(abortOnAttackableMob: true);
 					yield break;
 				}
 
@@ -112,7 +112,10 @@ namespace Mod.PickMob.Services
 				myChar.myskill = skill;
 			}
 
-			if (mobFocus.getTemplate().type == MonsterType.Fly)
+			MobTemplate mobTemplate = mobFocus.getTemplate();
+			bool isFlyMob = mobTemplate != null && mobTemplate.type == MonsterType.Fly;
+
+			if (isFlyMob)
 			{
 				if (Math.abs(myChar.cx - mobFocus.x) > 70)
 				{
@@ -131,7 +134,7 @@ namespace Mod.PickMob.Services
 				MovementService.Move(myChar, mobFocus.xFirst, mobFocus.yFirst);
 			}
 
-			bool inRange = Utils.Distance(myChar, mobFocus) <= 50 || mobFocus.getTemplate().type == MonsterType.Fly && Math.abs(myChar.cx - mobFocus.x) <= 70;
+			bool inRange = Utils.Distance(myChar, mobFocus) <= 50 || isFlyMob && Math.abs(myChar.cx - mobFocus.x) <= 70;
 
 			if (inRange && mSystem.currentTimeMillis() - skill.lastTimeUseThisSkill > skill.coolDown + 100L)
 			{
