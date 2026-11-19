@@ -45,9 +45,9 @@ public class Session_ME : ISession
 
 	public static sbyte[] key;
 
-	static sbyte curR;
+	static int curR;
 
-	static sbyte curW;
+	static int curW;
 
 	static int timeConnected;
 
@@ -194,7 +194,8 @@ public class Session_ME : ISession
 				}
 				else
 				{
-					dos.Write((ushort)num);
+					dos.Write((sbyte)(num >> 8));
+					dos.Write((sbyte)(num & 0xFF));
 				}
 				if (getKeyComplete)
 				{
@@ -202,6 +203,13 @@ public class Session_ME : ISession
 					{
 						sbyte value2 = writeKey(data[i]);
 						dos.Write(value2);
+					}
+				}
+				else
+				{
+					for (int i = 0; i < data.Length; i++)
+					{
+						dos.Write(data[i]);
 					}
 				}
 				sendByteCount += 5 + data.Length;
@@ -234,12 +242,12 @@ public class Session_ME : ISession
 	public static sbyte readKey(sbyte b)
 	{
 		sbyte[] array = key;
-		sbyte num = curR;
-		curR = (sbyte)(num + 1);
+		int num = curR;
+		curR = num + 1;
 		sbyte result = (sbyte)(array[num] & 0xFF ^ b & 0xFF);
 		if (curR >= key.Length)
 		{
-			curR %= (sbyte)key.Length;
+			curR %= key.Length;
 		}
 		return result;
 	}
@@ -247,12 +255,12 @@ public class Session_ME : ISession
 	public static sbyte writeKey(sbyte b)
 	{
 		sbyte[] array = key;
-		sbyte num = curW;
-		curW = (sbyte)(num + 1);
+		int num = curW;
+		curW = num + 1;
 		sbyte result = (sbyte)(array[num] & 0xFF ^ b & 0xFF);
 		if (curW >= key.Length)
 		{
-			curW %= (sbyte)key.Length;
+			curW %= key.Length;
 		}
 		return result;
 	}
@@ -536,6 +544,10 @@ public class Session_ME : ISession
 			sbyte[] array = new sbyte[num4];
 			int num5 = 0;
 			byte[] src = dis.ReadBytes(num4);
+			if (src == null || src.Length < num4)
+			{
+				return null;
+			}
 			Buffer.BlockCopy(src, 0, array, 0, num4);
 			recvByteCount += 5 + num4;
 			int num6 = recvByteCount + sendByteCount;
@@ -580,6 +592,10 @@ public class Session_ME : ISession
 				int num2 = 0;
 				int num3 = 0;
 				byte[] src = dis.ReadBytes(num);
+				if (src == null || src.Length < num)
+				{
+					return null;
+				}
 				Buffer.BlockCopy(src, 0, array, 0, num);
 				recvByteCount += 5 + num;
 				int num4 = recvByteCount + sendByteCount;

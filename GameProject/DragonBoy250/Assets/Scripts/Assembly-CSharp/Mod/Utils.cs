@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -596,6 +596,8 @@ namespace Mod
 
 		internal static string FormatWithSIPrefix(double number)
 		{
+			if (number == 0)
+				return "0";
 			string[] prefix =
 			{
 				"", "k", "M", "B", "T"
