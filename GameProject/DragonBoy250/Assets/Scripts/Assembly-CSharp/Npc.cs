@@ -104,6 +104,10 @@ public class Npc : Char
 
 	public override void update()
 	{
+		if (template == null)
+		{
+			return;
+		}
 		if (template.npcTemplateId == 51)
 		{
 			cur = mSystem.currentTimeMillis();
@@ -186,6 +190,10 @@ public class Npc : Char
 
 	public void paintHead(mGraphics g, int xStart, int yStart)
 	{
+		if (template == null)
+		{
+			return;
+		}
 		Part part = GameScr.parts[template.headId];
 		if (cdir == 1)
 		{
@@ -199,6 +207,10 @@ public class Npc : Char
 
 	public override void paint(mGraphics g)
 	{
+		if (template == null)
+		{
+			return;
+		}
 		if (GraphicsReducer.OnNpcPaint(this, g))
 		{
 			return;

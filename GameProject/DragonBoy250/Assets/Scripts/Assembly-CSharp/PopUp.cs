@@ -268,18 +268,7 @@ public class PopUp
 		{
 			if (Char.myCharz().taskMaint.taskId == 0)
 			{
-				if (Char.myCharz().taskMaint.index == 0)
-				{
-					isPaint = false;
-				}
-				if (Char.myCharz().taskMaint.index == 1)
-				{
-					isPaint = true;
-				}
-				if (Char.myCharz().taskMaint.index > 1 && Char.myCharz().taskMaint.index < 6)
-				{
-					isPaint = false;
-				}
+				isPaint = true;
 			}
 			else if (!isPaint)
 			{

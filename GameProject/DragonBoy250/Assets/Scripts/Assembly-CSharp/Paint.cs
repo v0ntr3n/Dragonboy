@@ -114,8 +114,8 @@ public class Paint
 		int num = 3;
 		if (left != null)
 		{
-			lenCaption = mFont2.getWidth(left.caption);
-			if (lenCaption > 0)
+			lenCaption = string.IsNullOrEmpty(left.caption) ? 0 : mFont2.getWidth(left.caption);
+			if (lenCaption > 0 || left.img != null)
 			{
 				if (left.x >= 0 && left.y > 0)
 				{
@@ -124,23 +124,29 @@ public class Paint
 				else
 				{
 					g.drawImage((mScreen.keyTouch != 0) ? GameScr.imgLbtn : GameScr.imgLbtnFocus, 1, GameCanvas.h - mScreen.cmdH - 1, 0);
-					mFont2.drawString(g, left.caption, 35, GameCanvas.h - mScreen.cmdH + 3 + num, 2);
+					if (!string.IsNullOrEmpty(left.caption))
+					{
+						mFont2.drawString(g, left.caption, 35, GameCanvas.h - mScreen.cmdH + 3 + num, 2);
+					}
 				}
 			}
 		}
 		if (center != null)
 		{
-			lenCaption = mFont2.getWidth(center.caption);
-			if (lenCaption > 0)
+			lenCaption = string.IsNullOrEmpty(center.caption) ? 0 : mFont2.getWidth(center.caption);
+			if (lenCaption > 0 || center.img != null)
 			{
-				if (center.x > 0 && center.y > 0)
+				if (center.x >= 0 && center.y > 0)
 				{
 					center.paint(g);
 				}
 				else
 				{
 					g.drawImage((mScreen.keyTouch != 1) ? GameScr.imgLbtn : GameScr.imgLbtnFocus, GameCanvas.hw - 35, GameCanvas.h - mScreen.cmdH - 1, 0);
-					mFont2.drawString(g, center.caption, GameCanvas.hw, GameCanvas.h - mScreen.cmdH + 3 + num, 2);
+					if (!string.IsNullOrEmpty(center.caption))
+					{
+						mFont2.drawString(g, center.caption, GameCanvas.hw, GameCanvas.h - mScreen.cmdH + 3 + num, 2);
+					}
 				}
 			}
 		}
@@ -148,16 +154,19 @@ public class Paint
 		{
 			return;
 		}
-		lenCaption = mFont2.getWidth(right.caption);
-		if (lenCaption > 0)
+		lenCaption = string.IsNullOrEmpty(right.caption) ? 0 : mFont2.getWidth(right.caption);
+		if (lenCaption > 0 || right.img != null)
 		{
-			if (right.x > 0 && right.y > 0)
+			if (right.x >= 0 && right.y > 0)
 			{
 				right.paint(g);
 				return;
 			}
 			g.drawImage((mScreen.keyTouch != 2) ? GameScr.imgLbtn : GameScr.imgLbtnFocus, GameCanvas.w - 71, GameCanvas.h - mScreen.cmdH - 1, 0);
-			mFont2.drawString(g, right.caption, GameCanvas.w - 35, GameCanvas.h - mScreen.cmdH + 3 + num, 2);
+			if (!string.IsNullOrEmpty(right.caption))
+			{
+				mFont2.drawString(g, right.caption, GameCanvas.w - 35, GameCanvas.h - mScreen.cmdH + 3 + num, 2);
+			}
 		}
 	}
 

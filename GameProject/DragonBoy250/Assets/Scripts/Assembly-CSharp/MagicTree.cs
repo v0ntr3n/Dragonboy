@@ -79,24 +79,30 @@ public class MagicTree : Npc, IActionListener
 		{
 			return;
 		}
+		int treeW = (SmallImage.smallImg != null && id >= 0 && id < SmallImage.smallImg.Length && SmallImage.smallImg[id] != null) ? SmallImage.smallImg[id][3] : 40;
+		int treeH = (SmallImage.smallImg != null && id >= 0 && id < SmallImage.smallImg.Length && SmallImage.smallImg[id] != null) ? SmallImage.smallImg[id][4] : 60;
 		SmallImage.drawSmallImage(g, id, cx, cy, 0, StaticObj.BOTTOM_HCENTER);
 		if (Char.myCharz().npcFocus != null && Char.myCharz().npcFocus.Equals(this))
 		{
-			g.drawRegion(Mob.imgHP, 0, 0, 9, 6, 0, cx, cy - SmallImage.smallImg[id][4] - 1, mGraphics.BOTTOM | mGraphics.HCENTER);
+			g.drawRegion(Mob.imgHP, 0, 0, 9, 6, 0, cx, cy - treeH - 1, mGraphics.BOTTOM | mGraphics.HCENTER);
 			if (name != null)
 			{
-				mFont.tahoma_7b_white.drawString(g, name, cx, cy - SmallImage.smallImg[id][4] - 20, mFont.CENTER, mFont.tahoma_7_grey);
+				mFont.tahoma_7b_white.drawString(g, name, cx, cy - treeH - 20, mFont.CENTER, mFont.tahoma_7_grey);
 			}
 		}
 		else if (name != null)
 		{
-			mFont.tahoma_7b_white.drawString(g, name, cx, cy - SmallImage.smallImg[id][4] - 17, mFont.CENTER, mFont.tahoma_7_grey);
+			mFont.tahoma_7b_white.drawString(g, name, cx, cy - treeH - 17, mFont.CENTER, mFont.tahoma_7_grey);
 		}
 		try
 		{
-			for (int i = 0; i < currPeas; i++)
+			if (peaPostionX != null && peaPostionY != null)
 			{
-				g.drawImage(pea, cx + peaPostionX[i] - SmallImage.smallImg[id][3] / 2, cy + peaPostionY[i] - SmallImage.smallImg[id][4], 0);
+				int count = System.Math.Min(currPeas, System.Math.Min(peaPostionX.Length, peaPostionY.Length));
+				for (int i = 0; i < count; i++)
+				{
+					g.drawImage(pea, cx + peaPostionX[i] - treeW / 2, cy + peaPostionY[i] - treeH, 0);
+				}
 			}
 		}
 		catch (Exception)
@@ -119,7 +125,12 @@ public class MagicTree : Npc, IActionListener
 
 	public override void update()
 	{
-		p.isPaint = isPaint;
+		int treeW = (SmallImage.smallImg != null && id >= 0 && id < SmallImage.smallImg.Length && SmallImage.smallImg[id] != null) ? SmallImage.smallImg[id][3] : 40;
+		int treeH = (SmallImage.smallImg != null && id >= 0 && id < SmallImage.smallImg.Length && SmallImage.smallImg[id] != null) ? SmallImage.smallImg[id][4] : 60;
+		if (p != null)
+		{
+			p.isPaint = isPaint;
+		}
 		cur = mSystem.currentTimeMillis();
 		if (cur - last >= 1000)
 		{
@@ -152,43 +163,59 @@ public class MagicTree : Npc, IActionListener
 				Service.gI().getMagicTree(2);
 			}
 		}
-		num = ((peaPostionX != null) ? (peaPostionX.Length * currPeas / maxPeas) : 0);
+		num = ((peaPostionX != null && maxPeas > 0) ? (peaPostionX.Length * currPeas / maxPeas) : 0);
 		if (isUpdateTree)
 		{
 			isUpdateTree = false;
-			if ((seconds >= 0 && currPeas < maxPeas) || (seconds >= 0 && isUpdate) || isPeasEffect)
+			if (p != null)
 			{
-				p.updateXYWH(new string[2]
+				if ((seconds >= 0 && currPeas < maxPeas) || (seconds >= 0 && isUpdate) || isPeasEffect)
 				{
-					isUpdate ? mResources.UPGRADING : (currPeas + "/" + maxPeas),
-					NinjaUtil.getTime(seconds)
-				}, cx, cy - 20 - SmallImage.smallImg[id][4]);
-			}
-			else if (currPeas == maxPeas && !isUpdate)
-			{
-				p.updateXYWH(new string[2]
+					p.updateXYWH(new string[2]
+					{
+						isUpdate ? mResources.UPGRADING : (currPeas + "/" + maxPeas),
+						NinjaUtil.getTime(seconds)
+					}, cx, cy - 20 - treeH);
+				}
+				else if (currPeas == maxPeas && !isUpdate)
 				{
-					mResources.can_harvest,
-					currPeas + "/" + maxPeas
-				}, cx, cy - 20 - SmallImage.smallImg[id][4]);
+					p.updateXYWH(new string[2]
+					{
+						mResources.can_harvest,
+						currPeas + "/" + maxPeas
+					}, cx, cy - 20 - treeH);
+				}
 			}
 		}
-		if ((seconds >= 0 && currPeas < maxPeas) || (seconds >= 0 && isUpdate))
+		if (((seconds >= 0 && currPeas < maxPeas) || (seconds >= 0 && isUpdate)) && p?.says != null && p.says.Length > 0)
 		{
 			p.says[p.says.Length - 1] = NinjaUtil.getTime(seconds);
 		}
 		if (isPeasEffect)
 		{
-			p.isPaint = false;
-			ServerEffect.addServerEffect(98, cx + peaPostionX[currPeas - 1] - SmallImage.smallImg[id][3] / 2, cy + peaPostionY[currPeas - 1] - SmallImage.smallImg[id][4], 1);
+			if (p != null)
+			{
+				p.isPaint = false;
+			}
+			if (peaPostionX != null && peaPostionY != null && currPeas > 0 && currPeas <= peaPostionX.Length && currPeas <= peaPostionY.Length)
+			{
+				ServerEffect.addServerEffect(98, cx + peaPostionX[currPeas - 1] - treeW / 2, cy + peaPostionY[currPeas - 1] - treeH, 1);
+			}
 			currPeas--;
 			if (GameCanvas.gameTick % 2 == 0)
 			{
 				SoundMn.gI().HP_MPup();
 			}
-			if (currPeas == remainPeas)
+			if (currPeas <= remainPeas)
 			{
-				p.isPaint = true;
+				if (currPeas < remainPeas)
+				{
+					currPeas = remainPeas;
+				}
+				if (p != null)
+				{
+					p.isPaint = true;
+				}
 				isUpdateTree = true;
 				isPeasEffect = false;
 			}

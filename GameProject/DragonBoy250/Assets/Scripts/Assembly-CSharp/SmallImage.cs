@@ -105,6 +105,10 @@ public class SmallImage
 
 	public static void createImage(int id)
 	{
+		if (id < 0 || imgNew == null || id >= imgNew.Length)
+		{
+			return;
+		}
 		Res.outz("is request =" + id + " zoom=" + mGraphics.zoomLevel);
 		if (mGraphics.zoomLevel == 1)
 		{
@@ -135,7 +139,7 @@ public class SmallImage
 		sbyte[] array = Rms.loadRMS(mGraphics.zoomLevel + "Small" + id);
 		if (array != null)
 		{
-			if (newSmallVersion != null && array.Length % 127 != newSmallVersion[id])
+			if (newSmallVersion != null && (id >= newSmallVersion.Length || array.Length % 127 != newSmallVersion[id]))
 			{
 				flag = true;
 			}
@@ -172,8 +176,16 @@ public class SmallImage
 
 	public static void drawSmallImage(mGraphics g, int id, int x, int y, int transform, int anchor)
 	{
+		if (id < 0)
+		{
+			return;
+		}
 		if (imgbig == null)
 		{
+			if (imgNew == null || id >= imgNew.Length)
+			{
+				return;
+			}
 			Small small = imgNew[id];
 			if (small == null)
 			{
@@ -188,6 +200,10 @@ public class SmallImage
 		{
 			if (id >= smallImg.Length || smallImg[id] == null || smallImg[id][1] >= 256 || smallImg[id][3] >= 256 || smallImg[id][2] >= 256 || smallImg[id][4] >= 256)
 			{
+				if (imgNew == null || id >= imgNew.Length)
+				{
+					return;
+				}
 				Small small2 = imgNew[id];
 				if (small2 == null)
 				{
@@ -204,6 +220,10 @@ public class SmallImage
 			}
 			else
 			{
+				if (imgNew == null || id >= imgNew.Length)
+				{
+					return;
+				}
 				Small small2 = imgNew[id];
 				if (small2 == null)
 				{
@@ -217,6 +237,10 @@ public class SmallImage
 		}
 		else if (GameCanvas.currentScreen != GameScr.gI())
 		{
+			if (imgNew == null || id >= imgNew.Length)
+			{
+				return;
+			}
 			Small small3 = imgNew[id];
 			if (small3 == null)
 			{
@@ -231,8 +255,16 @@ public class SmallImage
 
 	public static void drawSmallImage(mGraphics g, int id, int f, int x, int y, int w, int h, int transform, int anchor)
 	{
+		if (id < 0)
+		{
+			return;
+		}
 		if (imgbig == null)
 		{
+			if (imgNew == null || id >= imgNew.Length)
+			{
+				return;
+			}
 			Small small = imgNew[id];
 			if (small == null)
 			{
@@ -247,6 +279,10 @@ public class SmallImage
 		{
 			if (id >= smallImg.Length || smallImg[id] == null || smallImg[id][1] >= 256 || smallImg[id][3] >= 256 || smallImg[id][2] >= 256 || smallImg[id][4] >= 256)
 			{
+				if (imgNew == null || id >= imgNew.Length)
+				{
+					return;
+				}
 				Small small2 = imgNew[id];
 				if (small2 == null)
 				{
@@ -263,6 +299,10 @@ public class SmallImage
 			}
 			else
 			{
+				if (imgNew == null || id >= imgNew.Length)
+				{
+					return;
+				}
 				Small small3 = imgNew[id];
 				if (small3 == null)
 				{
@@ -276,6 +316,10 @@ public class SmallImage
 		}
 		else if (GameCanvas.currentScreen != GameScr.gI())
 		{
+			if (imgNew == null || id >= imgNew.Length)
+			{
+				return;
+			}
 			Small small4 = imgNew[id];
 			if (small4 == null)
 			{
@@ -291,7 +335,7 @@ public class SmallImage
 	public static void update()
 	{
 		int num = 0;
-		if (GameCanvas.gameTick % 1000 != 0)
+		if (GameCanvas.gameTick % 1000 != 0 || imgNew == null)
 		{
 			return;
 		}
