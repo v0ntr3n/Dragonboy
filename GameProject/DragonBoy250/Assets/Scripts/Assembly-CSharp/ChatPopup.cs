@@ -445,6 +445,10 @@ public class ChatPopup : Effect2, IActionListener
 			GameCanvas.resetTrans(g);
 			g.translate(tx, ty);
 		}
+		if (scr != null)
+		{
+			GameCanvas.resetTrans(g);
+		}
 		if (maxStarSlot > 4)
 		{
 			nMaxslot_tren = (maxStarSlot + 1) / 2;
@@ -527,13 +531,13 @@ public class ChatPopup : Effect2, IActionListener
 		int num4 = ch;
 		int num5 = 0;
 		int num6 = 0;
-		num5 = g.getTranslateX();
-		num6 = g.getTranslateY();
-		g.translate(0, -cmyText);
 		if ((num <= 0 || num2 <= 0) && !GameCanvas.panel.isShow)
 		{
 			return;
 		}
+		num5 = g.getTranslateX();
+		num6 = g.getTranslateY();
+		g.translate(0, -cmyText);
 		int num7 = -1;
 		for (int i = 0; i < says.Length; i++)
 		{

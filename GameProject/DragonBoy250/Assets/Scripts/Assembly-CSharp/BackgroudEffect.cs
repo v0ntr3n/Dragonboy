@@ -285,10 +285,13 @@ public class BackgroudEffect
 			}
 			if (typeEff == 15)
 			{
-				Small small = SmallImage.imgNew[11120];
-				if (small == null)
+				if (SmallImage.imgNew != null && 11120 < SmallImage.imgNew.Length)
 				{
-					SmallImage.createImage(11120);
+					Small small = SmallImage.imgNew[11120];
+					if (small == null)
+					{
+						SmallImage.createImage(11120);
+					}
 				}
 				PIXEL = 16;
 			}
@@ -580,11 +583,38 @@ public class BackgroudEffect
 		{
 			g.drawImage((i >= num / 2) ? water1 : water2, x[i], y[i] + yWater, 0);
 		}
-		if (id_water1 != 0 && water3 == null)
+		if (id_water1 != 0 && (water3 == null || water3.texture == null || water3 == SmallImage.imgEmpty))
 		{
-			water3 = SmallImage.imgNew[id_water1].img;
+			if (SmallImage.imgNew != null && id_water1 >= 0 && id_water1 < SmallImage.imgNew.Length)
+			{
+				Assets.src.e.Small small = SmallImage.imgNew[id_water1];
+				if (small == null)
+				{
+					SmallImage.createImage(id_water1);
+					small = SmallImage.imgNew[id_water1];
+				}
+				if (small != null)
+				{
+					small.timePaint = small.timeUpdate;
+					small.lastPaintTick = GameCanvas.gameTick;
+					water3 = small.img;
+				}
+			}
 		}
-		if (water3 != null)
+		else if (id_water1 != 0 && SmallImage.imgNew != null && id_water1 >= 0 && id_water1 < SmallImage.imgNew.Length)
+		{
+			Assets.src.e.Small small = SmallImage.imgNew[id_water1];
+			if (small != null)
+			{
+				small.timePaint = small.timeUpdate;
+				small.lastPaintTick = GameCanvas.gameTick;
+				if (small.img != null && water3 != small.img)
+				{
+					water3 = small.img;
+				}
+			}
+		}
+		if (water3 != null && water3.texture != null)
 		{
 			for (int j = 0; j < num / 2; j++)
 			{
@@ -868,11 +898,25 @@ public class BackgroudEffect
 			case 15:
 				if (typeEff == 15)
 				{
-					if (SmallImage.imgNew[11120] != null && SmallImage.imgNew[11120].img != null)
+					if (SmallImage.imgNew != null && 11120 < SmallImage.imgNew.Length)
 					{
-						imgLacay = SmallImage.imgNew[11120].img;
+						Assets.src.e.Small small = SmallImage.imgNew[11120];
+						if (small == null)
+						{
+							SmallImage.createImage(11120);
+							small = SmallImage.imgNew[11120];
+						}
+						if (small != null)
+						{
+							small.timePaint = small.timeUpdate;
+							small.lastPaintTick = GameCanvas.gameTick;
+							if (small.img != null)
+							{
+								imgLacay = small.img;
+							}
+						}
 					}
-					if (imgLacay == null)
+					if (imgLacay == null || imgLacay.texture == null)
 					{
 						break;
 					}
@@ -987,11 +1031,25 @@ public class BackgroudEffect
 		case 15:
 			if (typeEff == 15)
 			{
-				if (SmallImage.imgNew[11120] != null && SmallImage.imgNew[11120].img != null)
+				if (SmallImage.imgNew != null && 11120 < SmallImage.imgNew.Length)
 				{
-					imgLacay = SmallImage.imgNew[11120].img;
+					Assets.src.e.Small small = SmallImage.imgNew[11120];
+					if (small == null)
+					{
+						SmallImage.createImage(11120);
+						small = SmallImage.imgNew[11120];
+					}
+					if (small != null)
+					{
+						small.timePaint = small.timeUpdate;
+						small.lastPaintTick = GameCanvas.gameTick;
+						if (small.img != null)
+						{
+							imgLacay = small.img;
+						}
+					}
 				}
-				if (imgLacay == null)
+				if (imgLacay == null || imgLacay.texture == null)
 				{
 					break;
 				}
