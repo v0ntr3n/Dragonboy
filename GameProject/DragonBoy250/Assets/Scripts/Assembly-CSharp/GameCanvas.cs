@@ -1980,9 +1980,36 @@ public class GameCanvas : IActionListener
 			typeBg = typeBG;
 			isBoltEff = false;
 			GameScr.firstY = GameScr.cmy;
+			if (imgBG != null)
+			{
+				for (int idx = 0; idx < imgBG.Length; idx++)
+				{
+					if (imgBG[idx] != null)
+					{
+						imgBG[idx].DestroyTexture();
+					}
+				}
+			}
 			imgBG = null;
+			if (imgCloud != null)
+			{
+				imgCloud.DestroyTexture();
+			}
 			imgCloud = null;
+			if (imgSun != null)
+			{
+				imgSun.DestroyTexture();
+			}
 			imgSun = null;
+			if (imgSun2 != null)
+			{
+				imgSun2.DestroyTexture();
+			}
+			imgSun2 = null;
+			if (imgCaycot != null)
+			{
+				imgCaycot.DestroyTexture();
+			}
 			imgCaycot = null;
 			GameScr.firstY = -1;
 			switch (typeBg)
@@ -2121,8 +2148,18 @@ public class GameCanvas : IActionListener
 					}
 					int[] data = new int[1];
 					Image image = loadImageRMS(path);
-					image.getRGB(ref data, 0, 1, mGraphics.getRealImageWidth(image) / 2, 0, 1, 1);
-					skyColor = data[0];
+					try
+					{
+						image.getRGB(ref data, 0, 1, mGraphics.getRealImageWidth(image) / 2, 0, 1, 1);
+						skyColor = data[0];
+					}
+					finally
+					{
+						if (image != null)
+						{
+							image.DestroyTexture();
+						}
+					}
 				}
 				catch (Exception)
 				{
@@ -2211,6 +2248,16 @@ public class GameCanvas : IActionListener
 			{
 				130, 100, 150, 140, 80
 			};
+			if (imgSunSpec != null)
+			{
+				for (int idx = 0; idx < imgSunSpec.Length; idx++)
+				{
+					if (imgSunSpec[idx] != null)
+					{
+						imgSunSpec[idx].DestroyTexture();
+					}
+				}
+			}
 			imgSunSpec = null;
 			if (typeBg != 0)
 			{
@@ -2219,10 +2266,12 @@ public class GameCanvas : IActionListener
 					imgSun = loadImageRMS("/bg/sun0.png");
 					sunX = GameScr.gW / 2 + 50;
 					sunY = yb[4] - 40;
+					TileMap.imgWaterflow?.DestroyTexture();
 					TileMap.imgWaterflow = loadImageRMS("/tWater/wts");
 				}
 				else if (typeBg == 19)
 				{
+					TileMap.imgWaterflow?.DestroyTexture();
 					TileMap.imgWaterflow = loadImageRMS("/tWater/water_flow_32");
 				}
 				else if (typeBg == 4)
@@ -2333,13 +2382,27 @@ public class GameCanvas : IActionListener
 						nBg = 5;
 						break;
 					default:
+						if (imgCloud != null)
+						{
+							imgCloud.DestroyTexture();
+						}
 						imgCloud = null;
+						if (imgSun != null)
+						{
+							imgSun.DestroyTexture();
+						}
 						imgSun = null;
+						if (imgSun2 != null)
+						{
+							imgSun2.DestroyTexture();
+						}
 						imgSun2 = null;
 						imgSun = loadImageRMS("/bg/sun" + typeBG + (TileMap.bgType != 0 ? "-" + TileMap.bgType : string.Empty) + ".png");
-						if (loadImageRMS("/tWater/water_flow_" + typeBG) != null)
+						Image wf = loadImageRMS("/tWater/water_flow_" + typeBG);
+						if (wf != null)
 						{
-							TileMap.imgWaterflow = loadImageRMS("/tWater/water_flow_" + typeBG);
+							TileMap.imgWaterflow?.DestroyTexture();
+							TileMap.imgWaterflow = wf;
 						}
 						sunX = GameScr.gW - GameScr.gW / 3;
 						sunY = yb[2] - 30;
@@ -2854,21 +2917,19 @@ public class GameCanvas : IActionListener
 				}
 				if (panel.chatTField != null && panel.chatTField.isShow)
 				{
+					resetTrans(g);
 					panel.chatTField.paint(g);
 				}
 				if (panel2 != null && panel2.chatTField != null && panel2.chatTField.isShow)
 				{
+					resetTrans(g);
 					panel2.chatTField.paint(g);
 				}
 			}
+			resetTrans(g);
 			Res.paintOnScreenDebug(g);
 			InfoDlg.paint(g);
-			if (currentDialog != null)
-			{
-				debug("PC", 1);
-				currentDialog.paint(g);
-			}
-			else if (menu.showMenu)
+			if (currentDialog == null && menu.showMenu)
 			{
 				debug("PD", 1);
 				resetTrans(g);
@@ -2899,6 +2960,7 @@ public class GameCanvas : IActionListener
 			}
 			if (currentDialog != null)
 			{
+				resetTrans(g);
 				currentDialog.paint(g);
 			}
 			if (isWait())
