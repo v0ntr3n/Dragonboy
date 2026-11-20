@@ -817,9 +817,7 @@ public class Service
 					message.writer().write(data);
 				}
 			}
-			session = Session_ME2.gI();
-			session.sendMessage(message);
-			session = Session_ME.gI();
+			Session_ME2.gI().sendMessage(message);
 			message.cleanup();
 		}
 		catch (Exception ex)
@@ -3066,7 +3064,7 @@ public class Service
 		}
 		catch (Exception ex)
 		{
-			ex.StackTrace.ToString();
+			Cout.println(ex.Message + ex.StackTrace);
 		}
 		finally
 		{
@@ -3087,7 +3085,7 @@ public class Service
 		}
 		catch (Exception ex)
 		{
-			ex.StackTrace.ToString();
+			Cout.println(ex.Message + ex.StackTrace);
 		}
 		finally
 		{
