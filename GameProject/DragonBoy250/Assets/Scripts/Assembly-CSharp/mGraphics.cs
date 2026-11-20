@@ -103,11 +103,24 @@ public class mGraphics
 	{
 		if (cachedTextures.Count > 400)
 		{
+			foreach (object obj in cachedTextures.Values)
+			{
+				Texture t = obj as Texture;
+				if (t != null)
+				{
+					UnityEngine.Object.Destroy(t);
+				}
+			}
 			cachedTextures.Clear();
 		}
 		if (value.width * value.height < GameCanvas.w * GameCanvas.h)
 		{
-			cachedTextures.Add(key, value);
+			Texture existing = cachedTextures[key] as Texture;
+			if (existing != null && existing != value)
+			{
+				UnityEngine.Object.Destroy(existing);
+			}
+			cachedTextures[key] = value;
 		}
 	}
 
@@ -638,7 +651,7 @@ public class mGraphics
 
 	public void __drawRegion(Image image, int x0, int y0, int w, int h, int transform, float x, float y, int anchor)
 	{
-		if (image == null)
+		if (image == null || image.texture == null)
 		{
 			return;
 		}
@@ -788,7 +801,7 @@ public class mGraphics
 
 	public void _drawRegion(Image image, float x0, float y0, int w, int h, int transform, int x, int y, int anchor)
 	{
-		if (image == null)
+		if (image == null || image.texture == null)
 		{
 			return;
 		}
@@ -957,11 +970,16 @@ public class mGraphics
 		}
 		string key = "dg" + x0 + y0 + w + h + transform + image.GetHashCode();
 		Texture2D texture2D = (Texture2D)cachedTextures[key];
+		bool destroyAfterDraw = false;
 		if (texture2D == null)
 		{
 			Image image2 = Image.createImage(image, (int)x0, (int)y0, w, h, transform);
 			texture2D = image2.texture;
 			cache(key, texture2D);
+			if (texture2D != null && texture2D.width * texture2D.height >= GameCanvas.w * GameCanvas.h)
+			{
+				destroyAfterDraw = true;
+			}
 		}
 		int num = 0;
 		int num2 = 0;
@@ -1006,6 +1024,10 @@ public class mGraphics
 			GUI.BeginGroup(new Rect(num, num2, num3, num4));
 		}
 		GUI.DrawTexture(new Rect(x - num, y - num2, w, h), texture2D);
+		if (destroyAfterDraw)
+		{
+			UnityEngine.Object.Destroy(texture2D);
+		}
 		if (isClip)
 		{
 			GUI.EndGroup();
@@ -1015,6 +1037,10 @@ public class mGraphics
 
 	public void drawImagaByDrawTexture(Image image, float x, float y)
 	{
+		if (image == null || image.texture == null)
+		{
+			return;
+		}
 		x *= zoomLevel;
 		y *= zoomLevel;
 		GUI.DrawTexture(new Rect(x + translateX, y + translateY, image.getRealImageWidth(), image.getRealImageHeight()), image.texture);
@@ -1035,10 +1061,11 @@ public class mGraphics
 
 	public void drawImageFog(Image image, int x, int y, int anchor)
 	{
-		if (image != null)
+		if (image == null || image.texture == null)
 		{
-			drawRegion(image, 0, 0, image.texture.width, image.texture.height, 0, x, y, anchor);
+			return;
 		}
+		drawRegion(image, 0, 0, image.texture.width, image.texture.height, 0, x, y, anchor);
 	}
 
 	public void drawImage(Image image, int x, int y)
@@ -1120,25 +1147,27 @@ public class mGraphics
 
 	public void drawImageScale(Image image, int x, int y, int w, int h, int tranform)
 	{
+		if (image == null || image.texture == null)
+		{
+			return;
+		}
 		GUI.color = Color.red;
 		x *= zoomLevel;
 		y *= zoomLevel;
 		w *= zoomLevel;
 		h *= zoomLevel;
-		if (image != null)
-		{
-			Graphics.DrawTexture(new Rect(x + translateX, y + translateY, tranform != 0 ? -w : w, h), image.texture);
-		}
+		Graphics.DrawTexture(new Rect(x + translateX, y + translateY, tranform != 0 ? -w : w, h), image.texture);
 	}
 
 	public void drawImageSimple(Image image, int x, int y)
 	{
+		if (image == null || image.texture == null)
+		{
+			return;
+		}
 		x *= zoomLevel;
 		y *= zoomLevel;
-		if (image != null)
-		{
-			Graphics.DrawTexture(new Rect(x, y, image.w, image.h), image.texture);
-		}
+		Graphics.DrawTexture(new Rect(x, y, image.w, image.h), image.texture);
 	}
 
 	public static int getImageWidth(Image image)
