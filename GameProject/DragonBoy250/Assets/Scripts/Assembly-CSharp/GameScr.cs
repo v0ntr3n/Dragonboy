@@ -1014,7 +1014,7 @@ public class GameScr : mScreen, IChatable
 		cmdMenu = new Command("menu", 11000);
 		cmdFocus = new Command(string.Empty, 11001);
 		cmdMenu.img = imgMenu;
-		cmdMenu.w = mGraphics.getImageWidth(cmdMenu.img) + 20;
+		cmdMenu.w = (cmdMenu.img != null ? mGraphics.getImageWidth(cmdMenu.img) : 20) + 20;
 		cmdMenu.isPlaySoundButton = false;
 		cmdFocus.img = imgFocus;
 		if (GameCanvas.isTouch)
@@ -1030,6 +1030,7 @@ public class GameScr : mScreen, IChatable
 			cmdFocus.x = gW - 32;
 			cmdFocus.y = gH - 32;
 		}
+		left = cmdMenu;
 		right = cmdFocus;
 		isPaintRada = 1;
 		if (GameCanvas.isTouch)
@@ -1214,7 +1215,6 @@ public class GameScr : mScreen, IChatable
 		if (CreateCharScr.isCreateChar)
 		{
 			CreateCharScr.isCreateChar = false;
-			right = null;
 		}
 	}
 
@@ -1313,6 +1313,9 @@ public class GameScr : mScreen, IChatable
 				}
 			}
 		}
+		bool hasAnyOS = false;
+		for (int i = 0; i < onScreenSkill.Length; i++) { if (onScreenSkill[i] != null) { hasAnyOS = true; break; } }
+		if (!hasAnyOS && Char.myCharz().vSkillFight.size() > 0) loadDefaultonScreenSkill();
 	}
 
 	public void onKSkill(sbyte[] kSkillID)
@@ -1336,6 +1339,9 @@ public class GameScr : mScreen, IChatable
 				}
 			}
 		}
+		bool hasAnyKS = false;
+		for (int i = 0; i < keySkill.Length; i++) { if (keySkill[i] != null) { hasAnyKS = true; break; } }
+		if (!hasAnyKS && Char.myCharz().vSkillFight.size() > 0) loadDefaultKeySkill();
 	}
 
 	public void onCSkill(sbyte[] cSkillID)
@@ -2195,30 +2201,24 @@ public class GameScr : mScreen, IChatable
 		{
 			return;
 		}
-		if (Char.myCharz().taskMaint != null && Char.myCharz().taskMaint.taskId > 1)
-		{
-			vPlayerMenu.addElement(new Command(mResources.make_friend, 11112, Char.myCharz().charFocus));
-			vPlayerMenu.addElement(new Command(mResources.trade, 11113, Char.myCharz().charFocus));
-		}
+		vPlayerMenu.addElement(new Command(mResources.make_friend, 11112, Char.myCharz().charFocus));
+		vPlayerMenu.addElement(new Command(mResources.trade, 11113, Char.myCharz().charFocus));
 		if (Char.myCharz().clan != null && Char.myCharz().role < 2 && Char.myCharz().charFocus.clanID == -1)
 		{
 			vPlayerMenu.addElement(new Command(mResources.CHAR_ORDER[4], 110391));
 		}
 		if (Char.myCharz().charFocus.statusMe != 14 && Char.myCharz().charFocus.statusMe != 5)
 		{
-			if (Char.myCharz().taskMaint != null && Char.myCharz().taskMaint.taskId >= 14)
-			{
-				vPlayerMenu.addElement(new Command(mResources.CHAR_ORDER[0], 2003));
-			}
+			vPlayerMenu.addElement(new Command(mResources.CHAR_ORDER[0], 2003));
 		}
-		else if (Char.myCharz().myskill.template.type != 4)
+		else if (Char.myCharz().myskill?.template != null && Char.myCharz().myskill.template.type != 4)
 		{
 		}
-		if (Char.myCharz().clan != null && Char.myCharz().clan.ID == Char.myCharz().charFocus.clanID && Char.myCharz().charFocus.statusMe != 14 && Char.myCharz().taskMaint != null && Char.myCharz().taskMaint.taskId >= 14)
+		if (Char.myCharz().clan != null && Char.myCharz().clan.ID == Char.myCharz().charFocus.clanID && Char.myCharz().charFocus.statusMe != 14)
 		{
 			vPlayerMenu.addElement(new Command(mResources.CHAR_ORDER[1], 2004));
 		}
-		int num = Char.myCharz().nClass.skillTemplates.Length;
+		int num = (Char.myCharz().nClass?.skillTemplates != null) ? Char.myCharz().nClass.skillTemplates.Length : 0;
 		for (int i = 0; i < num; i++)
 		{
 			SkillTemplate skillTemplate = Char.myCharz().nClass.skillTemplates[i];
@@ -2697,6 +2697,18 @@ public class GameScr : mScreen, IChatable
 		else
 		{
 			isHaveSelectSkill = true;
+		}
+		if (cmdMenu != null)
+		{
+			if (cmdMenu.img == null && imgMenu != null)
+			{
+				cmdMenu.img = imgMenu;
+				cmdMenu.w = mGraphics.getImageWidth(cmdMenu.img) + 20;
+			}
+			if (left == null)
+			{
+				left = cmdMenu;
+			}
 		}
 		scrMain.clear();
 	}
@@ -5727,11 +5739,6 @@ public class GameScr : mScreen, IChatable
 	public void paintWaypointArrow(mGraphics g)
 	{
 		int num = 10;
-		Task taskMaint = Char.myCharz().taskMaint;
-		if (taskMaint != null && taskMaint.taskId == 0 && (taskMaint.index != 1 && taskMaint.index < 6 || taskMaint.index == 0))
-		{
-			return;
-		}
 		for (int i = 0; i < TileMap.vGo.size(); i++)
 		{
 			Waypoint waypoint = (Waypoint)TileMap.vGo.elementAt(i);
@@ -5996,10 +6003,12 @@ public class GameScr : mScreen, IChatable
 
 	public void paintImageBarRight(mGraphics g, Char c)
 	{
-		int num = (int)(c.cHP * hpBarW / c.cHPFull);
-		int num2 = (int)(c.cMP * mpBarW / c.cMPFull);
-		int num3 = (int)(dHP * hpBarW / c.cHPFull);
-		int num4 = (int)(dMP * mpBarW / c.cMPFull);
+		long hpFull = c.cHPFull > 0 ? c.cHPFull : 1;
+		long mpFull = c.cMPFull > 0 ? c.cMPFull : 1;
+		int num = (int)(c.cHP * hpBarW / hpFull);
+		int num2 = (int)(c.cMP * mpBarW / mpFull);
+		int num3 = (int)(dHP * hpBarW / hpFull);
+		int num4 = (int)(dMP * mpBarW / mpFull);
 		g.setClip(GameCanvas.w / 2 + 58 - mGraphics.getImageWidth(imgPanel), 0, 95, 100);
 		g.drawRegion(imgPanel, 0, 0, mGraphics.getImageWidth(imgPanel), mGraphics.getImageHeight(imgPanel), 2, GameCanvas.w / 2 + 60, 0, mGraphics.RIGHT | mGraphics.TOP);
 		g.setClip((int)(GameCanvas.w / 2 + 60 - 83 - hpBarW + hpBarW - num3), 5, num3, 10);
@@ -6024,23 +6033,26 @@ public class GameScr : mScreen, IChatable
 			int num2 = 0;
 			int num3 = 0;
 			int num4 = 0;
+			long hpFull = c.cHPFull > 0 ? c.cHPFull : 1;
+			long mpFull = c.cMPFull > 0 ? c.cMPFull : 1;
 			if (c.charID == Char.myCharz().charID)
 			{
-				num = (int)(dHP * hpBarW / c.cHPFull);
-				num2 = (int)(dMP * mpBarW / c.cMPFull);
-				num3 = (int)(c.cHP * hpBarW / c.cHPFull);
-				num4 = (int)(c.cMP * mpBarW / c.cMPFull);
+				num = (int)(dHP * hpBarW / hpFull);
+				num2 = (int)(dMP * mpBarW / mpFull);
+				num3 = (int)(c.cHP * hpBarW / hpFull);
+				num4 = (int)(c.cMP * mpBarW / mpFull);
 			}
 			else
 			{
-				num = (int)(c.dHP * hpBarW / c.cHPFull);
+				num = (int)(c.dHP * hpBarW / hpFull);
 				num2 = c.perCentMp * mpBarW / 100;
-				num3 = (int)(c.cHP * hpBarW / c.cHPFull);
+				num3 = (int)(c.cHP * hpBarW / hpFull);
 				num4 = c.perCentMp * mpBarW / 100;
 			}
 			if (Char.myCharz().secondPower > 0)
 			{
-				int w = Char.myCharz().powerPoint * spBarW / Char.myCharz().maxPowerPoint;
+				int maxPowerPoint = (Char.myCharz().maxPowerPoint > 0) ? Char.myCharz().maxPowerPoint : 1;
+				int w = Char.myCharz().powerPoint * spBarW / maxPowerPoint;
 				g.drawImage(imgPanel2, 58, 29, 0);
 				g.setClip(83, 31, w, 10);
 				g.drawImage(imgSP, 83, 31, 0);
@@ -6084,7 +6096,7 @@ public class GameScr : mScreen, IChatable
 			g.setClip(0, 0, GameCanvas.w, GameCanvas.h);
 			if (isLeft)
 			{
-				g.setClip(83, 20, num2, 6);
+				g.setClip(83, 20, num4, 6);
 			}
 			else
 			{
@@ -6145,7 +6157,7 @@ public class GameScr : mScreen, IChatable
 		{
 			g.translate(GameCanvas.w / 2 - 62, 0);
 			paintImageBar(g, true, findCharVS1());
-			g.translate(-(GameCanvas.w / 2 - 65), 0);
+			g.translate(-(GameCanvas.w / 2 - 62), 0);
 			paintImageBarRight(g, findCharVS2());
 			findCharVS1().paintHeadWithXY(g, 137, 25, 0);
 			findCharVS2().paintHeadWithXY(g, GameCanvas.w - 15 - 122, 25, 2);
@@ -6154,7 +6166,7 @@ public class GameScr : mScreen, IChatable
 		{
 			g.translate(GameCanvas.w / 2 - 62, 0);
 			paintImageBar(g, true, Char.myCharz().charFocus);
-			g.translate(-(GameCanvas.w / 2 - 65), 0);
+			g.translate(-(GameCanvas.w / 2 - 62), 0);
 			paintImageBarRight(g, Char.myCharz());
 			Char.myCharz().paintHeadWithXY(g, 137, 25, 0);
 			Char.myCharz().charFocus.paintHeadWithXY(g, GameCanvas.w - 15 - 122, 25, 2);
@@ -6181,10 +6193,10 @@ public class GameScr : mScreen, IChatable
 					mFont.tahoma_7b_green2.drawString(g, NinjaUtil.getMoneys(Char.myCharz().mobFocus.hp) + string.Empty, imgScrW / 2, 22 + mGraphics.addYWhenOpenKeyBoard, mFont.CENTER);
 				}
 			}
-			else if (Char.myCharz().npcFocus != null)
+			else if (Char.myCharz().npcFocus != null && Char.myCharz().npcFocus.template != null)
 			{
 				mFont.tahoma_7b_green2.drawString(g, Char.myCharz().npcFocus.template.name, imgScrW / 2, 9 + mGraphics.addYWhenOpenKeyBoard, mFont.CENTER);
-				if (Char.myCharz().npcFocus.template.npcTemplateId == 4)
+				if (Char.myCharz().npcFocus.template.npcTemplateId == 4 && gI().magicTree != null)
 				{
 					mFont.tahoma_7b_green2.drawString(g, gI().magicTree.currPeas + "/" + gI().magicTree.maxPeas, imgScrW / 2, 22 + mGraphics.addYWhenOpenKeyBoard, mFont.CENTER);
 				}
@@ -6236,17 +6248,17 @@ public class GameScr : mScreen, IChatable
 	{
 		if (Char.myCharz().IsCharDead())
 			return;
-		GameEvents.OnGameScrPaintSelectedSkill(this, g);
 		if (mobCapcha != null)
 		{
 			paintCapcha(g);
 		}
 		else
 		{
-			if (GameCanvas.currentDialog != null || ChatPopup.currChatPopup != null || GameCanvas.menu.showMenu || isPaintPopup() || GameCanvas.panel.isShow || (Char.myCharz().taskMaint != null && Char.myCharz().taskMaint.taskId == 0) || ChatTextField.gI().isShow || GameCanvas.currentScreen == MoneyCharge.instance)
+			if (GameCanvas.currentDialog != null || ChatPopup.currChatPopup != null || GameCanvas.menu.showMenu || isPaintPopup() || GameCanvas.panel.isShow || ChatTextField.gI().isShow || GameCanvas.currentScreen == MoneyCharge.instance)
 			{
 				return;
 			}
+			GameEvents.OnGameScrPaintSelectedSkill(this, g);
 			long num = mSystem.currentTimeMillis();
 			long num2 = num - lastUsePotion;
 			int num3 = 0;
@@ -6383,6 +6395,10 @@ public class GameScr : mScreen, IChatable
 				int num5 = Main.isPC ? array.Length : !GameCanvas.isTouch ? array.Length : nSkill;
 				for (int i = 0; i < num5; i++)
 				{
+					if (xS == null || yS == null || i >= xS.Length || i >= yS.Length || i >= array.Length)
+					{
+						break;
+					}
 					if (Main.isPC)
 					{
 						string[] array2 = TField.isQwerty
@@ -6390,32 +6406,38 @@ public class GameScr : mScreen, IChatable
 							{
 								"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"
 							}
-							: new string[5]
+							: new string[10]
 							{
-								"7", "8", "9", "10", "11"
+								"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"
 							};
 						int num6 = -13;
 						if (num5 > 5 && i < 5)
 						{
 							num6 = 27;
 						}
-						mFont.tahoma_7b_dark.drawString(g, array2[i], xSkill + xS[i] + 14, yS[i] + num6, mFont.CENTER);
-						mFont.tahoma_7b_white.drawString(g, array2[i], xSkill + xS[i] + 14, yS[i] + num6 + 1, mFont.CENTER);
+						if (i < array2.Length)
+						{
+							mFont.tahoma_7b_dark.drawString(g, array2[i], xSkill + xS[i] + 14, yS[i] + num6, mFont.CENTER);
+							mFont.tahoma_7b_white.drawString(g, array2[i], xSkill + xS[i] + 14, yS[i] + num6 + 1, mFont.CENTER);
+						}
 					}
 					else if (!GameCanvas.isTouch)
 					{
 						string[] array3 = TField.isQwerty
-							? new string[5]
+							? new string[10]
 							{
-								"Q", "W", "E", "R", "T"
+								"Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"
 							}
-							: new string[5]
+							: new string[10]
 							{
-								"7", "8", "9", "1", "3"
+								"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"
 							};
-						g.setColor(11152401);
-						g.fillRect(xSkill + xS[i] + 2, yS[i] - 10 + 8, 20, 10);
-						mFont.tahoma_7_white.drawString(g, array3[i], xSkill + xS[i] + 12, yS[i] - 10 + 6, mFont.CENTER);
+						if (i < array3.Length)
+						{
+							g.setColor(11152401);
+							g.fillRect(xSkill + xS[i] + 2, yS[i] - 10 + 8, 20, 10);
+							mFont.tahoma_7_white.drawString(g, array3[i], xSkill + xS[i] + 12, yS[i] - 10 + 6, mFont.CENTER);
+						}
 					}
 					Skill skill = array[i];
 					if (skill != Char.myCharz().myskill)
@@ -6839,26 +6861,22 @@ public class GameScr : mScreen, IChatable
 
 	public static int getTaskMapId()
 	{
-		int num = 0;
-		if (Char.myCharz().taskMaint == null)
+		Task taskMaint = Char.myCharz()?.taskMaint;
+		if (taskMaint == null || mapTasks == null || taskMaint.index < 0 || taskMaint.index >= mapTasks.Length)
 		{
 			return -1;
 		}
-		return mapTasks[Char.myCharz().taskMaint.index];
+		return mapTasks[taskMaint.index];
 	}
 
 	public static sbyte getTaskNpcId()
 	{
-		sbyte result = 0;
-		if (Char.myCharz().taskMaint == null)
+		Task taskMaint = Char.myCharz()?.taskMaint;
+		if (taskMaint == null || tasks == null || taskMaint.index < 0 || taskMaint.index >= tasks.Length)
 		{
-			result = -1;
+			return -1;
 		}
-		else if (Char.myCharz().taskMaint.index <= tasks.Length - 1)
-		{
-			result = (sbyte)tasks[Char.myCharz().taskMaint.index];
-		}
-		return result;
+		return (sbyte)tasks[taskMaint.index];
 	}
 
 	public void refreshTeam()
@@ -7414,6 +7432,7 @@ public class GameScr : mScreen, IChatable
 			g.fillRect(0, GameCanvas.h - 13, GameCanvas.w, 15, 0, 90);
 			string st = (string)vChatVip.elementAt(0);
 			mFont.tahoma_7b_yellow.drawString(g, st, xChatVip, GameCanvas.h - 13, 0, mFont.tahoma_7b_dark);
+			g.setClip(0, 0, GameCanvas.w, GameCanvas.h);
 		}
 	}
 
@@ -7533,7 +7552,8 @@ public class GameScr : mScreen, IChatable
 				idx = 4;
 				idx2 = 5;
 			}
-			int num7 = phuban_Info.pointTeam1 * num2 / phuban_Info.maxPoint;
+			int maxPt1 = (phuban_Info.maxPoint > 0) ? phuban_Info.maxPoint : 1;
+			int num7 = phuban_Info.pointTeam1 * num2 / maxPt1;
 			if (num7 < 0)
 			{
 				num7 = 0;
@@ -7566,7 +7586,8 @@ public class GameScr : mScreen, IChatable
 				idx3 = 4;
 				idx4 = 5;
 			}
-			int num8 = phuban_Info.pointTeam2 * num2 / phuban_Info.maxPoint;
+			int maxPt2 = (phuban_Info.maxPoint > 0) ? phuban_Info.maxPoint : 1;
+			int num8 = phuban_Info.pointTeam2 * num2 / maxPt2;
 			if (num8 < 0)
 			{
 				num8 = 0;
@@ -7637,6 +7658,10 @@ public class GameScr : mScreen, IChatable
 
 	public static void paintHPBar_NEW(mGraphics g, int x, int y, Char c)
 	{
+		if (c == null)
+		{
+			return;
+		}
 		g.drawImage(imgKhung, x, y, 0);
 		int x2 = x + 3;
 		int num = y + 19;
@@ -7644,7 +7669,9 @@ public class GameScr : mScreen, IChatable
 		int num3 = 0;
 		int width = imgHP_NEW.getWidth();
 		int num4 = imgHP_NEW.getHeight() / 2;
-		num2 = (int)(c.cHP * width / c.cHPFull);
+		long hpFull = (c.cHPFull > 0) ? c.cHPFull : 1;
+		long mpFull = (c.cMPFull > 0) ? c.cMPFull : 1;
+		num2 = (int)(c.cHP * width / hpFull);
 		if (num2 <= 0)
 		{
 			num2 = 1;
@@ -7654,7 +7681,7 @@ public class GameScr : mScreen, IChatable
 			num2 = width;
 		}
 		g.drawRegion(imgHP_NEW, 0, num4, num2, num4, 0, x2, num, 0);
-		num3 = (int)(c.cMP * width / c.cMPFull);
+		num3 = (int)(c.cMP * width / mpFull);
 		if (num3 <= 0)
 		{
 			num3 = 1;
@@ -7674,9 +7701,16 @@ public class GameScr : mScreen, IChatable
 				mFont.tahoma_7_green2.drawString(g, c.mobFocus.getTemplate().name, x3, y2, 2);
 			}
 		}
-		else if (c.npcFocus != null)
+		else if (c.npcFocus != null && c.npcFocus.template != null)
 		{
-			mFont.tahoma_7_green2.drawString(g, c.npcFocus.template.name, x3, y2, 2);
+			if (c.npcFocus.template.npcTemplateId == 4 && gI().magicTree != null)
+			{
+				mFont.tahoma_7_green2.drawString(g, c.npcFocus.template.name + " (" + gI().magicTree.currPeas + "/" + gI().magicTree.maxPeas + ")", x3, y2, 2);
+			}
+			else
+			{
+				mFont.tahoma_7_green2.drawString(g, c.npcFocus.template.name, x3, y2, 2);
+			}
 		}
 		else if (c.charFocus != null)
 		{
@@ -7966,6 +8000,10 @@ public class GameScr : mScreen, IChatable
 
 	public void paintHPCT(mGraphics g, int x, int y, Char c)
 	{
+		if (c == null)
+		{
+			return;
+		}
 		g.drawImage(imgKhung, x, y, 0);
 		int x2 = x + 3;
 		int num = y + 19;
@@ -7973,7 +8011,9 @@ public class GameScr : mScreen, IChatable
 		int num3 = 0;
 		int width = imgHP_NEW.getWidth();
 		int num4 = imgHP_NEW.getHeight() / 2;
-		num2 = (int)(c.cHP * width / c.cHPFull);
+		long hpFull = (c.cHPFull > 0) ? c.cHPFull : 1;
+		long mpFull = (c.cMPFull > 0) ? c.cMPFull : 1;
+		num2 = (int)(c.cHP * width / hpFull);
 		if (num2 <= 0)
 		{
 			num2 = 1;
@@ -7983,7 +8023,7 @@ public class GameScr : mScreen, IChatable
 			num2 = width;
 		}
 		g.drawRegion(imgHP_NEW, 0, num4, 80, num4, 0, x2, num, 0);
-		num3 = (int)(c.cMP * width / c.cMPFull);
+		num3 = (int)(c.cMP * width / mpFull);
 		if (num3 <= 0)
 		{
 			num3 = 1;

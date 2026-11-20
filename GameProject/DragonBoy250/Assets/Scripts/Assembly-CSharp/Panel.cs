@@ -1484,7 +1484,8 @@ public class Panel : IActionListener, IChatable
 	public void setTabKiGui()
 	{
 		ITEM_HEIGHT = 24;
-		currentListLength = Char.myCharz().arrItemShop[4].Length;
+		Item[][] arrItemShop = Char.myCharz()?.arrItemShop;
+		currentListLength = (arrItemShop != null && arrItemShop.Length > 4 && arrItemShop[4] != null) ? arrItemShop[4].Length : 0;
 		cmyLim = currentListLength * ITEM_HEIGHT - hScroll;
 		if (cmyLim < 0)
 			cmyLim = 0;
@@ -3405,10 +3406,12 @@ public class Panel : IActionListener, IChatable
 	public void setTabShop()
 	{
 		ITEM_HEIGHT = 24;
-		if (currentTabIndex == currentTabName.Length - 1 && GameCanvas.panel2 == null && typeShop != 2)
+		if (currentTabName != null && currentTabIndex == currentTabName.Length - 1 && GameCanvas.panel2 == null && typeShop != 2)
 			currentListLength = checkCurrentListLength(Char.myCharz().arrItemBody.Length + Char.myCharz().arrItemBag.Length);
-		else
+		else if (Char.myCharz()?.arrItemShop != null && currentTabIndex >= 0 && currentTabIndex < Char.myCharz().arrItemShop.Length && Char.myCharz().arrItemShop[currentTabIndex] != null)
 			currentListLength = Char.myCharz().arrItemShop[currentTabIndex].Length;
+		else
+			currentListLength = 0;
 		cmyLim = currentListLength * ITEM_HEIGHT - hScroll;
 		if (cmyLim < 0)
 			cmyLim = 0;
@@ -3471,11 +3474,19 @@ public class Panel : IActionListener, IChatable
 	internal void setTabPetInventory()
 	{
 		ITEM_HEIGHT = 30;
-		Item[] arrItemBody = Char.myPetz().arrItemBody;
-		Skill[] arrPetSkill = Char.myPetz().arrPetSkill;
+		Char pet = Char.myPetz();
+		if (pet != null)
+		{
+			if (pet.arrItemBody == null)
+				pet.arrItemBody = new Item[0];
+			if (pet.arrPetSkill == null)
+				pet.arrPetSkill = new Skill[0];
+		}
+		Item[] arrItemBody = pet?.arrItemBody ?? new Item[0];
+		Skill[] arrPetSkill = pet?.arrPetSkill ?? new Skill[0];
 		currentListLength = arrItemBody.Length + arrPetSkill.Length;
 		cmyLim = currentListLength * ITEM_HEIGHT - hScroll;
-		cmy = cmtoY = cmyLast[currentTabIndex];
+		cmy = cmtoY = (cmyLast != null && currentTabIndex >= 0 && currentTabIndex < cmyLast.Length) ? cmyLast[currentTabIndex] : 0;
 		if (cmyLim < 0)
 			cmyLim = 0;
 		if (cmy < 0)
@@ -3755,6 +3766,7 @@ public class Panel : IActionListener, IChatable
 			{
 				if (Equals(GameCanvas.panel))
 					paintCombineEff(g);
+				GameScr.resetTranslate(g);
 				return;
 			}
 			GameCanvas.paintz.paintFrameSimple(X, Y, W, H, g);
@@ -3885,8 +3897,6 @@ public class Panel : IActionListener, IChatable
 			if (tabIcon != null && tabIcon.isShow)
 				tabIcon.paint(g);
 			g.translate(-g.getTranslateX(), -g.getTranslateY());
-			g.translate(X, Y);
-			g.translate(-cmx, 0);
 		}
 	}
 
@@ -3921,22 +3931,26 @@ public class Panel : IActionListener, IChatable
 						}
 					}
 				}
-				if (Char.myCharz().arrItemShop[currentTabIndex].Length == 0 && type != 17)
+				if (Char.myCharz()?.arrItemShop == null || currentTabIndex < 0 || currentTabIndex >= Char.myCharz().arrItemShop.Length || Char.myCharz().arrItemShop[currentTabIndex] == null || (Char.myCharz().arrItemShop[currentTabIndex].Length == 0 && type != 17))
 				{
 					mFont.tahoma_7_grey.drawString(g, mResources.notYetSell, xScroll + wScroll / 2, yScroll + hScroll / 2 - 10, 2);
 					return;
 				}
 			}
+			if (Char.myCharz()?.arrItemShop == null || currentTabIndex < 0 || currentTabIndex >= Char.myCharz().arrItemShop.Length || Char.myCharz().arrItemShop[currentTabIndex] == null)
+			{
+				return;
+			}
 			g.translate(0, -cmy);
 			Item[] array = Char.myCharz().arrItemShop[currentTabIndex];
 			if (typeShop == 2 && (currentTabIndex == 4 || type == 17))
 			{
-				array = Char.myCharz().arrItemShop[4];
-				if (array.Length == 0)
+				if (Char.myCharz().arrItemShop.Length <= 4 || Char.myCharz().arrItemShop[4] == null || Char.myCharz().arrItemShop[4].Length == 0)
 				{
 					mFont.tahoma_7_grey.drawString(g, mResources.notYetSell, xScroll + wScroll / 2, yScroll + hScroll / 2 - 10, 2);
 					return;
 				}
+				array = Char.myCharz().arrItemShop[4];
 			}
 			int num = array.Length;
 			for (int i = 0; i < num; i++)
@@ -4154,8 +4168,8 @@ public class Panel : IActionListener, IChatable
 		g.setColor(16711680);
 		g.setClip(xScroll, yScroll, wScroll, hScroll);
 		g.translate(0, -cmy);
-		Item[] arrItemBody = Char.myPetz().arrItemBody;
-		Skill[] arrPetSkill = Char.myPetz().arrPetSkill;
+		Item[] arrItemBody = Char.myPetz()?.arrItemBody ?? new Item[0];
+		Skill[] arrPetSkill = Char.myPetz()?.arrPetSkill ?? new Skill[0];
 		for (int i = 0; i < arrItemBody.Length + arrPetSkill.Length; i++)
 		{
 			bool flag = i < arrItemBody.Length;
@@ -5775,46 +5789,42 @@ public class Panel : IActionListener, IChatable
 			return -1;
 		if (item.isTypeBody())
 		{
-			if (item.itemOption == null)
+			if (item.itemOption == null || item.itemOption.Length == 0 || item.itemOption[0] == null || item.itemOption[0].optionTemplate == null)
 				return -1;
 			ItemOption itemOption = item.itemOption[0];
-			if (itemOption.optionTemplate.id == 22)
+			int itemParam = itemOption.param;
+			if (itemOption.optionTemplate.id == 22 || itemOption.optionTemplate.id == 23)
 			{
-				itemOption.optionTemplate = GameScr.gI().iOptionTemplates[6];
-				itemOption.param *= 1000;
-			}
-			if (itemOption.optionTemplate.id == 23)
-			{
-				itemOption.optionTemplate = GameScr.gI().iOptionTemplates[7];
-				itemOption.param *= 1000;
+				itemParam *= 1000;
 			}
 			Item item2 = null;
-			for (int i = 0; i < Char.myCharz().arrItemBody.Length; i++)
+			if (Char.myCharz()?.arrItemBody != null)
 			{
-				Item item3 = Char.myCharz().arrItemBody[i];
-				if (itemOption.optionTemplate.id == 22)
+				for (int i = 0; i < Char.myCharz().arrItemBody.Length; i++)
 				{
-					itemOption.optionTemplate = GameScr.gI().iOptionTemplates[6];
-					itemOption.param *= 1000;
-				}
-				if (itemOption.optionTemplate.id == 23)
-				{
-					itemOption.optionTemplate = GameScr.gI().iOptionTemplates[7];
-					itemOption.param *= 1000;
-				}
-				if (item3 != null && item3.itemOption != null && item3.template.type == item.template.type)
-				{
-					item2 = item3;
-					break;
+					Item item3 = Char.myCharz().arrItemBody[i];
+					if (item3 != null && item3.template != null && item.template != null && item3.itemOption != null && item3.itemOption.Length > 0 && item3.template.type == item.template.type)
+					{
+						item2 = item3;
+						break;
+					}
 				}
 			}
 			if (item2 == null)
 			{
 				isUp = true;
-				return itemOption.param;
+				return itemParam;
 			}
-			int num = 0;
-			num = item2 == null || item2.itemOption == null ? itemOption.param : itemOption.param - item2.itemOption[0].param;
+			int equippedParam = 0;
+			if (item2.itemOption != null && item2.itemOption.Length > 0 && item2.itemOption[0] != null)
+			{
+				equippedParam = item2.itemOption[0].param;
+				if (item2.itemOption[0].optionTemplate != null && (item2.itemOption[0].optionTemplate.id == 22 || item2.itemOption[0].optionTemplate.id == 23))
+				{
+					equippedParam *= 1000;
+				}
+			}
+			int num = itemParam - equippedParam;
 			if (num < 0)
 				isUp = false;
 			else
@@ -6374,10 +6384,22 @@ public class Panel : IActionListener, IChatable
 			{
 				TaskOrder taskOrder = (TaskOrder)Char.myCharz().taskOrders.elementAt(m);
 				mFont.tahoma_7_white.drawString(g, taskOrder.name, xstart + 5, yPaint += 12, 0);
-				if (taskOrder.count == taskOrder.maxCount)
-					mFont.tahoma_7_white.drawString(g, (taskOrder.taskId != 0 ? mResources.KILLBOSS : mResources.KILL) + " " + Mob.arrMobTemplate[taskOrder.killId].name + " (" + taskOrder.count + "/" + taskOrder.maxCount + ")", xstart + 5, yPaint += 12, 0);
+				if (taskOrder.killId >= 0 && Mob.arrMobTemplate != null && taskOrder.killId < Mob.arrMobTemplate.Length && Mob.arrMobTemplate[taskOrder.killId] != null)
+				{
+					string killStr = (taskOrder.taskId != 0 ? mResources.KILLBOSS : mResources.KILL) + " " + Mob.arrMobTemplate[taskOrder.killId].name + " (" + taskOrder.count + "/" + taskOrder.maxCount + ")";
+					if (taskOrder.count == taskOrder.maxCount)
+						mFont.tahoma_7_white.drawString(g, killStr, xstart + 5, yPaint += 12, 0);
+					else
+						mFont.tahoma_7_blue.drawString(g, killStr, xstart + 5, yPaint += 12, 0);
+				}
 				else
-					mFont.tahoma_7_blue.drawString(g, (taskOrder.taskId != 0 ? mResources.KILLBOSS : mResources.KILL) + " " + Mob.arrMobTemplate[taskOrder.killId].name + " (" + taskOrder.count + "/" + taskOrder.maxCount + ")", xstart + 5, yPaint += 12, 0);
+				{
+					string progressStr = "(" + taskOrder.count + "/" + taskOrder.maxCount + ")";
+					if (taskOrder.count == taskOrder.maxCount)
+						mFont.tahoma_7_white.drawString(g, progressStr, xstart + 5, yPaint += 12, 0);
+					else
+						mFont.tahoma_7_blue.drawString(g, progressStr, xstart + 5, yPaint += 12, 0);
+				}
 				indexRowMax += 3;
 				inforW = popupW - 25;
 				paintMultiLine(g, mFont.tahoma_7_grey, taskOrder.description, xstart + 5, yPaint += 12, 0);
@@ -6766,7 +6788,7 @@ public class Panel : IActionListener, IChatable
 	{
 		if (currentTabIndex == 0)
 		{
-			if (selected == -1 || selected > Char.myPetz().arrItemBody.Length - 1)
+			if (Char.myPetz()?.arrItemBody == null || selected < 0 || selected > Char.myPetz().arrItemBody.Length - 1)
 				return;
 			MyVector myVector = new MyVector(string.Empty);
 			currItem = Char.myPetz().arrItemBody[selected];

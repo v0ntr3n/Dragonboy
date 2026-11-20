@@ -2579,11 +2579,16 @@ public class Controller : IMessageHandler
 				}
 				if (b18 == 2)
 				{
-					GameScr.gI().magicTree.remainPeas = msg.reader().readShort();
-					GameScr.gI().magicTree.seconds = msg.reader().readInt();
-					GameScr.gI().magicTree.last = (GameScr.gI().magicTree.cur = mSystem.currentTimeMillis());
-					GameScr.gI().magicTree.isUpdateTree = true;
-					GameScr.gI().magicTree.isPeasEffect = true;
+					short remainPeas = msg.reader().readShort();
+					int treeSeconds = msg.reader().readInt();
+					if (GameScr.gI().magicTree != null)
+					{
+						GameScr.gI().magicTree.remainPeas = remainPeas;
+						GameScr.gI().magicTree.seconds = treeSeconds;
+						GameScr.gI().magicTree.last = (GameScr.gI().magicTree.cur = mSystem.currentTimeMillis());
+						GameScr.gI().magicTree.isUpdateTree = true;
+						GameScr.gI().magicTree.isPeasEffect = true;
+					}
 				}
 				break;
 			}
@@ -2632,21 +2637,45 @@ public class Controller : IMessageHandler
 				int num154 = msg.reader().readInt();
 				Res.outz("RECIEVE  hinh small: " + num154);
 				sbyte[] array17 = null;
+				Image loaded = null;
+				bool inBounds = SmallImage.imgNew != null && num154 >= 0 && num154 < SmallImage.imgNew.Length;
 				try
 				{
 					array17 = NinjaUtil.readByteArray(msg);
-					Res.outz(">SIZE CHECK= " + array17.Length);
+					Res.outz(">SIZE CHECK= " + ((array17 != null) ? array17.Length : 0));
 					if (num154 == 3896)
 					{
 					}
-					SmallImage.imgNew[num154].img = createImage(array17);
+					if (inBounds)
+					{
+						if (SmallImage.imgNew[num154] == null)
+						{
+							SmallImage.imgNew[num154] = new Small(SmallImage.imgEmpty, num154);
+						}
+						if (array17 != null && array17.Length > 0)
+						{
+							loaded = createImage(array17);
+							if (loaded != null && loaded.texture != null)
+							{
+								SmallImage.imgNew[num154].img = loaded;
+							}
+						}
+					}
 				}
 				catch (Exception)
 				{
 					array17 = null;
-					SmallImage.imgNew[num154].img = Image.createRGBImage(new int[1], 1, 1, true);
+					loaded = null;
+					if (inBounds)
+					{
+						if (SmallImage.imgNew[num154] == null)
+						{
+							SmallImage.imgNew[num154] = new Small(SmallImage.imgEmpty, num154);
+						}
+						SmallImage.imgNew[num154].img = Image.createRGBImage(new int[1], 1, 1, true);
+					}
 				}
-				if (array17 != null && mGraphics.zoomLevel > 1)
+				if (inBounds && array17 != null && loaded != null && loaded.texture != null && mGraphics.zoomLevel > 1)
 				{
 					Rms.saveRMS(mGraphics.zoomLevel + "Small" + num154, array17);
 				}
@@ -2656,18 +2685,61 @@ public class Controller : IMessageHandler
 			{
 				short id3 = msg.reader().readShort();
 				sbyte[] data3 = NinjaUtil.readByteArray(msg);
-				EffectData effDataById = Effect.getEffDataById(id3);
 				sbyte b65 = msg.reader().readSByte();
-				if (b65 == 0)
+				sbyte[] array15 = NinjaUtil.readByteArray(msg);
+				Image effImg = (array15 != null && array15.Length > 0) ? Image.createImage(array15, 0, array15.Length) : null;
+				EffectData effDataById = Effect.getEffDataById(id3);
+				if (effDataById == null)
 				{
-					effDataById.readData(data3);
+					bool appliedToAudience = false;
+					if (id3 == 106)
+					{
+						for (int idx = 0; idx < Effect.vEffData.size(); idx++)
+						{
+							EffectData audienceEff = (EffectData)Effect.vEffData.elementAt(idx);
+							if (audienceEff != null && audienceEff.ID >= 42 && audienceEff.ID <= 46)
+							{
+								if (b65 == 0)
+								{
+									audienceEff.readData(data3);
+								}
+								else
+								{
+									audienceEff.readDataNewBoss(data3, b65);
+								}
+								audienceEff.img = effImg;
+								appliedToAudience = true;
+							}
+						}
+					}
+					if (!appliedToAudience)
+					{
+						effDataById = new EffectData();
+						effDataById.ID = id3;
+						if (b65 == 0)
+						{
+							effDataById.readData(data3);
+						}
+						else
+						{
+							effDataById.readDataNewBoss(data3, b65);
+						}
+						effDataById.img = effImg;
+						Effect.addEffData(effDataById);
+					}
 				}
 				else
 				{
-					effDataById.readDataNewBoss(data3, b65);
+					if (b65 == 0)
+					{
+						effDataById.readData(data3);
+					}
+					else
+					{
+						effDataById.readDataNewBoss(data3, b65);
+					}
+					effDataById.img = effImg;
 				}
-				sbyte[] array15 = NinjaUtil.readByteArray(msg);
-				effDataById.img = Image.createImage(array15, 0, array15.Length);
 				break;
 			}
 			case -32:
@@ -3384,7 +3456,7 @@ public class Controller : IMessageHandler
 				npc5.avatar = avatar2;
 				ChatPopup.addBigMessage(chat3, 100000, npc5);
 				sbyte b46 = msg.reader().readByte();
-				if (b46 == 0)
+				if (b46 == 0 && ChatPopup.serverChatPopUp != null)
 				{
 					ChatPopup.serverChatPopUp.cmdMsg1 = new Command(mResources.CLOSE, ChatPopup.serverChatPopUp, 1001, null);
 					ChatPopup.serverChatPopUp.cmdMsg1.x = GameCanvas.w / 2 - 35;
@@ -3394,12 +3466,15 @@ public class Controller : IMessageHandler
 				{
 					string p2 = msg.reader().readUTF();
 					string caption2 = msg.reader().readUTF();
-					ChatPopup.serverChatPopUp.cmdMsg1 = new Command(caption2, ChatPopup.serverChatPopUp, 1000, p2);
-					ChatPopup.serverChatPopUp.cmdMsg1.x = GameCanvas.w / 2 - 75;
-					ChatPopup.serverChatPopUp.cmdMsg1.y = GameCanvas.h - 35;
-					ChatPopup.serverChatPopUp.cmdMsg2 = new Command(mResources.CLOSE, ChatPopup.serverChatPopUp, 1001, null);
-					ChatPopup.serverChatPopUp.cmdMsg2.x = GameCanvas.w / 2 + 11;
-					ChatPopup.serverChatPopUp.cmdMsg2.y = GameCanvas.h - 35;
+					if (ChatPopup.serverChatPopUp != null)
+					{
+						ChatPopup.serverChatPopUp.cmdMsg1 = new Command(caption2, ChatPopup.serverChatPopUp, 1000, p2);
+						ChatPopup.serverChatPopUp.cmdMsg1.x = GameCanvas.w / 2 - 75;
+						ChatPopup.serverChatPopUp.cmdMsg1.y = GameCanvas.h - 35;
+						ChatPopup.serverChatPopUp.cmdMsg2 = new Command(mResources.CLOSE, ChatPopup.serverChatPopUp, 1001, null);
+						ChatPopup.serverChatPopUp.cmdMsg2.x = GameCanvas.w / 2 + 11;
+						ChatPopup.serverChatPopUp.cmdMsg2.y = GameCanvas.h - 35;
+					}
 				}
 				break;
 			}
@@ -3563,8 +3638,8 @@ public class Controller : IMessageHandler
 					bgItem.tileY = new int[b28];
 					for (int num66 = 0; num66 < b28; num66++)
 					{
-						bgItem.tileX[num65] = msg.reader().readByte();
-						bgItem.tileY[num65] = msg.reader().readByte();
+						bgItem.tileX[num66] = msg.reader().readByte();
+						bgItem.tileY[num66] = msg.reader().readByte();
 					}
 					TileMap.vItemBg.addElement(bgItem);
 				}
@@ -4907,7 +4982,7 @@ public class Controller : IMessageHandler
 				short num2 = msg.reader().readShort();
 				sbyte b4 = msg.reader().readByte();
 				short num3 = msg.reader().readShort();
-				if (b4 != 6 && (Char.myCharz().taskMaint == null || (((Char.myCharz().taskMaint.taskId >= 7 && (Char.myCharz().taskMaint.taskId != 7 || Char.myCharz().taskMaint.index > 1)) || (b4 != 7 && b4 != 8 && b4 != 9)) && (Char.myCharz().taskMaint.taskId >= 6 || b4 != 16))))
+				if (b4 != 6)
 				{
 					if (b4 == 4)
 					{
@@ -5012,10 +5087,13 @@ public class Controller : IMessageHandler
 								{
 									if (BgItem.newSmallVersion != null)
 									{
-										Res.outz("Small  last= " + array.Length % 127 + "new Version= " + BgItem.newSmallVersion[bgItem.idImage]);
-										if (array.Length % 127 != BgItem.newSmallVersion[bgItem.idImage])
+										if (bgItem.idImage < 0 || bgItem.idImage >= BgItem.newSmallVersion.Length || array.Length % 127 != BgItem.newSmallVersion[bgItem.idImage])
 										{
 											flag2 = true;
+										}
+										else
+										{
+											Res.outz("Small  last= " + array.Length % 127 + "new Version= " + BgItem.newSmallVersion[bgItem.idImage]);
 										}
 									}
 									if (!flag2)
@@ -6087,6 +6165,10 @@ public class Controller : IMessageHandler
 
 	private void useSkill(Skill skill)
 	{
+		if (skill == null || skill.template == null)
+		{
+			return;
+		}
 		if (Char.myCharz().myskill == null)
 		{
 			Char.myCharz().myskill = skill;
@@ -6178,12 +6260,18 @@ public class Controller : IMessageHandler
 		{
 			string name = msg.reader().readUTF();
 			sbyte nFrame = msg.reader().readByte();
-			sbyte[] array = null;
-			array = NinjaUtil.readByteArray(msg);
-			Image img = createImage(array);
-			ImgByName.SetImage(name, img, nFrame);
-			if (array == null)
+			sbyte[] array = NinjaUtil.readByteArray(msg);
+			if (array != null && array.Length > 0)
 			{
+				Image img = createImage(array);
+				if (img != null)
+				{
+					ImgByName.SetImage(name, img, nFrame);
+					if (mGraphics.zoomLevel > 1)
+					{
+						ImgByName.saveRMS(name, nFrame, array);
+					}
+				}
 			}
 		}
 		catch (Exception)
