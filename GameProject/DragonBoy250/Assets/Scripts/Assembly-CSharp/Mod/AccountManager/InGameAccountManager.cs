@@ -108,7 +108,8 @@ namespace Mod.AccountManager
 
 		static InGameAccountManager gI()
 		{
-			instance ??= new InGameAccountManager();
+			if (instance == null)
+				instance = new InGameAccountManager();
 			return instance;
 		}
 
@@ -839,52 +840,46 @@ namespace Mod.AccountManager
 			};
 			addAccount = new Command("", ActionListener.gI(), (int)CommandType.AddAccount, null)
 			{
-				img = Image.createImage(add.width, add.height),
+				img = new Image { texture = add, w = add.width, h = add.height, isResourceAsset = true },
 				imgFocus = new Image(),
 				w = add.width / mGraphics.zoomLevel,
 				h = add.height / mGraphics.zoomLevel
 			};
-			addAccount.img.texture = add;
 			toggleHidePassword = new Command("", ActionListener.gI(), (int)CommandType.ToggleHidePassword, null)
 			{
-				img = Image.createImage(show.width, show.height),
+				img = new Image { texture = show, w = show.width, h = show.height, isResourceAsset = true },
 				imgFocus = new Image(),
 				w = show.width / mGraphics.zoomLevel,
 				h = show.height / mGraphics.zoomLevel
 			};
-			toggleHidePassword.img.texture = show;
 			importAccounts = new Command("", ActionListener.gI(), (int)CommandType.ImportAccounts, null)
 			{
-				img = Image.createImage(addMultiple.width, addMultiple.height),
+				img = new Image { texture = addMultiple, w = addMultiple.width, h = addMultiple.height, isResourceAsset = true },
 				imgFocus = new Image(),
 				w = addMultiple.width / mGraphics.zoomLevel,
 				h = addMultiple.height / mGraphics.zoomLevel
 			};
-			importAccounts.img.texture = addMultiple;
 			helpImportAccounts = new Command("", ActionListener.gI(), (int)CommandType.HelpImportAccounts, null)
 			{
-				img = Image.createImage(help.width, help.height),
+				img = new Image { texture = help, w = help.width, h = help.height, isResourceAsset = true },
 				imgFocus = new Image(),
 				w = help.width / mGraphics.zoomLevel,
 				h = help.height / mGraphics.zoomLevel
 			};
-			helpImportAccounts.img.texture = help;
 			moveAccountUp = new Command("", ActionListener.gI(), (int)CommandType.MoveAccountUp, null)
 			{
-				img = Image.createImage(up.width, up.height),
+				img = new Image { texture = up, w = up.width, h = up.height, isResourceAsset = true },
 				imgFocus = new Image(),
 				w = up.width / mGraphics.zoomLevel,
 				h = up.height / mGraphics.zoomLevel
 			};
-			moveAccountUp.img.texture = up;
 			moveAccountDown = new Command("", ActionListener.gI(), (int)CommandType.MoveAccountDown, null)
 			{
-				img = Image.createImage(down.width, down.height),
+				img = new Image { texture = down, w = down.width, h = down.height, isResourceAsset = true },
 				imgFocus = new Image(),
 				w = down.width / mGraphics.zoomLevel,
 				h = down.height / mGraphics.zoomLevel
 			};
-			moveAccountDown.img.texture = down;
 		}
 
 		internal static void OnCloseAndPause()
@@ -964,8 +959,12 @@ namespace Mod.AccountManager
 					sbyte[] data = Rms.loadRMS(mGraphics.zoomLevel + "Small" + id);
 					if (data != null)
 					{
-						texture = new Texture2D(1, 1);
-						texture.LoadImage(ArrayCast.cast(data));
+						texture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+						if (!texture.LoadImage(ArrayCast.cast(data)))
+						{
+							UnityEngine.Object.Destroy(texture);
+							texture = null;
+						}
 					}
 				}
 				if (texture != null)
@@ -979,6 +978,11 @@ namespace Mod.AccountManager
 				icons.Add(id, texture);
 			else if (icons[id] == null)
 				icons[id] = texture;
+			else if (texture != null && icons[id] != texture)
+			{
+				UnityEngine.Object.Destroy(icons[id]);
+				icons[id] = texture;
+			}
 		}
 
 		static Texture2D GetOverlay(sbyte gender)
@@ -1345,6 +1349,7 @@ namespace Mod.AccountManager
 					GameCanvas.startOKDlg(Strings.inGameAccountManagerImportAccountsHelp);
 					break;
 				case CommandType.FinishImportAccounts:
+				{
 					string data = tfInputDataImportAccounts.getText();
 					if (string.IsNullOrWhiteSpace(data))
 					{
@@ -1505,13 +1510,16 @@ namespace Mod.AccountManager
 						IsBackground = true
 					}.Start();
 					break;
+				}
 				case CommandType.CloseImportAccounts:
+				{
 					GetInputAccountArea(out int x, out int y, out int width, out int height, true);
 					selectServer.X = x + 10;
 					selectServer.Y = tfCustomServerPort.y = y + 15 + ITEM_HEIGHT + 15 + ITEM_HEIGHT + 15;
 					selectServer.Width = width - 20;
 					isImportingAccounts = false;
 					break;
+				}
 				}
 			}
 			internal static ActionListener gI()
