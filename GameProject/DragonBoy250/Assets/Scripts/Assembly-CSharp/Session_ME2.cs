@@ -251,6 +251,8 @@ public class Session_ME2 : ISession
 		return result;
 	}
 
+	private static readonly object _recieveLock = new object();
+
 	public static void onRecieveMsg(Message msg)
 	{
 		if (Thread.CurrentThread.Name == Main.mainThreadName)
@@ -259,26 +261,39 @@ public class Session_ME2 : ISession
 		}
 		else
 		{
-			recieveMsg.addElement(msg);
+			lock (_recieveLock)
+			{
+				recieveMsg.addElement(msg);
+			}
 		}
 	}
 
 	public static void update()
 	{
-		while (recieveMsg.size() > 0)
+		const int maxMessagesPerUpdate = 64;
+		int processed = 0;
+		while (processed < maxMessagesPerUpdate)
 		{
-			Message message = (Message)recieveMsg.elementAt(0);
 			if (Controller.isStopReadMessage)
 			{
 				break;
 			}
+			Message message;
+			lock (_recieveLock)
+			{
+				if (recieveMsg.size() <= 0)
+				{
+					break;
+				}
+				message = (Message)recieveMsg.elementAt(0);
+				recieveMsg.removeElementAt(0);
+			}
 			if (message == null)
 			{
-				recieveMsg.removeElementAt(0);
 				break;
 			}
 			messageHandler.onMessage(message);
-			recieveMsg.removeElementAt(0);
+			processed++;
 		}
 	}
 
@@ -313,7 +328,10 @@ public class Session_ME2 : ISession
 			}
 			sendThread = null;
 			collectorThread = null;
-			recieveMsg.removeAllElements();
+			lock (_recieveLock)
+			{
+				recieveMsg.removeAllElements();
+			}
 			if (sender != null && sender.sendingMessage != null)
 			{
 				sender.sendingMessage.Clear();

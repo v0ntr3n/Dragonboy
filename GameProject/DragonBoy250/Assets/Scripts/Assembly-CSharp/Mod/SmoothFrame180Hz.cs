@@ -11,7 +11,7 @@ namespace Mod
 		static FieldInfo _updateCountField;
 		static bool _reflectionReady;
 		static readonly object ZeroBox = 0;
-		static readonly object MaxBox = int.MaxValue;
+		static readonly object MaxBox = int.MaxValue / 2;
 
 		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
 		static void Bootstrap()

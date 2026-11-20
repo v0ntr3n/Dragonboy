@@ -75,7 +75,8 @@ namespace Mod
 			{
 				try
 				{
-					lockTaken = windowsSharedDataMutex.WaitOne(5000);
+					int timeoutMs = Thread.CurrentThread.Name == Main.mainThreadName ? 100 : 5000;
+					lockTaken = windowsSharedDataMutex.WaitOne(timeoutMs);
 				}
 				catch (AbandonedMutexException)
 				{

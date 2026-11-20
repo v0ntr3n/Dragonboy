@@ -1774,7 +1774,7 @@ public class Controller : IMessageHandler
 				}
 				InfoDlg.hide();
 				Char.myPetz().head = msg.reader().readShort();
-				Debug.LogWarning(">>>cmd head:" + Char.myPetz().avatarz());
+				Res.outz(">>>cmd head:" + Char.myPetz().avatarz());
 				Res.outz("tra ve head= " + Char.myCharz().head);
 				Char.myPetz().setDefaultPart();
 				int num54 = msg.reader().readUnsignedByte();

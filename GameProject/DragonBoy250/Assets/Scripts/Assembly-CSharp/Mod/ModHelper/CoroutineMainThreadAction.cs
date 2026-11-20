@@ -80,7 +80,14 @@ namespace Mod.ModHelper
 			{
 				yield return StartCoroutine(OnUpdate());
 
-				yield return new WaitForSecondsRealtime(Interval);
+				if (Interval <= 0f)
+				{
+					yield return null;
+				}
+				else
+				{
+					yield return new WaitForSecondsRealtime(Interval);
+				}
 			}
 		}
 	}

@@ -456,18 +456,18 @@ namespace Mod.Graphics
 
 		internal static void drawCooldownRect(float x, float y, float w, float h, float value, Color color)
 		{
+			float clamped = Mathf.Clamp01(value);
+			if (clamped <= 0f || Texture2D.whiteTexture == null)
+				return;
 			x *= mGraphics.zoomLevel;
 			y *= mGraphics.zoomLevel;
 			w *= mGraphics.zoomLevel;
 			h *= mGraphics.zoomLevel;
-			Matrix4x4 matrix = GUI.matrix;
-			// UIImage.image.rectTransform.sizeDelta = new Vector2(w, h);
-			// UIImage.image.fillAmount = value;
-			// UIImage.image.color = color;
-			// UIImage.image.material.SetPass(0);
-			UIImage.PopulateMesh();
-			UnityEngine.Graphics.DrawMeshNow(UIImage.mesh, new Vector3(x, y, -1), Quaternion.identity, 0);
-			GUI.matrix = matrix;
+			float fillH = h * clamped;
+			Color prevColor = GUI.color;
+			GUI.color = color;
+			GUI.DrawTexture(new Rect(x - w * 0.5f, y - h * 0.5f + (h - fillH), w, fillH), Texture2D.whiteTexture);
+			GUI.color = prevColor;
 		}
 
 		internal static Texture2D FlipTextureVertically(Texture2D original)
