@@ -8,6 +8,7 @@ using Assembly_CSharp.Mod.BoMong;
 using Mod.AccountManager;
 using Mod.Auto;
 using Mod.CharEffect;
+using Mod.CSKB;
 using Mod.CustomPanel;
 using Mod.Graphics;
 using Mod.ListChar;
@@ -38,6 +39,8 @@ namespace Mod
 		static long delayRequestZoneInfo = 100;
 		static bool isFirstPause = true;
 		static bool isOpenZoneUI;
+		static bool _isBackgroundZonePoll;
+		static bool _hasSavedSelectSkill;
 		static GUIStyle _hpStyle;
 		static GUIStyle _mpStyle;
 		static int _hudStyleZoomLevel = -1;
@@ -241,9 +244,14 @@ namespace Mod
 			try
 			{
 				int zoom = mGraphics.zoomLevel > 0 ? mGraphics.zoomLevel : 2;
-				string filename = "x" + zoom + "Big0";
-				sbyte[] data = Rms.loadRMS(filename);
-				return data != null && data.Length > 0;
+				for (int i = 0; i <= 5; i++)
+				{
+					string filename = "x" + zoom + "Big" + i;
+					sbyte[] data = Rms.loadRMS(filename);
+					if (data == null || data.Length == 0)
+						return false;
+				}
+				return true;
 			}
 			catch
 			{
@@ -258,12 +266,6 @@ namespace Mod
 				if (!HasRequiredResources())
 				{
 					Rms.DeleteStorage(Rms.RMS_ResVersion);
-					return;
-				}
-				string resVer = Rms.loadRMSString(Rms.RMS_ResVersion);
-				if (string.IsNullOrEmpty(resVer))
-				{
-					Rms.saveRMSString(Rms.RMS_ResVersion, "1");
 				}
 			}
 			catch
@@ -602,7 +604,7 @@ namespace Mod
 		};
 		static readonly string[] NonQwertySkillHotkeys =
 		{
-			"7", "8", "9", "10", "11"
+			"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"
 		};
 
 		internal static void OnAwake()
@@ -994,6 +996,7 @@ namespace Mod
 			{
 				delayRequestZoneInfo = Res.random(2000, 3000);
 				lastTimeRequestZoneInfo = mSystem.currentTimeMillis();
+				_isBackgroundZonePoll = true;
 				Service.gI().openUIZone();
 			}
 
@@ -1246,6 +1249,8 @@ namespace Mod
 
 		internal static bool OnAddBigMessage(string chat, Npc npc)
 		{
+			if (!AutoTrainPet.isEnabled && !UpCSKBController.IsRunning)
+				return false;
 			return true;
 		}
 
@@ -1253,6 +1258,7 @@ namespace Mod
 		{
 			_hasTickSnapshot = false;
 			_isInterpolatingPose = false;
+			_isBackgroundZonePoll = false;
 			Utils.UpdateWaypointChangeMap();
 			GameScr.gI().pts = null;
 		}
@@ -1328,46 +1334,47 @@ namespace Mod
 			ModMenuMain.UpdateTouch();
 			if (GameCanvas.isTouchControl)
 			{
-				if (!TileMap.isOfflineMap())
-					return false;
-				if (GameCanvas.isMouseFocus(GameScr.xC, GameScr.yC, 34, 34))
+				if (TileMap.isOfflineMap())
 				{
-					mScreen.keyMouse = 15;
-				}
-				else if (GameCanvas.isMouseFocus(GameScr.xHP, GameScr.yHP, 40, 40))
-				{
-					if (Char.myCharz().statusMe != 14)
-						mScreen.keyMouse = 10;
-				}
-				else if (GameCanvas.isMouseFocus(GameScr.xF, GameScr.yF, 40, 40))
-				{
-					if (Char.myCharz().statusMe != 14)
-						mScreen.keyMouse = 5;
-				}
-				else if (instance.cmdMenu != null && GameCanvas.isMouseFocus(instance.cmdMenu.x, instance.cmdMenu.y,
-					         instance.cmdMenu.w / 2, instance.cmdMenu.h))
-				{
-					mScreen.keyMouse = 1;
-				}
-				else
-				{
-					mScreen.keyMouse = -1;
-				}
-
-				if (GameCanvas.isPointerHoldIn(GameScr.xC, GameScr.yC, 34, 34))
-				{
-					mScreen.keyTouch = 15;
-					GameCanvas.isPointerJustDown = false;
-					instance.isPointerDowning = false;
-					if (GameCanvas.isPointerClick && GameCanvas.isPointerJustRelease)
+					if (GameCanvas.isMouseFocus(GameScr.xC, GameScr.yC, 34, 34))
 					{
-						ChatTextField.gI().startChat(instance, string.Empty);
-						SoundMn.gI().buttonClick();
-						Char.myCharz().currentMovePoint = null;
-						GameCanvas.clearAllPointerEvent();
+						mScreen.keyMouse = 15;
+					}
+					else if (GameCanvas.isMouseFocus(GameScr.xHP, GameScr.yHP, 40, 40))
+					{
+						if (Char.myCharz().statusMe != 14)
+							mScreen.keyMouse = 10;
+					}
+					else if (GameCanvas.isMouseFocus(GameScr.xF, GameScr.yF, 40, 40))
+					{
+						if (Char.myCharz().statusMe != 14)
+							mScreen.keyMouse = 5;
+					}
+					else if (instance.cmdMenu != null && GameCanvas.isMouseFocus(instance.cmdMenu.x, instance.cmdMenu.y,
+						         instance.cmdMenu.w / 2, instance.cmdMenu.h))
+					{
+						mScreen.keyMouse = 1;
+					}
+					else
+					{
+						mScreen.keyMouse = -1;
 					}
 
-					return true;
+					if (GameCanvas.isPointerHoldIn(GameScr.xC, GameScr.yC, 34, 34))
+					{
+						mScreen.keyTouch = 15;
+						GameCanvas.isPointerJustDown = false;
+						instance.isPointerDowning = false;
+						if (GameCanvas.isPointerClick && GameCanvas.isPointerJustRelease)
+						{
+							ChatTextField.gI().startChat(instance, string.Empty);
+							SoundMn.gI().buttonClick();
+							Char.myCharz().currentMovePoint = null;
+							GameCanvas.clearAllPointerEvent();
+						}
+
+						return true;
+					}
 				}
 			}
 
@@ -1382,23 +1389,28 @@ namespace Mod
 				if (!instance.isCharging())
 				{
 					Skill[] skills = Main.isPC ? GameScr.keySkill : GameScr.onScreenSkill;
+					if (skills == null || GameScr.xS == null || GameScr.yS == null)
+						return false;
 					int xSMax = int.MinValue;
 					int xSMin = int.MaxValue;
 					int ySMax = int.MinValue;
 					int ySMin = int.MaxValue;
-					for (int i = skills.Length - 1; i >= 0; i--)
+					bool hasAnySkill = false;
+					int count = System.Math.Min(skills.Length, System.Math.Min(GameScr.xS.Length, GameScr.yS.Length));
+					for (int i = count - 1; i >= 0; i--)
 						if (skills[i] != null)
 						{
+							hasAnySkill = true;
 							xSMax = Math.max(GameScr.xS[i], xSMax);
 							xSMin = Math.min(GameScr.xS[i], xSMin);
 							ySMax = Math.max(GameScr.yS[i], ySMax);
 							ySMin = Math.min(GameScr.yS[i], ySMin);
 						}
 
-					if (GameCanvas.isPointerHoldIn(GameScr.xSkill - 5, ySMin - 5, xSMax - xSMin + GameScr.wSkill,
-						    ySMax - ySMin + GameScr.wSkill))
+					if (hasAnySkill && GameCanvas.isPointerHoldIn(GameScr.xSkill + xSMin - 5, ySMin - 5,
+						    xSMax - xSMin + GameScr.wSkill + 10, ySMax - ySMin + GameScr.wSkill + 10))
 					{
-						for (int i = 0; i < GameScr.onScreenSkill.Length; i++)
+						for (int i = 0; i < count; i++)
 							if (GameCanvas.isPointerHoldIn(GameScr.xSkill + GameScr.xS[i], GameScr.yS[i],
 								    GameScr.wSkill, GameScr.wSkill))
 							{
@@ -1412,19 +1424,10 @@ namespace Mod
 									instance.selectedIndexSkill = i;
 									if (GameScr.indexSelect < 0)
 										GameScr.indexSelect = 0;
-									if (!Main.isPC)
-									{
-										if (instance.selectedIndexSkill > GameScr.onScreenSkill.Length - 1)
-											instance.selectedIndexSkill = GameScr.onScreenSkill.Length - 1;
-									}
-									else if (instance.selectedIndexSkill > GameScr.keySkill.Length - 1)
-									{
-										instance.selectedIndexSkill = GameScr.keySkill.Length - 1;
-									}
+									if (instance.selectedIndexSkill > skills.Length - 1)
+										instance.selectedIndexSkill = skills.Length - 1;
 
-									Skill skill = Main.isPC
-										? GameScr.keySkill[instance.selectedIndexSkill]
-										: GameScr.onScreenSkill[instance.selectedIndexSkill];
+									Skill skill = skills[instance.selectedIndexSkill];
 									if (skill != null)
 										instance.doSelectSkill(skill, true);
 									break;
@@ -1487,6 +1490,7 @@ namespace Mod
 			string customAssetsPath = Path.Combine(streamingAssetsPath, "CustomAssets");
 			image = new Image();
 			Texture2D texture2D;
+			bool fromResources = false;
 			if (!Utils.IsEditor() && !Directory.Exists(customAssetsPath))
 				Directory.CreateDirectory(customAssetsPath);
 			string filePath = Path.Combine(customAssetsPath, filename.Replace('/', Path.DirectorySeparatorChar) + ".png");
@@ -1497,16 +1501,19 @@ namespace Mod
 				{
 					UnityEngine.Object.Destroy(texture2D);
 					texture2D = Resources.Load<Texture2D>(filename);
+					fromResources = true;
 				}
 			}
 			else
 			{
 				texture2D = Resources.Load<Texture2D>(filename);
+				fromResources = true;
 			}
 
 			if (texture2D == null)
 				throw new NullReferenceException(nameof(texture2D));
 			image.texture = texture2D;
+			image.isResourceAsset = fromResources;
 			image.w = image.texture.width;
 			image.h = image.texture.height;
 			image.texture.anisoLevel = 0;
@@ -1557,7 +1564,8 @@ namespace Mod
 
 		internal static bool OnGameScrPaintGamePad(mGraphics g)
 		{
-			GameScr.isHaveSelectSkill = isHaveSelectSkill_old;
+			if (_hasSavedSelectSkill)
+				GameScr.isHaveSelectSkill = isHaveSelectSkill_old;
 			if (GameScr.isAnalog != 0 && Char.myCharz().statusMe != 14)
 			{
 				g.drawImage(mScreen.keyTouch == 5 ? GameScr.imgFire1 : GameScr.imgFire0, GameScr.xF + 20,
@@ -1614,7 +1622,7 @@ namespace Mod
 
 		internal static bool OnSetSkillBarPosition()
 		{
-			Skill[] skills = /*GameCanvas.isTouch ? GameScr.onScreenSkill : */GameScr.keySkill;
+			Skill[] skills = Main.isPC ? GameScr.keySkill : GameScr.onScreenSkill;
 			GameScr.xS = new int[skills.Length];
 			GameScr.yS = new int[skills.Length];
 			if (GameCanvas.isTouchControlSmallScreen && GameScr.isUseTouch)
@@ -1708,7 +1716,7 @@ namespace Mod
 		{
 			if (GameScr.isAnalog != 0)
 			{
-				return true;
+				return false;
 			}
 
 			return false;
@@ -1716,92 +1724,116 @@ namespace Mod
 
 		internal static void OnGameScrPaintSelectedSkill(GameScr instance, mGraphics g)
 		{
+			isHaveSelectSkill_old = GameScr.isHaveSelectSkill;
+			_hasSavedSelectSkill = true;
 			if (!GameScr.isHaveSelectSkill)
 				return;
-			isHaveSelectSkill_old = GameScr.isHaveSelectSkill;
-			GameScr.isHaveSelectSkill = false;
-			if (HideGameUI.isEnabled)
-				return;
-			Skill[] array;
-			if (Main.isPC)
-				array = GameScr.keySkill;
-			else if (GameCanvas.isTouch)
-				array = GameScr.onScreenSkill;
-			else
-				array = GameScr.keySkill;
-			if (!GameCanvas.isTouch)
+			try
 			{
-				g.setColor(0xAA2C11);
-				g.fillRect(GameScr.xSkill + GameScr.xHP + 2, GameScr.yHP - 10 + 6, 20, 10);
-				mFont.tahoma_7_white.drawString(g, "*", GameScr.xSkill + GameScr.xHP + 12, GameScr.yHP - 8 + 6,
-					mFont.CENTER);
-			}
-
-			int num = instance.nSkill;
-			if (Main.isPC || !GameCanvas.isTouch)
-				num = array.Length;
-			string[] array2 = TField.isQwerty ? QwertySkillHotkeys : NonQwertySkillHotkeys;
-			bool hasSkillsInTopRow = false;
-			bool isStartHasSkill = false;
-			for (int i = num - 1; i >= 0; i--)
-			{
-				if (array[i] != null)
-					isStartHasSkill = true;
-				if (isStartHasSkill)
-					if (GameScr.yS[i] == GameScr.ySkill - 32)
-					{
-						hasSkillsInTopRow = true;
-						break;
-					}
-			}
-
-			isStartHasSkill = false;
-
-			for (int i = num - 1; i >= 0; i--)
-			{
-				Skill skill = array[i];
-				if (skill != null)
-				{
-					isStartHasSkill = true;
-					if (skill != Char.myCharz().myskill)
-						g.drawImage(GameScr.imgSkill, GameScr.xSkill + GameScr.xS[i] - 1, GameScr.yS[i] - 1, 0);
-					else
-						g.drawImage(GameScr.imgSkill2, GameScr.xSkill + GameScr.xS[i] - 1, GameScr.yS[i] - 1, 0);
-				}
+				GameScr.isHaveSelectSkill = false;
+				if (HideGameUI.isEnabled)
+					return;
+				Skill[] array;
+				if (Main.isPC)
+					array = GameScr.keySkill;
+				else if (GameCanvas.isTouch)
+					array = GameScr.onScreenSkill;
 				else
+					array = GameScr.keySkill;
+				if (array == null)
+					return;
+				if (!GameCanvas.isTouch)
 				{
-					if (isStartHasSkill)
-						g.drawImage(GameScr.imgSkill, GameScr.xSkill + GameScr.xS[i] - 1, GameScr.yS[i] - 1, 0);
-					continue;
+					g.setColor(0xAA2C11);
+					g.fillRect(GameScr.xSkill + GameScr.xHP + 2, GameScr.yHP - 10 + 6, 20, 10);
+					mFont.tahoma_7_white.drawString(g, "*", GameScr.xSkill + GameScr.xHP + 12, GameScr.yHP - 8 + 6,
+						mFont.CENTER);
 				}
 
-				if (Utils.IsPC())
+				int num = instance.nSkill;
+				if (Main.isPC || !GameCanvas.isTouch)
+					num = array.Length;
+				if (GameScr.xS == null || GameScr.yS == null || GameScr.xS.Length < num || GameScr.yS.Length < num)
+					OnSetSkillBarPosition();
+				num = System.Math.Min(num, System.Math.Min(array.Length, System.Math.Min(GameScr.xS.Length, GameScr.yS.Length)));
+				string[] array2 = TField.isQwerty ? QwertySkillHotkeys : NonQwertySkillHotkeys;
+				bool hasSkillsInTopRow = false;
+				bool isStartHasSkill = false;
+				for (int i = num - 1; i >= 0; i--)
 				{
-					int num2 = 27;
-					if (hasSkillsInTopRow)
-					{
+					if (array[i] != null)
+						isStartHasSkill = true;
+					if (isStartHasSkill)
 						if (GameScr.yS[i] == GameScr.ySkill - 32)
-							num2 = -13;
+						{
+							hasSkillsInTopRow = true;
+							break;
+						}
+				}
+
+				isStartHasSkill = false;
+
+				bool anySlotPopulated = false;
+				for (int k = 0; k < num; k++) { if (array[k] != null) { anySlotPopulated = true; break; } }
+				if (!anySlotPopulated && Char.myCharz().vSkillFight.size() > 0)
+				{
+					instance.loadDefaultKeySkill();
+					instance.loadDefaultonScreenSkill();
+				}
+				for (int i = num - 1; i >= 0; i--)
+				{
+					Skill skill = array[i];
+					if (skill != null)
+					{
+						isStartHasSkill = true;
+						if (skill != Char.myCharz().myskill)
+							g.drawImage(GameScr.imgSkill, GameScr.xSkill + GameScr.xS[i] - 1, GameScr.yS[i] - 1, 0);
+						else
+							g.drawImage(GameScr.imgSkill2, GameScr.xSkill + GameScr.xS[i] - 1, GameScr.yS[i] - 1, 0);
 					}
 					else
 					{
-						num2 = -13;
+						if (isStartHasSkill || i < 5)
+							g.drawImage(GameScr.imgSkill, GameScr.xSkill + GameScr.xS[i] - 1, GameScr.yS[i] - 1, 0);
+						continue;
 					}
 
-					mFont.tahoma_7b_white.drawString(g, array2[i], GameScr.xSkill + GameScr.xS[i] + 14,
-						GameScr.yS[i] + num2 + 1, mFont.CENTER, mFont.tahoma_7b_dark);
-				}
+					if (Utils.IsPC() && i < array2.Length)
+					{
+						int num2 = 27;
+						if (hasSkillsInTopRow)
+						{
+							if (GameScr.yS[i] == GameScr.ySkill - 32)
+								num2 = -13;
+						}
+						else
+						{
+							num2 = -13;
+						}
 
-				skill.paint(GameScr.xSkill + GameScr.xS[i] + 13, GameScr.yS[i] + 13, g);
-				if (i == instance.selectedIndexSkill && !instance.isPaintUI() && GameCanvas.gameTick % 10 > 5 ||
-				    i == instance.keyTouchSkill)
-					g.drawImage(ItemMap.imageFlare, GameScr.xSkill + GameScr.xS[i] + 13, GameScr.yS[i] + 14, 3);
+						mFont.tahoma_7b_white.drawString(g, array2[i], GameScr.xSkill + GameScr.xS[i] + 14,
+							GameScr.yS[i] + num2 + 1, mFont.CENTER, mFont.tahoma_7b_dark);
+					}
+
+					skill.paint(GameScr.xSkill + GameScr.xS[i] + 13, GameScr.yS[i] + 13, g);
+					if (i == instance.selectedIndexSkill && !instance.isPaintUI() && GameCanvas.gameTick % 10 > 5 ||
+					    i == instance.keyTouchSkill)
+						g.drawImage(ItemMap.imageFlare, GameScr.xSkill + GameScr.xS[i] + 13, GameScr.yS[i] + 14, 3);
+				}
+			}
+			catch (Exception)
+			{
+				GameScr.isHaveSelectSkill = isHaveSelectSkill_old;
 			}
 		}
 
 		internal static void AfterGameScrPaintSelectedSkill(GameScr instance, mGraphics g)
 		{
-
+			if (_hasSavedSelectSkill)
+			{
+				GameScr.isHaveSelectSkill = isHaveSelectSkill_old;
+				_hasSavedSelectSkill = false;
+			}
 		}
 
 		internal static bool OnPanelPaintToolInfo(mGraphics g)
@@ -2325,13 +2357,18 @@ namespace Mod
 				if (panel.type == 1 && panel.currentTabIndex == panel.currentTabName.Length - 1 &&
 				    GameCanvas.panel2 == null && panel.typeShop != 2)
 					return;
+				Item[][] arrItemShop = Char.myCharz()?.arrItemShop;
+				if (arrItemShop == null || panel.currentTabIndex < 0 || panel.currentTabIndex >= arrItemShop.Length || arrItemShop[panel.currentTabIndex] == null)
+					return;
 				if (panel.typeShop == 2 && panel == GameCanvas.panel)
-					if (Char.myCharz().arrItemShop[panel.currentTabIndex].Length == 0 && panel.type != 17)
+					if (arrItemShop[panel.currentTabIndex].Length == 0 && panel.type != 17)
 						return;
-				Item[] array = Char.myCharz().arrItemShop[panel.currentTabIndex];
+				Item[] array = arrItemShop[panel.currentTabIndex];
 				if (panel.typeShop == 2 && (panel.currentTabIndex == 4 || panel.type == 17))
 				{
-					array = Char.myCharz().arrItemShop[4];
+					if (arrItemShop.Length <= 4 || arrItemShop[4] == null)
+						return;
+					array = arrItemShop[4];
 					if (array.Length == 0)
 						return;
 				}
@@ -2413,7 +2450,9 @@ namespace Mod
 			}
 			else if (panel.type == 21 && panel.currentTabIndex == 0) //pet inventory
 			{
-				Item[] arrItemBody = Char.myPetz().arrItemBody;
+				Item[] arrItemBody = Char.myPetz()?.arrItemBody;
+				if (arrItemBody == null)
+					return;
 				for (int i = 0; i < arrItemBody.Length; i++)
 				{
 					int y = panel.yScroll + i * panel.ITEM_HEIGHT;
@@ -2827,8 +2866,16 @@ namespace Mod
 				switch (panel.selected)
 				{
 				case 4:
-					if (GameScr.gI().pts != null)
-						Utils.menuZone();
+					if (GameScr.gI().pts == null)
+					{
+						_isBackgroundZonePoll = false;
+						isOpenZoneUI = true;
+						Service.gI().openUIZone();
+						InfoDlg.showWait();
+						return true;
+					}
+					_isBackgroundZonePoll = false;
+					Utils.menuZone();
 					isOpenZoneUI = true;
 					return true;
 				case 8:
@@ -2842,8 +2889,16 @@ namespace Mod
 				switch (panel.selected)
 				{
 				case 5:
-					if (GameScr.gI().pts != null)
-						Utils.menuZone();
+					if (GameScr.gI().pts == null)
+					{
+						_isBackgroundZonePoll = false;
+						isOpenZoneUI = true;
+						Service.gI().openUIZone();
+						InfoDlg.showWait();
+						return true;
+					}
+					_isBackgroundZonePoll = false;
+					Utils.menuZone();
 					isOpenZoneUI = true;
 					return true;
 				case 9:
@@ -2899,9 +2954,19 @@ namespace Mod
 			return true;
 		}
 
+		internal static void MarkExplicitZoneOpen()
+		{
+			_isBackgroundZonePoll = false;
+		}
+
 		internal static bool OnOpenUIZone(GameScr instance, Message message)
 		{
-			InfoDlg.hide();
+			bool bg = _isBackgroundZonePoll;
+			_isBackgroundZonePoll = false;
+			if (!bg)
+			{
+				InfoDlg.hide();
+			}
 			try
 			{
 				instance.zones = new int[message.reader().readByte()];
@@ -2932,6 +2997,12 @@ namespace Mod
 				Cout.LogError("Loi ham OPEN UIZONE " + ex);
 			}
 
+			if (!bg)
+			{
+				GameCanvas.panel.setTypeZone();
+				GameCanvas.panel.show();
+			}
+
 			return true;
 		}
 
@@ -2939,6 +3010,7 @@ namespace Mod
 		{
 			if (info == LocalizedString.cantChangeZoneInThisMap)
 			{
+				_isBackgroundZonePoll = false;
 				if (isOpenZoneUI)
 				{
 					isOpenZoneUI = false;
@@ -2953,12 +3025,14 @@ namespace Mod
 		internal static bool OnRequestChangeMap()
 		{
 			isOpenZoneUI = false;
+			_isBackgroundZonePoll = false;
 			return false;
 		}
 
 		internal static bool OnGetMapOffline()
 		{
 			isOpenZoneUI = false;
+			_isBackgroundZonePoll = false;
 			return false;
 		}
 
