@@ -285,6 +285,10 @@ public class Hint
 			{
 				g.drawImage(ItemMap.imageFlare, x, y, 3);
 			}
+			if (isCamera)
+			{
+				GameScr.resetTranslate(g);
+			}
 		}
 	}
 

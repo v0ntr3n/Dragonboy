@@ -212,7 +212,26 @@ public class Effect
 			EffectData effectData = (EffectData)vEffData.elementAt(i);
 			if (effectData.ID == id)
 			{
+				Image imgToFree = effectData.img;
+				effectData.img = null;
 				vEffData.removeElement(effectData);
+				if (imgToFree != null)
+				{
+					bool stillReferenced = false;
+					for (int j = 0; j < vEffData.size(); j++)
+					{
+						EffectData other = (EffectData)vEffData.elementAt(j);
+						if (other != null && other.img == imgToFree)
+						{
+							stillReferenced = true;
+							break;
+						}
+					}
+					if (!stillReferenced)
+					{
+						imgToFree.DestroyTexture();
+					}
+				}
 				break;
 			}
 		}

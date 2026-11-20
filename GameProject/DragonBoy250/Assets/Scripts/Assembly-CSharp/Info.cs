@@ -70,6 +70,8 @@ public class Info : IActionListener
 		{
 			return;
 		}
+		int tx = g.getTranslateX();
+		int ty = g.getTranslateY();
 		g.translate(x, y);
 		if (says != null && says.Length != 0 && type != 1)
 		{
@@ -165,6 +167,7 @@ public class Info : IActionListener
 				g.fillRect(num5, num6 + num8, num9, 2);
 				if (info.timeCount == 0)
 				{
+					g.translate(tx - g.getTranslateX(), ty - g.getTranslateY());
 					return;
 				}
 				info.charInfo.paintHead(g, X + 5, Y + H / 2, 0);
@@ -197,13 +200,12 @@ public class Info : IActionListener
 				{
 					mFont.tahoma_7_whiteSmall.drawString(g, array2[j], X + 12, Y + 12 + j * 12 - 3, 0);
 				}
-				GameCanvas.resetTrans(g);
 			}
 			if (info.charInfo == null)
 			{
 			}
 		}
-		g.translate(-x, -y);
+		g.translate(tx - g.getTranslateX(), ty - g.getTranslateY());
 	}
 
 	public void update()

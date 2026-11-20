@@ -9,7 +9,18 @@ public class Image
 
 	private const int MAXTIME = 500;
 
-	public Texture2D texture = new Texture2D(1, 1);
+	public Texture2D texture;
+
+	public bool isResourceAsset;
+
+	public void DestroyTexture()
+	{
+		if (texture != null && !isResourceAsset)
+		{
+			UnityEngine.Object.Destroy(texture);
+		}
+		texture = null;
+	}
 
 	public static Image imgTemp;
 
@@ -66,9 +77,15 @@ public class Image
 
 	public static Image createImage(Image img)
 	{
-		Image image = createImage(img.w, img.h);
+		Image image = new Image();
+		image.w = img.w;
+		image.h = img.h;
 		image.texture = img.texture;
-		image.texture.Apply();
+		image.isResourceAsset = img.isResourceAsset;
+		if (image.texture != null && !image.isResourceAsset)
+		{
+			image.texture.Apply();
+		}
 		return image;
 	}
 
@@ -312,7 +329,6 @@ public class Image
 
 	public static byte[] loadData(string filename)
 	{
-		Image image = new Image();
 		TextAsset textAsset = (TextAsset)Resources.Load(filename, typeof(TextAsset));
 		if (textAsset == null || textAsset.bytes == null || textAsset.bytes.Length == 0)
 		{
@@ -332,6 +348,7 @@ public class Image
 			throw new Exception("NULL POINTER EXCEPTION AT Image __createImage " + filename);
 		}
 		image.texture = texture2D;
+		image.isResourceAsset = true;
 		image.w = image.texture.width;
 		image.h = image.texture.height;
 		setTextureQuality(image);
@@ -346,6 +363,7 @@ public class Image
 			return null;
 		}
 		Image image = new Image();
+		image.texture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
 		try
 		{
 			image.texture.LoadImage(imageData);
@@ -363,7 +381,7 @@ public class Image
 	private static Image __createImage(Image src, int x, int y, int w, int h, int transform)
 	{
 		Image image = new Image();
-		image.texture = new Texture2D(w, h);
+		image.texture = new Texture2D(w, h, TextureFormat.RGBA32, false);
 		y = src.texture.height - y - h;
 		for (int i = 0; i < w; i++)
 		{
@@ -387,7 +405,9 @@ public class Image
 
 	private static Image __createEmptyImage()
 	{
-		return new Image();
+		Image image = new Image();
+		image.texture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+		return image;
 	}
 
 	public static Image __createImage(int w, int h)

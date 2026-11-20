@@ -191,7 +191,7 @@ public class ChatTextField : IActionListener
 		tfChat.clearKb();
 		tfChat.setText(string.Empty);
 		isShow = false;
-		gI().ResetTF();
+		this.ResetTF();
 		if (right != null)
 		{
 			right.caption = mResources.CLOSE;
@@ -221,7 +221,9 @@ public class ChatTextField : IActionListener
 
 	public static ChatTextField gI()
 	{
-		return instance ??= new ChatTextField();
+		if (instance == null)
+			instance = new ChatTextField();
+		return instance;
 	}
 
 	public void startChat(int firstCharacter, IChatable parentScreen, string to)

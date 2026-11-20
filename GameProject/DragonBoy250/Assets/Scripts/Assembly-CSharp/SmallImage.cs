@@ -52,6 +52,16 @@ public class SmallImage
 
 	public static void freeBig()
 	{
+		if (imgbig != null)
+		{
+			for (int i = 0; i < imgbig.Length; i++)
+			{
+				if (imgbig[i] != null && imgbig[i] != imgEmpty)
+				{
+					imgbig[i].DestroyTexture();
+				}
+			}
+		}
 		imgbig = null;
 		mSystem.gcc();
 	}
@@ -99,8 +109,33 @@ public class SmallImage
 		}
 	}
 
+	private static void evictSmallEntry(int idx)
+	{
+		if (imgNew == null || idx < 0 || idx >= imgNew.Length)
+		{
+			return;
+		}
+		Small entry = imgNew[idx];
+		if (entry != null)
+		{
+			if (entry.img != null && entry.img != imgEmpty)
+			{
+				entry.img.DestroyTexture();
+			}
+			entry.img = null;
+			imgNew[idx] = null;
+		}
+	}
+
 	public static void clearHastable()
 	{
+		if (imgNew != null)
+		{
+			for (int i = 0; i < imgNew.Length; i++)
+			{
+				evictSmallEntry(i);
+			}
+		}
 	}
 
 	public static void createImage(int id)
@@ -108,6 +143,10 @@ public class SmallImage
 		if (id < 0 || imgNew == null || id >= imgNew.Length)
 		{
 			return;
+		}
+		if (imgNew[id] != null)
+		{
+			evictSmallEntry(id);
 		}
 		Res.outz("is request =" + id + " zoom=" + mGraphics.zoomLevel);
 		if (mGraphics.zoomLevel == 1)
@@ -272,7 +311,7 @@ public class SmallImage
 			}
 			else
 			{
-				g.drawRegion(small.img, 0, f * w, w, h, transform, x, y, anchor);
+				small.paint(g, transform, f, x, y, w, h, anchor);
 			}
 		}
 		else if (smallImg != null)
@@ -343,14 +382,50 @@ public class SmallImage
 		{
 			if (imgNew[i] != null)
 			{
-				num++;
 				imgNew[i].update();
 				smallCount++;
+				if (imgNew[i] != null)
+				{
+					num++;
+				}
 			}
 		}
-		if (num > 200 && GameCanvas.lowGraphic)
+		int cap = GameCanvas.lowGraphic ? 200 : 512;
+		if (num > cap)
 		{
-			imgNew = new Small[maxSmall];
+			int toEvict = num - cap;
+			while (toEvict > 0)
+			{
+				int oldestIdx = -1;
+				int minTick = int.MaxValue;
+				for (int i = 0; i < imgNew.Length; i++)
+				{
+					Small s = imgNew[i];
+					if (s == null)
+					{
+						continue;
+					}
+					if (Char.myCharz() != null && Char.myCharz().isCharBodyImageID(s.id))
+					{
+						continue;
+					}
+					if (GameCanvas.gameTick - s.lastPaintTick < 50)
+					{
+						continue;
+					}
+					if (s.lastPaintTick < minTick)
+					{
+						minTick = s.lastPaintTick;
+						oldestIdx = i;
+					}
+				}
+				if (oldestIdx < 0)
+				{
+					break;
+				}
+				evictSmallEntry(oldestIdx);
+				toEvict--;
+			}
 		}
 	}
 }
