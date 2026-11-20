@@ -292,8 +292,24 @@ public class TileMap
 		return false;
 	}
 
+	private static void destroyImgTile()
+	{
+		if (imgTile != null)
+		{
+			for (int i = 0; i < imgTile.Length; i++)
+			{
+				if (imgTile[i] != null)
+				{
+					imgTile[i].DestroyTexture();
+					imgTile[i] = null;
+				}
+			}
+		}
+	}
+
 	public static void freeTilemap()
 	{
+		destroyImgTile();
 		imgTile = null;
 		mSystem.gcc();
 	}
@@ -408,6 +424,8 @@ public class TileMap
 
 	public static void getTile()
 	{
+		destroyImgTile();
+		imgTile = null;
 		if (mSystem.clientType == 3 || mSystem.clientType == 5)
 		{
 			if (mGraphics.zoomLevel == 1)
@@ -425,18 +443,7 @@ public class TileMap
 		}
 		if (mGraphics.zoomLevel == 1)
 		{
-			if (imgTile != null)
-			{
-				for (int j = 0; j < imgTile.Length; j++)
-				{
-					if (imgTile[j] != null)
-					{
-						imgTile[j].texture = null;
-						imgTile[j] = null;
-					}
-				}
-				mSystem.gcc();
-			}
+			mSystem.gcc();
 			imgTile = new Image[100];
 			string empty = string.Empty;
 			for (int k = 0; k < imgTile.Length; k++)
@@ -451,7 +458,8 @@ public class TileMap
 		{
 			Rms.DeleteStorage("x" + mGraphics.zoomLevel + "t" + tileID);
 			imgTile = new Image[100];
-			for (int l = 0; l < imgTile.Length; l++)
+			imgTile[0] = image;
+			for (int l = 1; l < imgTile.Length; l++)
 			{
 				imgTile[l] = GameCanvas.loadImageRMS("/t/" + tileID + "$" + (l + 1) + ".png");
 			}
@@ -798,7 +806,10 @@ public class TileMap
 		if (lastTileID != tileID)
 		{
 			getTile();
-			lastTileID = tileID;
+			if (imgTile != null && imgTile.Length > 0 && imgTile[0] != null)
+			{
+				lastTileID = tileID;
+			}
 		}
 	}
 }

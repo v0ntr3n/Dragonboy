@@ -23,7 +23,15 @@ namespace Mod.ModHelper
 		Thread _receiveThread;
 
 		ClientWebSocket _ws;
-		public static GameLauncherClient Instance => _instance ??= new GameLauncherClient();
+		public static GameLauncherClient Instance
+		{
+			get
+			{
+				if (_instance == null)
+					_instance = new GameLauncherClient();
+				return _instance;
+			}
+		}
 
 		public bool IsConnected { get; private set; }
 
@@ -333,6 +341,10 @@ namespace Mod.ModHelper
 			finally
 			{
 				IsConnected = false;
+				if (Interlocked.CompareExchange(ref _ws, null, ws) == ws)
+				{
+					try { ws.Dispose(); } catch { }
+				}
 				Interlocked.CompareExchange(ref _cts, null, cts);
 				try { cts?.Dispose(); } catch (ObjectDisposedException) { }
 			}

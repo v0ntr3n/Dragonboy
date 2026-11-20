@@ -353,6 +353,11 @@ public class Session_ME : ISession
 			{
 				ServerListScreen.testConnect = 0;
 			}
+			recieveMsg.removeAllElements();
+			if (sender != null && sender.sendingMessage != null)
+			{
+				sender.sendingMessage.Clear();
+			}
 			Controller.isGet_CLIENT_INFO = false;
 		}
 		catch (Exception)
@@ -535,20 +540,36 @@ public class Session_ME : ISession
 			}
 		}
 
+		private const int MAX_PACKET_SIZE = 4 * 1024 * 1024;
+
 		Message readMessage2(sbyte cmd)
 		{
 			int num = readKey(dis.ReadSByte()) + 128;
 			int num2 = readKey(dis.ReadSByte()) + 128;
 			int num3 = readKey(dis.ReadSByte()) + 128;
 			int num4 = (num3 * 256 + num2) * 256 + num;
-			sbyte[] array = new sbyte[num4];
-			int num5 = 0;
-			byte[] src = dis.ReadBytes(num4);
-			if (src == null || src.Length < num4)
+			if (num4 < 0 || num4 > MAX_PACKET_SIZE)
 			{
+				Debug.LogError("Invalid packet length: " + num4);
 				return null;
 			}
-			Buffer.BlockCopy(src, 0, array, 0, num4);
+			sbyte[] array = new sbyte[num4];
+			if (num4 > 0)
+			{
+				byte[] buf = new byte[System.Math.Min(num4, 8192)];
+				int offset = 0;
+				while (offset < num4)
+				{
+					int toRead = System.Math.Min(buf.Length, num4 - offset);
+					int read = dis.Read(buf, 0, toRead);
+					if (read <= 0)
+					{
+						return null;
+					}
+					Buffer.BlockCopy(buf, 0, array, offset, read);
+					offset += read;
+				}
+			}
 			recvByteCount += 5 + num4;
 			int num6 = recvByteCount + sendByteCount;
 			strRecvByteCount = num6 / 1024 + "." + num6 % 1024 / 102 + "Kb";
