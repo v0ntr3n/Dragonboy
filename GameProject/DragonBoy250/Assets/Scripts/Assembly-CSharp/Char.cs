@@ -1272,6 +1272,10 @@ public class Char : IMapObject
 	{
 		try
 		{
+			if (GameScr.exps == null || GameScr.exps.Length == 0)
+			{
+				return;
+			}
 			long num = 1L;
 			long num2 = 0L;
 			int num3 = 0;
@@ -1284,6 +1288,10 @@ public class Char : IMapObject
 					num3 = num4;
 					break;
 				}
+			}
+			if (num <= 0)
+			{
+				num = 1L;
 			}
 			clevel = num3;
 			cLevelPercent = (int)(num2 * 10000 / num);
@@ -1314,10 +1322,10 @@ public class Char : IMapObject
 
 	public static void taskAction(bool isNextStep)
 	{
-		Task task = myCharz().taskMaint;
-		if (task.index > task.contentInfo.Length - 1)
+		Task task = myCharz()?.taskMaint;
+		if (task == null || task.contentInfo == null || task.index < 0 || task.index >= task.contentInfo.Length)
 		{
-			task.index = task.contentInfo.Length - 1;
+			return;
 		}
 		string text = task.contentInfo[task.index];
 		if (text != null && !text.Equals(string.Empty))
@@ -1639,24 +1647,11 @@ public class Char : IMapObject
 
 	public Waypoint isInEnterOfflinePoint()
 	{
-		Task task = myChar.taskMaint;
-		if (task != null && task.taskId == 0 && task.index < 6)
-		{
-			return null;
-		}
 		int num = TileMap.vGo.size();
-		for (sbyte b = 0; b < num; b++)
+		for (int b = 0; b < num; b++)
 		{
 			Waypoint waypoint = (Waypoint)TileMap.vGo.elementAt(b);
-			if (PopUp.vPopups.size() >= num)
-			{
-				PopUp popUp = (PopUp)PopUp.vPopups.elementAt(b);
-				if (!popUp.isPaint)
-				{
-					return null;
-				}
-			}
-			if (cx >= waypoint.minX && cx <= waypoint.maxX && cy >= waypoint.minY && cy <= waypoint.maxY && waypoint.isEnter && waypoint.isOffline)
+			if (waypoint != null && cx >= waypoint.minX && cx <= waypoint.maxX && cy >= waypoint.minY && cy <= waypoint.maxY && waypoint.isEnter && waypoint.isOffline)
 			{
 				return waypoint;
 			}
@@ -1666,24 +1661,11 @@ public class Char : IMapObject
 
 	public Waypoint isInEnterOnlinePoint()
 	{
-		Task task = myChar.taskMaint;
-		if (task != null && task.taskId == 0 && task.index < 6)
-		{
-			return null;
-		}
 		int num = TileMap.vGo.size();
-		for (sbyte b = 0; b < num; b++)
+		for (int b = 0; b < num; b++)
 		{
 			Waypoint waypoint = (Waypoint)TileMap.vGo.elementAt(b);
-			if (PopUp.vPopups.size() >= num)
-			{
-				PopUp popUp = (PopUp)PopUp.vPopups.elementAt(b);
-				if (!popUp.isPaint)
-				{
-					return null;
-				}
-			}
-			if (cx >= waypoint.minX && cx <= waypoint.maxX && cy >= waypoint.minY && cy <= waypoint.maxY && waypoint.isEnter && !waypoint.isOffline)
+			if (waypoint != null && cx >= waypoint.minX && cx <= waypoint.maxX && cy >= waypoint.minY && cy <= waypoint.maxY && waypoint.isEnter && !waypoint.isOffline)
 			{
 				return waypoint;
 			}
@@ -5046,7 +5028,7 @@ public class Char : IMapObject
 			return;
 		}
 		hasSendAttack = false;
-		if (stone || (me && myskill.template.id == 9 && cHP <= cHPFull / 10))
+		if (stone || (me && myskill?.template != null && myskill.template.id == 9 && cHP <= cHPFull / 10))
 		{
 			return;
 		}
@@ -5064,7 +5046,7 @@ public class Char : IMapObject
 			{
 				stopUseChargeSkill();
 			}
-			if ((myskill.template.id == 23 && ((charFocus != null && charFocus.holdEffID != 0) || (mobFocus != null && mobFocus.holdEffID != 0) || holdEffID != 0)) || sleepEff || blindEff)
+			if ((myskill?.template != null && myskill.template.id == 23 && ((charFocus != null && charFocus.holdEffID != 0) || (mobFocus != null && mobFocus.holdEffID != 0) || holdEffID != 0)) || sleepEff || blindEff)
 			{
 				return;
 			}
@@ -5927,7 +5909,8 @@ public class Char : IMapObject
 
 	public void paintHp(mGraphics g, int x, int y)
 	{
-		int num = (int)((int)cHP * 100 / cHPFull) / 10 - 1;
+		long hpFull = (cHPFull > 0) ? cHPFull : 1;
+		int num = (cHPFull > 0) ? ((int)(cHP * 100 / hpFull) / 10 - 1) : 0;
 		if (num < 0)
 		{
 			num = 0;
@@ -5944,8 +5927,8 @@ public class Char : IMapObject
 		{
 			return;
 		}
-		len = (int)(cHP * 100 / cHPFull * w_hp_bar) / 100;
-		num = (int)(cHP * 100 / cHPFull);
+		len = (cHPFull > 0) ? ((int)(cHP * 100 / hpFull * w_hp_bar) / 100) : 0;
+		num = (cHPFull > 0) ? (int)(cHP * 100 / hpFull) : 0;
 		if (num < 30)
 		{
 			imgHPtem = GameScr.imgHP_tm_do;

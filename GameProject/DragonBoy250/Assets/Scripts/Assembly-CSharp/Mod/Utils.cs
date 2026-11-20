@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -375,6 +375,7 @@ namespace Mod
 
 		internal static void menuZone()
 		{
+			GameEvents.MarkExplicitZoneOpen();
 			Service.gI().openUIZone();
 			GameCanvas.panel.setTypeZone();
 			GameCanvas.panel.show();
