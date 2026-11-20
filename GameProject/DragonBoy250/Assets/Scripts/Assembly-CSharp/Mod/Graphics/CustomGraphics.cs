@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -166,7 +166,16 @@ namespace Mod.Graphics
 			string key = $"texture_drawline_{color.r}_{color.g}_{color.b}_{color.a}_{thickness}";
 			if (!cachedTextures.TryGetValue(key, out Texture2D tex) || tex == null)
 			{
-				tex = new Texture2D(thickness, thickness);
+				if (cachedTextures.Count > 256)
+				{
+					foreach (Texture2D cached in cachedTextures.Values)
+					{
+						if (cached != null)
+							UnityEngine.Object.Destroy(cached);
+					}
+					cachedTextures.Clear();
+				}
+				tex = new Texture2D(thickness, thickness, TextureFormat.RGBA32, false);
 				for (int i = 0; i < thickness; i++)
 				for (int j = 0; j < thickness; j++)
 					tex.SetPixel(i, j, color);
@@ -474,7 +483,7 @@ namespace Mod.Graphics
 					newPixels[x + y * width] = originalPixels[x + (rows - y - 1) * width];
 				}
 			}
-			Texture2D newTexture = new Texture2D(width, rows);
+			Texture2D newTexture = new Texture2D(width, rows, TextureFormat.RGBA32, false);
 			newTexture.SetPixels32(newPixels);
 			newTexture.Apply();
 			return newTexture;
@@ -493,7 +502,7 @@ namespace Mod.Graphics
 					newPixels[x + y * width] = originalPixels[width - x - 1 + y * width];
 				}
 			}
-			Texture2D newTexture = new Texture2D(width, rows);
+			Texture2D newTexture = new Texture2D(width, rows, TextureFormat.RGBA32, false);
 			newTexture.SetPixels32(newPixels);
 			newTexture.Apply();
 			return newTexture;
@@ -508,7 +517,7 @@ namespace Mod.Graphics
 				RenderTexture.active = rt;
 				UnityEngine.Graphics.Blit(texture2D, rt);
 				RenderTexture.active = rt;
-				Texture2D result = new Texture2D(width, height);
+				Texture2D result = new Texture2D(width, height, TextureFormat.RGBA32, false);
 				result.ReadPixels(new Rect(0f, 0f, width, height), 0, 0);
 				result.Apply();
 				return result;

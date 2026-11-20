@@ -124,25 +124,31 @@ namespace Mod.Graphics
 				return false;
 			if (_this.id == 0)
 				return true;
+			int treeW = (SmallImage.smallImg != null && _this.id >= 0 && _this.id < SmallImage.smallImg.Length && SmallImage.smallImg[_this.id] != null && SmallImage.smallImg[_this.id].Length > 4) ? SmallImage.smallImg[_this.id][3] : 40;
+			int treeH = (SmallImage.smallImg != null && _this.id >= 0 && _this.id < SmallImage.smallImg.Length && SmallImage.smallImg[_this.id] != null && SmallImage.smallImg[_this.id].Length > 4) ? SmallImage.smallImg[_this.id][4] : 60;
 			if (Level == ReduceGraphicsLevel.Level2)
 			{
 				g.setColor(Color.green);
-				g.drawRect(_this.cx - 12, _this.cy - SmallImage.smallImg[_this.id][4], 24, SmallImage.smallImg[_this.id][4]);
+				g.drawRect(_this.cx - 12, _this.cy - treeH, 24, treeH);
 			}
 			if (Char.myCharz().npcFocus != null && Char.myCharz().npcFocus == _this)
 			{
-				g.drawRegion(Mob.imgHP, 0, 0, 9, 6, 0, _this.cx, _this.cy - SmallImage.smallImg[_this.id][4] - 1, mGraphics.BOTTOM | mGraphics.HCENTER);
+				g.drawRegion(Mob.imgHP, 0, 0, 9, 6, 0, _this.cx, _this.cy - treeH - 1, mGraphics.BOTTOM | mGraphics.HCENTER);
 				if (_this.name != null)
-					mFont.tahoma_7b_white.drawString(g, _this.name, _this.cx, _this.cy - SmallImage.smallImg[_this.id][4] - 20, mFont.CENTER, mFont.tahoma_7_grey);
+					mFont.tahoma_7b_white.drawString(g, _this.name, _this.cx, _this.cy - treeH - 20, mFont.CENTER, mFont.tahoma_7_grey);
 			}
 			else if (_this.name != null)
-				mFont.tahoma_7b_white.drawString(g, _this.name, _this.cx, _this.cy - SmallImage.smallImg[_this.id][4] - 17, mFont.CENTER, mFont.tahoma_7_grey);
+				mFont.tahoma_7b_white.drawString(g, _this.name, _this.cx, _this.cy - treeH - 17, mFont.CENTER, mFont.tahoma_7_grey);
 			try
 			{
-				for (int i = 0; i < _this.currPeas; i++)
+				if (_this.peaPostionX != null && _this.peaPostionY != null)
 				{
-					g.setColor(Color.cyan);
-					g.drawRect(_this.cx + _this.peaPostionX[i] - SmallImage.smallImg[_this.id][3] / 2, _this.cy + _this.peaPostionY[i] - SmallImage.smallImg[_this.id][4], Image.getImageWidth(MagicTree.pea), Image.getImageHeight(MagicTree.pea));
+					int count = System.Math.Min(_this.currPeas, System.Math.Min(_this.peaPostionX.Length, _this.peaPostionY.Length));
+					for (int i = 0; i < count; i++)
+					{
+						g.setColor(Color.cyan);
+						g.drawRect(_this.cx + _this.peaPostionX[i] - treeW / 2, _this.cy + _this.peaPostionY[i] - treeH, Image.getImageWidth(MagicTree.pea), Image.getImageHeight(MagicTree.pea));
+					}
 				}
 			}
 			catch { }
@@ -506,11 +512,12 @@ namespace Mod.Graphics
 
 		internal static void InitializeTileMap(bool isFill)
 		{
-			if (isFill == lastIsFill && mapTile != null)
+			if (isFill == lastIsFill && mapTile != null && mapTile.texture != null)
 				return;
 			lastIsFill = isFill;
+			mapTile.DestroyTexture();
 			mapTile.w = mapTile.h = 25 * mGraphics.zoomLevel;
-			mapTile.texture = new Texture2D(25 * mGraphics.zoomLevel, 25 * mGraphics.zoomLevel);
+			mapTile.texture = new Texture2D(25 * mGraphics.zoomLevel, 25 * mGraphics.zoomLevel, TextureFormat.RGBA32, false);
 			for (int i = 0; i < mapTile.texture.width; i++)
 			for (int j = 0; j < mapTile.texture.height; j++)
 				mapTile.texture.SetPixel(i, j, isFill ? colorMap : Color.clear);
