@@ -55,6 +55,20 @@ public class BgItem
 
 	public static void clearHashTable()
 	{
+		if (imgNew == null)
+		{
+			return;
+		}
+		System.Collections.IDictionaryEnumerator enumerator = imgNew.GetEnumerator();
+		while (enumerator.MoveNext())
+		{
+			Image image = enumerator.Value as Image;
+			if (image != null)
+			{
+				image.DestroyTexture();
+			}
+		}
+		imgNew.clear();
 	}
 
 	public static bool isExistKeyNews(string keyNew)

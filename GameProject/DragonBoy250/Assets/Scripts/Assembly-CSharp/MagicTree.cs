@@ -62,9 +62,10 @@ public class MagicTree : Npc, IActionListener
 		this.name = "Đậu thần";
 		this.currPeas = 5;
 		this.maxPeas = 5;
-		this.peaPostionX = new int[] { -15, -5, 10, -20, 15 };
-		this.peaPostionY = new int[] { -45, -55, -50, -30, -35 };
+		this.peaPostionX = new int[] { 10, 20, 28, 14, 24 };
+		this.peaPostionY = new int[] { 15, 10, 18, 26, 28 };
 		p = new PopUp(string.Empty, 0, 0);
+		p.isPaint = false;
 		p.command = new Command(null, this, 1, null);
 		PopUp.addPopUp(p);
 	}
@@ -129,7 +130,7 @@ public class MagicTree : Npc, IActionListener
 		int treeH = (SmallImage.smallImg != null && id >= 0 && id < SmallImage.smallImg.Length && SmallImage.smallImg[id] != null) ? SmallImage.smallImg[id][4] : 60;
 		if (p != null)
 		{
-			p.isPaint = isPaint;
+			p.isPaint = isPaint && p.says != null && p.says.Length > 0 && !string.IsNullOrEmpty(p.says[0]);
 		}
 		cur = mSystem.currentTimeMillis();
 		if (cur - last >= 1000)
@@ -214,7 +215,7 @@ public class MagicTree : Npc, IActionListener
 				}
 				if (p != null)
 				{
-					p.isPaint = true;
+					p.isPaint = isPaint && p.says != null && p.says.Length > 0 && !string.IsNullOrEmpty(p.says[0]);
 				}
 				isUpdateTree = true;
 				isPeasEffect = false;

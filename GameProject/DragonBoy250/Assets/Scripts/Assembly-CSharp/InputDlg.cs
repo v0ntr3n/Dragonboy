@@ -34,6 +34,7 @@ public class InputDlg : Dialog
 
 	public override void paint(mGraphics g)
 	{
+		GameCanvas.resetTrans(g);
 		GameCanvas.paintz.paintInputDlg(g, padLeft, GameCanvas.h - 77 - mScreen.cmdH, GameCanvas.w - padLeft * 2, 69, info);
 		tfInput.paint(g);
 		base.paint(g);

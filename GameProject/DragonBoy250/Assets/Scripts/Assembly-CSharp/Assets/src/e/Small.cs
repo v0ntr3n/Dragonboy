@@ -10,16 +10,24 @@ namespace Assets.src.e
 
 		public int timeUpdate;
 
+		public int lastPaintTick;
+
 		public Small(Image img, int id)
 		{
 			this.img = img;
 			this.id = id;
 			timePaint = 0;
 			timeUpdate = 0;
+			lastPaintTick = GameCanvas.gameTick;
 		}
 
 		public void paint(mGraphics g, int transform, int x, int y, int anchor)
 		{
+			if (img == null)
+			{
+				return;
+			}
+			lastPaintTick = GameCanvas.gameTick;
 			g.drawRegion(img, 0, 0, mGraphics.getImageWidth(img), mGraphics.getImageHeight(img), transform, x, y, anchor);
 			if (GameCanvas.gameTick % 1000 == 0)
 			{
@@ -35,6 +43,11 @@ namespace Assets.src.e
 
 		public void paint(mGraphics g, int transform, int f, int x, int y, int w, int h, int anchor, bool isClip)
 		{
+			if (img == null)
+			{
+				return;
+			}
+			lastPaintTick = GameCanvas.gameTick;
 			if (mGraphics.getImageWidth(img) != 1)
 			{
 				g.drawRegion(img, 0, f * w, w, h, transform, x, y, anchor, isClip);
@@ -49,8 +62,13 @@ namespace Assets.src.e
 		public void update()
 		{
 			timeUpdate++;
-			if (timeUpdate - timePaint > 1 && !Char.myCharz().isCharBodyImageID(id))
+			if (timeUpdate - timePaint > 1 && (Char.myCharz() == null || !Char.myCharz().isCharBodyImageID(id)))
 			{
+				if (img != null && img != SmallImage.imgEmpty)
+				{
+					img.DestroyTexture();
+				}
+				img = null;
 				SmallImage.imgNew[id] = null;
 			}
 		}

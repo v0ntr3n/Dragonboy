@@ -91,6 +91,16 @@ public class ImgByName
 		MyVector myVector = new MyVector("checkDelHash");
 		if (isTrue)
 		{
+			IDictionaryEnumerator clearEnum = hash.GetEnumerator();
+			while (clearEnum.MoveNext())
+			{
+				MainImage clearImg = clearEnum.Value as MainImage;
+				if (clearImg != null && clearImg.img != null)
+				{
+					clearImg.img.DestroyTexture();
+					clearImg.img = null;
+				}
+			}
 			hash.clear();
 			return;
 		}
@@ -106,7 +116,14 @@ public class ImgByName
 		}
 		for (int i = 0; i < myVector.size(); i++)
 		{
-			hash.remove((string)myVector.elementAt(i));
+			string key = (string)myVector.elementAt(i);
+			MainImage removed = hash.get(key) as MainImage;
+			if (removed != null && removed.img != null)
+			{
+				removed.img.DestroyTexture();
+				removed.img = null;
+			}
+			hash.remove(key);
 		}
 	}
 }

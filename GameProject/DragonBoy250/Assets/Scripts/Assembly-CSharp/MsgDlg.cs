@@ -81,6 +81,7 @@ public class MsgDlg : Dialog
 
 	public override void paint(mGraphics g)
 	{
+		GameCanvas.resetTrans(g);
 		g.setClip(0, 0, GameCanvas.w, GameCanvas.h);
 		if (!LoginScr.isContinueToLogin)
 		{

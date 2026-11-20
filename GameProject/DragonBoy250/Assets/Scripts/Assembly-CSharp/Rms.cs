@@ -10,7 +10,7 @@ public class Rms
 	const int INTERVAL = 5;
 
 	const int MAXTIME = 500;
-	public static int status;
+	public static volatile int status;
 
 	public static sbyte[] data;
 
@@ -105,70 +105,106 @@ public class Rms
 		GameEvents.OnSaveRMSString(ref filename, ref data);
 	}
 
+	private static readonly object _ioLock = new object();
+
 	static void _saveRMS(string filename, sbyte[] data)
 	{
-		if (status != 0)
+		lock (_ioLock)
 		{
-			Debug.LogError("Cannot save RMS " + filename + " because current is saving " + Rms.filename);
-			return;
-		}
-		Rms.filename = filename;
-		Rms.data = data;
-		status = 2;
-		int i;
-		for (i = 0; i < 500; i++)
-		{
-			Thread.Sleep(5);
-			if (status == 0)
+			if (status != 0)
 			{
-				break;
+				Debug.LogError("Cannot save RMS " + filename + " because current is saving " + Rms.filename);
+				return;
 			}
-		}
-		if (i == 500)
-		{
-			Debug.LogError("TOO LONG TO SAVE RMS " + filename);
+			Rms.filename = filename;
+			Rms.data = data;
+			status = 2;
+			int i;
+			for (i = 0; i < 500; i++)
+			{
+				Thread.Sleep(5);
+				if (status == 0)
+				{
+					break;
+				}
+			}
+			if (i == 500)
+			{
+				Debug.LogError("TOO LONG TO SAVE RMS " + filename);
+#pragma warning disable 0420
+				Interlocked.CompareExchange(ref status, 0, 2);
+#pragma warning restore 0420
+			}
 		}
 	}
 
 	static sbyte[] _loadRMS(string filename)
 	{
-		if (status != 0)
+		lock (_ioLock)
 		{
-			Debug.LogError("Cannot load RMS " + filename + " because current is loading " + Rms.filename);
-			return null;
-		}
-		Rms.filename = filename;
-		data = null;
-		status = 3;
-		int i;
-		for (i = 0; i < 500; i++)
-		{
-			Thread.Sleep(5);
-			if (status == 0)
+			if (status != 0)
 			{
-				break;
+				Debug.LogError("Cannot load RMS " + filename + " because current is loading " + Rms.filename);
+				return null;
 			}
+			Rms.filename = filename;
+			data = null;
+			status = 3;
+			int i;
+			for (i = 0; i < 500; i++)
+			{
+				Thread.Sleep(5);
+				if (status == 0)
+				{
+					break;
+				}
+			}
+			if (i == 500)
+			{
+				Debug.LogError("TOO LONG TO LOAD RMS " + filename);
+#pragma warning disable 0420
+				Interlocked.CompareExchange(ref status, 0, 3);
+#pragma warning restore 0420
+			}
+			return data;
 		}
-		if (i == 500)
-		{
-			Debug.LogError("TOO LONG TO LOAD RMS " + filename);
-		}
-		return data;
 	}
 
 	public static void update()
 	{
-		if (status == 2)
+#pragma warning disable 0420
+		if (System.Threading.Interlocked.CompareExchange(ref status, 1, 2) == 2)
+#pragma warning restore 0420
 		{
-			status = 1;
-			__saveRMS(filename, data);
-			status = 0;
+			try
+			{
+				__saveRMS(filename, data);
+			}
+			catch (Exception ex)
+			{
+				Debug.LogException(ex);
+			}
+			finally
+			{
+				status = 0;
+			}
 		}
-		else if (status == 3)
+#pragma warning disable 0420
+		else if (System.Threading.Interlocked.CompareExchange(ref status, 1, 3) == 3)
+#pragma warning restore 0420
 		{
-			status = 1;
-			data = __loadRMS(filename);
-			status = 0;
+			try
+			{
+				data = __loadRMS(filename);
+			}
+			catch (Exception ex)
+			{
+				Debug.LogException(ex);
+			}
+			finally
+			{
+				status = 0;
+			}
 		}
 	}
 
