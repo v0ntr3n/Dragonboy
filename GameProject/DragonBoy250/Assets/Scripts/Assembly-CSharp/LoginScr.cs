@@ -339,65 +339,24 @@ public class LoginScr : mScreen, IActionListener
 
 	protected void doRegister()
 	{
-		if (tfUser.getText().Equals(string.Empty))
+		string user = tfUser.getText().Trim();
+		if (user.Equals(string.Empty))
 		{
 			GameCanvas.startOKDlg(mResources.userBlank);
 			return;
 		}
-		char[] array = tfUser.getText().ToCharArray();
 		if (tfPass.getText().Equals(string.Empty))
 		{
 			GameCanvas.startOKDlg(mResources.passwordBlank);
 			return;
 		}
-		if (tfUser.getText().Length < 5)
-		{
-			GameCanvas.startOKDlg(mResources.accTooShort);
-			return;
-		}
-		int num = 0;
-		string text = null;
-		if (mResources.language == 2)
-		{
-			if (tfUser.getText().IndexOf("@") == -1 || tfUser.getText().IndexOf(".") == -1)
-			{
-				text = mResources.emailInvalid;
-			}
-			num = 0;
-		}
-		else
-		{
-			try
-			{
-				long num2 = long.Parse(tfUser.getText());
-				if (tfUser.getText().Length < 8 || tfUser.getText().Length > 12 || (!tfUser.getText().StartsWith("0") && !tfUser.getText().StartsWith("84")))
-				{
-					text = mResources.phoneInvalid;
-				}
-				num = 1;
-			}
-			catch (Exception)
-			{
-				if (tfUser.getText().IndexOf("@") == -1 || tfUser.getText().IndexOf(".") == -1)
-				{
-					text = mResources.emailInvalid;
-				}
-				num = 0;
-			}
-		}
-		if (text != null)
-		{
-			GameCanvas.startOKDlg(text);
-		}
-		else
-		{
-			GameCanvas.msgdlg.setInfo(mResources.plsCheckAcc + ((num != 1) ? (mResources.email + ": ") : (mResources.phone + ": ")) + tfUser.getText() + "\n" + mResources.password + ": " + tfPass.getText(), new Command(mResources.ACCEPT, this, 4000, null), null, new Command(mResources.NO, GameCanvas.instance, 8882, null));
-		}
+		GameCanvas.msgdlg.setInfo(mResources.plsCheckAcc + mResources.account + ": " + user + "\n" + mResources.password + ": " + tfPass.getText(), new Command(mResources.ACCEPT, this, 4000, null), null, new Command(mResources.NO, GameCanvas.instance, 8882, null));
 		GameCanvas.currentDialog = GameCanvas.msgdlg;
 	}
 
 	protected void doRegister(string user)
 	{
+		user = (user ?? string.Empty).Trim();
 		isFAQ = false;
 		GameCanvas.startWaitDlg(mResources.CONNECTING);
 		GameCanvas.connect();
