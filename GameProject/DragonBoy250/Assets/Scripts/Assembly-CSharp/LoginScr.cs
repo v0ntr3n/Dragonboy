@@ -28,6 +28,7 @@ public class LoginScr : mScreen, IActionListener
 	public Command cmdFogetPass;
 
 	public Command cmdRes;
+	public Command cmdOpenRegister;
 
 	public Command cmdMenu;
 
@@ -243,8 +244,11 @@ public class LoginScr : mScreen, IActionListener
 		cmdFogetPass = new Command(mResources.forgetPass, this, 1003, null);
 		cmdFogetPass.x = GameCanvas.w / 2 + 3;
 		cmdFogetPass.y = cmdLogin.y;
+		cmdOpenRegister = new Command(mResources.register, this, 2004, null);
+		cmdOpenRegister.x = GameCanvas.w / 2 + 3;
+		cmdOpenRegister.y = cmdLogin.y;
 		center = cmdOK;
-		left = cmdFogetPass;
+		left = cmdOpenRegister;
 	}
 
 	public static void getServerLink()
@@ -362,7 +366,9 @@ public class LoginScr : mScreen, IActionListener
 		GameCanvas.connect();
 		GameCanvas.startWaitDlg(mResources.REGISTERING);
 		passRe = tfPass.getText();
-		Service.gI().requestRegister(user, tfPass.getText(), Rms.loadRMSString(Rms.RMS_userAo + ServerListScreen.ipSelect), Rms.loadRMSString("passAo" + ServerListScreen.ipSelect), GameMidlet.VERSION);
+		string guestUser = isLogin2 ? (Rms.loadRMSString(Rms.RMS_userAo + ServerListScreen.ipSelect) ?? string.Empty) : string.Empty;
+		string guestPass = isLogin2 ? (Rms.loadRMSString("passAo" + ServerListScreen.ipSelect) ?? string.Empty) : string.Empty;
+		Service.gI().requestRegister(user, tfPass.getText(), guestUser, guestPass, GameMidlet.VERSION);
 		Rms.saveRMSString(Rms.RMS_acc, user);
 		Rms.saveRMSString(Rms.RMS_pass, tfPass.getText());
 		t = 20;
@@ -589,7 +595,7 @@ public class LoginScr : mScreen, IActionListener
 			else
 			{
 				center = cmdOK;
-				left = cmdFogetPass;
+				left = cmdOpenRegister;
 			}
 			if (cmdBack != null && cmdBack.isPointerPressInside())
 			{
@@ -604,7 +610,7 @@ public class LoginScr : mScreen, IActionListener
 		else
 		{
 			center = cmdOK;
-			left = cmdFogetPass;
+			left = cmdOpenRegister;
 		}
 		if (!Main.isPC && !TouchScreenKeyboard.visible && !Main.isMiniApp && !Main.isWindowsPhone)
 		{
@@ -795,7 +801,7 @@ public class LoginScr : mScreen, IActionListener
 			else
 			{
 				center = cmdOK;
-				left = cmdFogetPass;
+				left = cmdOpenRegister;
 			}
 		}
 		else if (isRes)
@@ -806,7 +812,7 @@ public class LoginScr : mScreen, IActionListener
 		else
 		{
 			center = cmdOK;
-			left = cmdFogetPass;
+			left = cmdOpenRegister;
 		}
 		if (GameCanvas.isPointerJustRelease && (!isLogin2 || isRes))
 		{
