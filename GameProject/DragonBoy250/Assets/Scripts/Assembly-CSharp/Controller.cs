@@ -5556,7 +5556,14 @@ public class Controller : IMessageHandler
 						TileMap.maps[i] = (ushort)num;
 					}
 					TileMap.types = new int[TileMap.maps.Length];
+					if (messWait == null)
+					{
+						GameCanvas.isLoading = false;
+						Char.isLoadingMap = false;
+						break;
+					}
 					msg = messWait;
+					messWait = null;
 					loadInfoMap(msg);
 					try
 					{
@@ -5577,7 +5584,6 @@ public class Controller : IMessageHandler
 				msg?.cleanup();
 				messWait?.cleanup();
 				msg = (messWait = null);
-				GameScr.gI().switchToMe();
 				break;
 			case 9:
 				GameCanvas.debug("SA11", 2);
@@ -6423,6 +6429,7 @@ public class Controller : IMessageHandler
 					ItemTemplate it = new ItemTemplate((short)k, d.readByte(), d.readByte(), d.readUTF(), d.readUTF(), d.readByte(), d.readInt(), d.readShort(), d.readShort(), d.readBoolean());
 					ItemTemplates.add(it);
 				}
+				LoginScr.isUpdateItem = false;
 				if (isSave)
 				{
 					d.reset();
@@ -6431,9 +6438,8 @@ public class Controller : IMessageHandler
 					Rms.saveRMS("NRitem1", data2);
 					sbyte[] data3 = new sbyte[1] { GameScr.vcItem };
 					Rms.saveRMS("NRitemVersion", data3);
+					GameScr.gI().readOk();
 				}
-				LoginScr.isUpdateItem = false;
-				GameScr.gI().readOk();
 			}
 			else
 			{

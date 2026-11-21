@@ -616,7 +616,7 @@ public class Hint
 		}
 		if (t == 2)
 		{
-			if (GameCanvas.isTouch)
+			if (isPaint && GameCanvas.isTouch)
 			{
 				GameScr.startFlyText(mResources.press_twice, x, y + 10, 0, 20, mFont.MISS_ME);
 			}

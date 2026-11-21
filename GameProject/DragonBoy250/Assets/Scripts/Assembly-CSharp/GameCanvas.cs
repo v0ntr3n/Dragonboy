@@ -1430,6 +1430,10 @@ public class GameCanvas : IActionListener
 			GameScr.info2.hide();
 			GameScr.info2.cmdChat = null;
 			Hint.isShow = false;
+			Hint.type = 0;
+			Hint.isPaint = false;
+			Hint.isPaintArrow = false;
+			Hint.activeClick = false;
 			ChatPopup.currChatPopup = null;
 			Controller.isStopReadMessage = false;
 			GameScr.loadCamera(true, -1, -1);
