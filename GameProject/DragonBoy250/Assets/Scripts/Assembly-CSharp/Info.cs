@@ -66,7 +66,7 @@ public class Info : IActionListener
 
 	public void paint(mGraphics g, int x, int y, int dir)
 	{
-		if (infoWaitToShow.size() == 0)
+		if (infoWaitToShow.size() == 0 || info == null)
 		{
 			return;
 		}
@@ -104,16 +104,25 @@ public class Info : IActionListener
 				if (says[i].StartsWith("|"))
 				{
 					string[] array = Res.split(says[i], "|", 0);
-					if (array.Length == 3)
+					if (array != null)
 					{
-						text = array[2];
+						if (array.Length == 3)
+						{
+							text = array[2];
+						}
+						if (array.Length == 4)
+						{
+							text = array[3];
+							if (int.TryParse(array[2], out int parsedAlign))
+							{
+								num3 = parsedAlign;
+							}
+						}
+						if (array.Length >= 2 && int.TryParse(array[1], out int parsedColor))
+						{
+							num4 = parsedColor;
+						}
 					}
-					if (array.Length == 4)
-					{
-						text = array[3];
-						num3 = int.Parse(array[2]);
-					}
-					num4 = int.Parse(array[1]);
 					num2 = num4;
 				}
 				else
@@ -158,7 +167,7 @@ public class Info : IActionListener
 				int num8 = H + ((!GameCanvas.isTouch) ? 14 : 0) + num;
 				g.setColor(4465169);
 				g.fillRect(num5, num6 + num8, num7, 2);
-				int num9 = info.timeCount * num7 / info.maxTime;
+				int num9 = (info.maxTime > 0) ? (info.timeCount * num7 / info.maxTime) : 0;
 				if (num9 < 0)
 				{
 					num9 = 0;
@@ -210,7 +219,7 @@ public class Info : IActionListener
 
 	public void update()
 	{
-		if (infoWaitToShow.size() == 0 || info.timeCount != 0)
+		if (infoWaitToShow.size() == 0 || info == null || info.timeCount != 0)
 		{
 			return;
 		}
@@ -340,6 +349,11 @@ public class Info : IActionListener
 			infoWaitToShow.removeElementAt(0);
 		}
 		infoWaitToShow.addElement(new InfoItem(s, f, speed));
+		if (infoWaitToShow.size() == 1)
+		{
+			info = (InfoItem)infoWaitToShow.firstElement();
+			getInfo();
+		}
 	}
 
 	public bool isEmpty()

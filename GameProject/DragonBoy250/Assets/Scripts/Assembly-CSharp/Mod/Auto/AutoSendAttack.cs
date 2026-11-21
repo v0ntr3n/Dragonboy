@@ -15,6 +15,11 @@ namespace Mod.Auto
 
 		protected override IEnumerator OnUpdate()
 		{
+			if (Char.myCharz()?.myskill == null || Char.myCharz().myskill.template == null)
+			{
+				yield break;
+			}
+
 			if (Char.myCharz().meDead || Char.myCharz().cHP <= 0 || Char.myCharz().statusMe == 14 || Char.myCharz().statusMe == 5 || Char.myCharz().myskill.template.type == 3 || Char.myCharz().myskill.template.id == 10 || Char.myCharz().myskill.template.id == 11 || Char.myCharz().isWaitMonkey || Char.myCharz().isCharge || Char.myCharz().myskill.paintCanNotUseSkill && !GameCanvas.panel.isShow)
 			{
 				yield break;

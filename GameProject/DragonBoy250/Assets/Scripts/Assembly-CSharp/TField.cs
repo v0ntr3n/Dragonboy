@@ -429,7 +429,7 @@ public class TField : IActionListener
 			string text = string.Concat(arg1: mode == 0 ? char.ToLower(c) : mode == 1 ? char.ToUpper(c) : mode != 2 ? array[keyCode - 48][array[keyCode - 48].Length - 1] : char.ToUpper(c), arg0: this.text.Substring(0, caretPos - 1));
 			if (caretPos < this.text.Length)
 			{
-				text += this.text.Substring(caretPos, this.text.Length);
+				text += this.text.Substring(caretPos);
 			}
 			this.text = text;
 			keyInActiveState = MAX_TIME_TO_CONFIRM_KEY[typeXpeed];
@@ -446,7 +446,7 @@ public class TField : IActionListener
 			string text2 = string.Concat(arg1: mode == 0 ? char.ToLower(c2) : mode == 1 ? char.ToUpper(c2) : mode != 2 ? array[keyCode - 48][array[keyCode - 48].Length - 1] : char.ToUpper(c2), arg0: text.Substring(0, caretPos));
 			if (caretPos < text.Length)
 			{
-				text2 += text.Substring(caretPos, text.Length);
+				text2 += text.Substring(caretPos);
 			}
 			text = text2;
 			keyInActiveState = MAX_TIME_TO_CONFIRM_KEY[typeXpeed];
@@ -505,7 +505,7 @@ public class TField : IActionListener
 					char c2 = printDau[i];
 					if (c == c2)
 					{
-						indexTemplate = i;
+						indexTemplate = (i / 6) * 6;
 						indexCong = 0;
 						indexDau = num - 1;
 						return;
@@ -521,10 +521,13 @@ public class TField : IActionListener
 			{
 				indexCong = 0;
 			}
-			string text = this.text.Substring(0, indexDau);
-			string text2 = this.text.Substring(indexDau + 1);
-			string text3 = printDau.Substring(indexTemplate + indexCong, 1);
-			this.text = text + text3 + text2;
+			if (indexTemplate >= 0 && indexTemplate + indexCong < printDau.Length)
+			{
+				string text = this.text.Substring(0, indexDau);
+				string text2 = this.text.Substring(indexDau + 1);
+				string text3 = printDau.Substring(indexTemplate + indexCong, 1);
+				this.text = text + text3 + text2;
+			}
 		}
 	}
 
@@ -755,7 +758,7 @@ public class TField : IActionListener
 			}
 			if (keyInActiveState > 0 && caretPos > 0)
 			{
-				passwordText = passwordText.Substring(0, caretPos - 1) + text[caretPos - 1] + passwordText.Substring(caretPos, passwordText.Length);
+				passwordText = passwordText.Substring(0, caretPos - 1) + text[caretPos - 1] + passwordText.Substring(caretPos);
 			}
 		}
 	}

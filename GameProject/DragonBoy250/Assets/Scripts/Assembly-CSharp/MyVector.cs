@@ -16,7 +16,7 @@ public class MyVector
 
 	public MyVector(ArrayList a)
 	{
-		this.a = a;
+		this.a = a ?? new ArrayList();
 	}
 
 	public void addElement(object o)
@@ -92,16 +92,28 @@ public class MyVector
 
 	public void insertElementAt(object o, int i)
 	{
+		if (a == null || i < 0 || i > a.Count)
+		{
+			return;
+		}
 		a.Insert(i, o);
 	}
 
 	public object firstElement()
 	{
+		if (a == null || a.Count == 0)
+		{
+			return null;
+		}
 		return a[0];
 	}
 
 	public object lastElement()
 	{
+		if (a == null || a.Count == 0)
+		{
+			return null;
+		}
 		return a[a.Count - 1];
 	}
 }

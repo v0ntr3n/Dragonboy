@@ -158,6 +158,41 @@ public class mFont
 
 	private string pathImage;
 
+	private GUIStyle cachedStyle;
+
+	private static readonly Color[] bigColors = new Color[7]
+	{
+		Color.red,
+		Color.yellow,
+		Color.green,
+		Color.white,
+		MakeColor(40404),
+		Color.red,
+		Color.black
+	};
+
+	private static readonly Color[] bigOutlineColors = new Color[7]
+	{
+		MakeColor(6029312),
+		MakeColor(7169025),
+		MakeColor(7680),
+		MakeColor(0),
+		MakeColor(9264),
+		MakeColor(6029312),
+		Color.white
+	};
+
+	private static Color MakeColor(int rgb)
+	{
+		int num = rgb & 0xFF;
+		int num2 = (rgb >> 8) & 0xFF;
+		int num3 = (rgb >> 16) & 0xFF;
+		float b = (float)num / 256f;
+		float g = (float)num2 / 256f;
+		float r = (float)num3 / 256f;
+		return new Color(r, g, b);
+	}
+
 	public static sbyte cl__white;
 
 	public static sbyte cl__yellow;
@@ -282,6 +317,8 @@ public class mFont
 			bigNumber_green = number_green;
 			bigNumber_orange = number_orange;
 			bigNumber_blue = tahoma_7_blue1;
+			bigNumber_black = number_gray;
+			gI = tahoma_7;
 			nameFontRed = tahoma_7_red;
 			nameFontYellow = tahoma_7_yellow;
 			nameFontGreen = tahoma_7_green;
@@ -360,17 +397,8 @@ public class mFont
 
 	public Color bigColor(int id)
 	{
-		Color[] array = new Color[7]
-		{
-			Color.red,
-			Color.yellow,
-			Color.green,
-			Color.white,
-			setColor(40404),
-			Color.red,
-			Color.black
-		};
-		return array[id - 25];
+		int idx = System.Math.Max(0, System.Math.Min(id - 25, bigColors.Length - 1));
+		return bigColors[idx];
 	}
 
 	public void setColorByID(int ID)
@@ -389,17 +417,9 @@ public class mFont
 		x--;
 		if (id > 24)
 		{
-			Color[] array = new Color[6]
-			{
-				setColor(6029312),
-				setColor(7169025),
-				setColor(7680),
-				setColor(0),
-				setColor(9264),
-				setColor(6029312)
-			};
-			color1 = array[id - 25];
-			color2 = array[id - 25];
+			int idx = System.Math.Max(0, System.Math.Min(id - 25, bigOutlineColors.Length - 1));
+			color1 = bigOutlineColors[idx];
+			color2 = bigOutlineColors[idx];
 			_drawString(g, st, x + 1, y, align);
 			_drawString(g, st, x - 1, y, align);
 			_drawString(g, st, x, y - 1, align);
@@ -496,6 +516,11 @@ public class mFont
 
 	public void drawStringBd(mGraphics g, string st, int x, int y, int align, mFont font)
 	{
+		if (id > 24)
+		{
+			setTypePaint(g, st, x, y, align, 0);
+			return;
+		}
 		setTypePaint(g, st, x - 1, y - 1, align, 0);
 		setTypePaint(g, st, x - 1, y + 1, align, 0);
 		setTypePaint(g, st, x + 1, y - 1, align, 0);
@@ -791,7 +816,11 @@ public class mFont
 	public void _drawString(mGraphics g, string st, int x0, int y0, int align)
 	{
 		y0 += yAddFont;
-		GUIStyle gUIStyle = new GUIStyle(GUI.skin.label);
+		if (cachedStyle == null)
+		{
+			cachedStyle = new GUIStyle(GUI.skin.label);
+		}
+		GUIStyle gUIStyle = cachedStyle;
 		gUIStyle.font = myFont;
 		float num = 0f;
 		float num2 = 0f;

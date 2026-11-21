@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Threading;
 
 namespace Mod.Auto
 {
@@ -11,6 +10,16 @@ namespace Mod.Auto
 		static readonly List<Item> listItemAuto = new List<Item>();
 
 		static Item itemToAuto;
+
+		static Item activeBuyItem;
+
+		static long nextBuyTime;
+
+		static Item activeSellItem;
+
+		static long nextSellTime;
+
+		static bool sellWaitingConfirm;
 
 		static readonly string[] inputDelay = new string[2]
 		{
@@ -73,10 +82,7 @@ namespace Mod.Auto
 				{
 					int quantity = int.Parse(ChatTextField.gI().tfChat.getText());
 					itemToAuto.Quantity = quantity;
-					new Thread((ThreadStart)delegate
-					{
-						AutoBuy(itemToAuto);
-					}).Start();
+					StartAutoBuy(itemToAuto);
 				}
 				catch
 				{
@@ -94,10 +100,7 @@ namespace Mod.Auto
 				{
 					int quantity2 = int.Parse(ChatTextField.gI().tfChat.getText());
 					itemToAuto.Quantity = quantity2;
-					new Thread((ThreadStart)delegate
-					{
-						AutoSell(itemToAuto);
-					}).Start();
+					StartAutoSell(itemToAuto);
 				}
 				catch
 				{
@@ -122,6 +125,8 @@ namespace Mod.Auto
 
 		public static void Update()
 		{
+			UpdateAutoBuy();
+			UpdateAutoSell();
 			if (listItemAuto.Count <= 0)
 			{
 				return;
@@ -209,40 +214,94 @@ namespace Mod.Auto
 			ChatTextField.gI().startChat2(getInstance(), string.Empty);
 		}
 
-		static void AutoSell(Item item)
+		static void StartAutoSell(Item item)
 		{
-			Thread.Sleep(100);
-			short index = item.Index;
-			while (item.Quantity > 0)
+			activeSellItem = item;
+			sellWaitingConfirm = false;
+			nextSellTime = mSystem.currentTimeMillis() + 100;
+		}
+
+		static void StartAutoBuy(Item item)
+		{
+			activeBuyItem = item;
+			nextBuyTime = 0L;
+		}
+
+		static void UpdateAutoSell()
+		{
+			if (activeSellItem == null)
 			{
-				if (Char.myCharz().arrItemBag[index] == null || Char.myCharz().arrItemBag[index] != null && Char.myCharz().arrItemBag[index].template.id != (short)item.Id)
+				return;
+			}
+			if (!Session_ME.gI().isConnected() || Char.myChar == null || Char.myChar.arrItemBag == null)
+			{
+				activeSellItem = null;
+				sellWaitingConfirm = false;
+				return;
+			}
+			long now = mSystem.currentTimeMillis();
+			if (now < nextSellTime)
+			{
+				return;
+			}
+			short index = activeSellItem.Index;
+			if (!sellWaitingConfirm)
+			{
+				if (activeSellItem.Quantity <= 0)
 				{
+					activeSellItem = null;
+					GameScr.info1.addInfo("Xong!", 0);
+					return;
+				}
+				global::Item[] bag = Char.myChar.arrItemBag;
+				if (index < 0 || index >= bag.Length || bag[index]?.template == null || bag[index].template.id != (short)activeSellItem.Id)
+				{
+					activeSellItem = null;
 					GameScr.info1.addInfo("Không Tìm Thấy Item!", 0);
 					return;
 				}
 				Service.gI().saleItem(0, 1, (short)(index + 3));
-				Thread.Sleep(100);
-				Service.gI().saleItem(1, 1, index);
-				Thread.Sleep(1000);
-				item.Quantity--;
-				if (Char.myCharz().xu > 1963100000)
-				{
-					GameScr.info1.addInfo("Xong!", 0);
-					return;
-				}
+				sellWaitingConfirm = true;
+				nextSellTime = now + 100;
+				return;
 			}
-			GameScr.info1.addInfo("Xong!", 0);
+			Service.gI().saleItem(1, 1, index);
+			sellWaitingConfirm = false;
+			activeSellItem.Quantity--;
+			if (Char.myChar.xu > 1963100000)
+			{
+				activeSellItem = null;
+				GameScr.info1.addInfo("Xong!", 0);
+				return;
+			}
+			nextSellTime = now + 1000;
 		}
 
-		void AutoBuy(Item item)
+		static void UpdateAutoBuy()
 		{
-			while (item.Quantity > 0 && !GameScr.gI().isBagFull())
+			if (activeBuyItem == null)
 			{
-				Service.gI().buyItem(!item.IsGold ? (sbyte)1 : (sbyte)0, item.Id, 0);
-				item.Quantity--;
-				Thread.Sleep(1000);
+				return;
 			}
-			GameScr.info1.addInfo("Xong!", 0);
+			if (!Session_ME.gI().isConnected() || Char.myChar == null || Char.myChar.arrItemBag == null)
+			{
+				activeBuyItem = null;
+				return;
+			}
+			long now = mSystem.currentTimeMillis();
+			if (now < nextBuyTime)
+			{
+				return;
+			}
+			if (activeBuyItem.Quantity <= 0 || GameScr.gI().isBagFull())
+			{
+				activeBuyItem = null;
+				GameScr.info1.addInfo("Xong!", 0);
+				return;
+			}
+			Service.gI().buyItem(!activeBuyItem.IsGold ? (sbyte)1 : (sbyte)0, activeBuyItem.Id, 0);
+			activeBuyItem.Quantity--;
+			nextBuyTime = now + 1000;
 		}
 
 		public class Item

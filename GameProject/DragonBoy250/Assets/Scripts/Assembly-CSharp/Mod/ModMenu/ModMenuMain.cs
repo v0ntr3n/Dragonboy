@@ -484,6 +484,8 @@ namespace Mod.ModMenu
 
 		static void DoFireModMenuFunctions(Panel panel)
 		{
+			if (modMenuItemFunctions == null || panel.selected < 0 || panel.selected >= modMenuItemFunctions.Length)
+				return;
 			if (modMenuItemFunctions[panel.selected].IsDisabled)
 			{
 				return;
@@ -494,7 +496,7 @@ namespace Mod.ModMenu
 
 		static void DoFireModMenuDeveloperFunctions(Panel panel)
 		{
-			if (panel.selected < 0)
+			if (modMenuItemDeveloperFunctions == null || panel.selected < 0 || panel.selected >= modMenuItemDeveloperFunctions.Length)
 				return;
 			if (modMenuItemDeveloperFunctions[panel.selected].IsDisabled)
 				return;
@@ -504,7 +506,7 @@ namespace Mod.ModMenu
 
 		static void DoFireModMenuBool(Panel panel)
 		{
-			if (panel.selected < 0)
+			if (modMenuItemBools == null || panel.selected < 0 || panel.selected >= modMenuItemBools.Length)
 				return;
 			if (modMenuItemBools[panel.selected].IsDisabled)
 				return;
@@ -514,9 +516,9 @@ namespace Mod.ModMenu
 
 		static void DoFireModMenuValues(Panel panel)
 		{
-			if (panel.selected < 0)
-				return;
 			int selected = panel.selected;
+			if (modMenuItemValues == null || selected < 0 || selected >= modMenuItemValues.Length)
+				return;
 			if (modMenuItemValues[selected].IsDisabled)
 				return;
 			if (modMenuItemValues[selected].Values != null)
@@ -528,29 +530,29 @@ namespace Mod.ModMenu
 		static void NotifySelectDisabledItem(Panel panel)
 		{
 			int selected = panel.selected;
-			if (selected == -1)
+			if (selected < 0)
 				return;
 			if (panel.currentTabIndex == 0)
 			{
-				if (!modMenuItemBools[selected].IsDisabled)
+				if (modMenuItemBools == null || selected >= modMenuItemBools.Length || !modMenuItemBools[selected].IsDisabled)
 					return;
 				GameScr.info1.addInfo(modMenuItemBools[selected].DisabledReason, 0);
 			}
 			else if (panel.currentTabIndex == 1)
 			{
-				if (!modMenuItemValues[selected].IsDisabled)
+				if (modMenuItemValues == null || selected >= modMenuItemValues.Length || !modMenuItemValues[selected].IsDisabled)
 					return;
 				GameScr.info1.addInfo(modMenuItemValues[selected].DisabledReason, 0);
 			}
 			else if (panel.currentTabIndex == 2)
 			{
-				if (!modMenuItemFunctions[selected].IsDisabled)
+				if (modMenuItemFunctions == null || selected >= modMenuItemFunctions.Length || !modMenuItemFunctions[selected].IsDisabled)
 					return;
 				GameScr.info1.addInfo(modMenuItemFunctions[selected].DisabledReason, 0);
 			}
 			else if (panel.currentTabIndex == 3)
 			{
-				if (!modMenuItemDeveloperFunctions[selected].IsDisabled)
+				if (modMenuItemDeveloperFunctions == null || selected >= modMenuItemDeveloperFunctions.Length || !modMenuItemDeveloperFunctions[selected].IsDisabled)
 					return;
 				GameScr.info1.addInfo(modMenuItemDeveloperFunctions[selected].DisabledReason, 0);
 			}
@@ -760,17 +762,23 @@ namespace Mod.ModMenu
 
 		internal static void SaveData()
 		{
-			foreach (ModMenuItemBoolean modMenuItem in modMenuItemBools)
-				if (!string.IsNullOrEmpty(modMenuItem.RMSName))
-					ModStorage.WriteBool(modMenuItem.RMSName, modMenuItem.Value);
-			foreach (ModMenuItemValues modMenuItem in modMenuItemValues)
+			if (modMenuItemBools != null)
 			{
-				if (string.IsNullOrEmpty(modMenuItem.RMSName))
-					continue;
-				if (modMenuItem.IsFloatingPoint)
-					ModStorage.WriteDouble(modMenuItem.RMSName, modMenuItem.SelectedValue);
-				else
-					ModStorage.WriteLong(modMenuItem.RMSName, (long)modMenuItem.SelectedValue);
+				foreach (ModMenuItemBoolean modMenuItem in modMenuItemBools)
+					if (!string.IsNullOrEmpty(modMenuItem.RMSName))
+						ModStorage.WriteBool(modMenuItem.RMSName, modMenuItem.Value);
+			}
+			if (modMenuItemValues != null)
+			{
+				foreach (ModMenuItemValues modMenuItem in modMenuItemValues)
+				{
+					if (string.IsNullOrEmpty(modMenuItem.RMSName))
+						continue;
+					if (modMenuItem.IsFloatingPoint)
+						ModStorage.WriteDouble(modMenuItem.RMSName, modMenuItem.SelectedValue);
+					else
+						ModStorage.WriteLong(modMenuItem.RMSName, (long)modMenuItem.SelectedValue);
+				}
 			}
 		}
 

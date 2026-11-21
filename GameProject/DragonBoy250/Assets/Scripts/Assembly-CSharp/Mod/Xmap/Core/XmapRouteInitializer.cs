@@ -72,6 +72,14 @@ namespace Mod.Xmap
 
 			if (GameCanvas.panel is { isShow: true, mapNames: { Length: > 0 }, type: Panel.TYPE_MAPTRANS })
 			{
+				if (currentMapId == endMapId)
+				{
+					IsWaitingForCapsuleLinks = false;
+					IsInitializing = false;
+					return RouteInitializationResult.DestinationReached();
+				}
+
+				startMapId = currentMapId;
 				ApplyCapsuleLinks(currentMapId);
 				Route = pathFinder.FindWay(startMapId, endMapId, graph);
 				IsWaitingForCapsuleLinks = false;

@@ -1296,12 +1296,13 @@ public class GameScr : mScreen, IChatable
 	{
 		Cout.println("GET onScreenSkill!");
 		onScreenSkill = new Skill[10];
-		if (oSkillID == null)
+		if (oSkillID == null || onScreenSkill == null)
 		{
 			loadDefaultonScreenSkill();
 			return;
 		}
-		for (int i = 0; i < oSkillID.Length; i++)
+		int len = Math.min(oSkillID.Length, onScreenSkill.Length);
+		for (int i = 0; i < len; i++)
 		{
 			for (int j = 0; j < Char.myCharz().vSkillFight.size(); j++)
 			{
@@ -1322,12 +1323,13 @@ public class GameScr : mScreen, IChatable
 	{
 		Cout.println("GET KEYSKILL!");
 		keySkill = new Skill[10];
-		if (kSkillID == null)
+		if (kSkillID == null || keySkill == null)
 		{
 			loadDefaultKeySkill();
 			return;
 		}
-		for (int i = 0; i < kSkillID.Length; i++)
+		int len = Math.min(kSkillID.Length, keySkill.Length);
+		for (int i = 0; i < len; i++)
 		{
 			for (int j = 0; j < Char.myCharz().vSkillFight.size(); j++)
 			{
@@ -1898,6 +1900,10 @@ public class GameScr : mScreen, IChatable
 			gssw++;
 		}
 		cmxLim = (TileMap.tmw - 1) * TileMap.size - gW;
+		if (cmxLim < 0)
+		{
+			cmxLim = 0;
+		}
 		cmyLim = (TileMap.tmh - 1) * TileMap.size - gH;
 		if (cx == -1 && cy == -1)
 		{
@@ -1933,6 +1939,10 @@ public class GameScr : mScreen, IChatable
 		}
 		gssy = cmy / TileMap.size;
 		gssxe = gssx + gssw;
+		if (gssxe > TileMap.tmw)
+		{
+			gssxe = TileMap.tmw;
+		}
 		gssye = gssy + gssh;
 		if (gssy < 0)
 		{
@@ -2133,6 +2143,10 @@ public class GameScr : mScreen, IChatable
 		}
 		gssy = cmy / TileMap.size;
 		gssxe = gssx + gssw;
+		if (gssxe > TileMap.tmw)
+		{
+			gssxe = TileMap.tmw;
+		}
 		gssye = gssy + gssh;
 		if (gssy < 0)
 		{
@@ -4635,9 +4649,9 @@ public class GameScr : mScreen, IChatable
 				{
 					GameCanvas.isPointerClick = GameCanvas.isPointerJustDown = GameCanvas.isPointerJustRelease = false;
 					selectedIndexSkill = num;
-					if (indexSelect < 0)
+					if (selectedIndexSkill < 0)
 					{
-						indexSelect = 0;
+						selectedIndexSkill = 0;
 					}
 					if (!Main.isPC)
 					{
@@ -7850,7 +7864,8 @@ public class GameScr : mScreen, IChatable
 		}
 		fra_PVE_Bar_0.drawFrame(0, num5, num7, 2, 0, g);
 		fra_PVE_Bar_0.drawFrame(0, num6 + num8, num7, 0, 0, g);
-		int num10 = nCT_TeamA * 100 / (nCT_nBoyBaller / 2) * num / 100;
+		int half = nCT_nBoyBaller / 2;
+		int num10 = half > 0 ? (nCT_TeamA * 100 / half * num / 100) : 0;
 		if (num10 > 0)
 		{
 			if (num10 < 6)
@@ -7874,7 +7889,7 @@ public class GameScr : mScreen, IChatable
 			}
 		}
 		GameCanvas.resetTrans(g);
-		int num11 = nCT_TeamB * 100 / (nCT_nBoyBaller / 2) * num / 100;
+		int num11 = half > 0 ? (nCT_TeamB * 100 / half * num / 100) : 0;
 		if (num - (num - num11) > 0)
 		{
 			if (num11 < 6)

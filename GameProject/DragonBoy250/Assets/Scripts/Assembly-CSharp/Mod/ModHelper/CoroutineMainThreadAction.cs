@@ -7,6 +7,7 @@ namespace Mod.ModHelper
 		where T : CoroutineMainThreadAction<T>
 	{
 		Coroutine runningCoroutine;
+		Coroutine activeUpdateCoroutine;
 
 		public static T gI { get; private set; }
 
@@ -65,6 +66,12 @@ namespace Mod.ModHelper
 
 			IsActing = false;
 
+			if (activeUpdateCoroutine != null)
+			{
+				StopCoroutine(activeUpdateCoroutine);
+				activeUpdateCoroutine = null;
+			}
+
 			if (runningCoroutine != null)
 			{
 				StopCoroutine(runningCoroutine);
@@ -78,7 +85,9 @@ namespace Mod.ModHelper
 		{
 			while (IsActing)
 			{
-				yield return StartCoroutine(OnUpdate());
+				activeUpdateCoroutine = StartCoroutine(OnUpdate());
+				yield return activeUpdateCoroutine;
+				activeUpdateCoroutine = null;
 
 				if (Interval <= 0f)
 				{
@@ -89,6 +98,8 @@ namespace Mod.ModHelper
 					yield return new WaitForSecondsRealtime(Interval);
 				}
 			}
+
+			runningCoroutine = null;
 		}
 	}
 }

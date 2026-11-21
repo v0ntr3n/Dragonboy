@@ -31,13 +31,14 @@ namespace Mod.PickMob
 		{
 			Mob mobFocus = Char.myCharz().mobFocus;
 			ItemMap itemFocus = Char.myCharz().itemFocus;
-			SkillTemplate mySkillTemplate = Char.myCharz().myskill.template;
+			bool hasValidItem = itemFocus != null && itemFocus.template != null;
+			SkillTemplate mySkillTemplate = Char.myCharz()?.myskill?.template;
 
 			List<ModMenuItemBoolean> bools = new List<ModMenuItemBoolean>();
 			List<ModMenuItemFunction> functions = new List<ModMenuItemFunction>();
 
 			// --- Context-aware toggles (only when focused on mob/item) ---
-			if (mobFocus != null || itemFocus != null)
+			if (mobFocus != null || hasValidItem)
 			{
 				// Toggle mob ID / item ID in pick list
 				string toggleIdTitle;
@@ -72,19 +73,23 @@ namespace Mod.PickMob
 				}));
 
 				// Toggle mob type / item type in pick list
-				string toggleTypeTitle;
-				string toggleTypeDesc;
+				string toggleTypeTitle = null;
+				string toggleTypeDesc = null;
 				if (mobFocus != null)
 				{
-					bool isInList = PickMobConfig.TypeMobsTanSat.Contains(mobFocus.getTemplate().mobTemplateId);
-					toggleTypeTitle = isInList
-						? string.Format(Strings.pickMobRemoveFromList, mobFocus.getTemplate().name)
-						: string.Format(Strings.pickMobAddToList, mobFocus.getTemplate().name);
-					toggleTypeDesc = isInList
-						? $"Remove \"{mobFocus.getTemplate().name}\" type from slaughter list"
-						: $"Add \"{mobFocus.getTemplate().name}\" type to slaughter list";
+					MobTemplate mobTemplate = (Mob.arrMobTemplate != null && mobFocus.templateId >= 0 && mobFocus.templateId < Mob.arrMobTemplate.Length) ? Mob.arrMobTemplate[mobFocus.templateId] : null;
+					if (mobTemplate != null)
+					{
+						bool isInList = PickMobConfig.TypeMobsTanSat.Contains(mobTemplate.mobTemplateId);
+						toggleTypeTitle = isInList
+							? string.Format(Strings.pickMobRemoveFromList, mobTemplate.name)
+							: string.Format(Strings.pickMobAddToList, mobTemplate.name);
+						toggleTypeDesc = isInList
+							? $"Remove \"{mobTemplate.name}\" type from slaughter list"
+							: $"Add \"{mobTemplate.name}\" type to slaughter list";
+					}
 				}
-				else
+				else if (hasValidItem)
 				{
 					bool isInList = PickMobConfig.TypeItemPicks.Contains(itemFocus.template.type);
 					toggleTypeTitle = isInList
@@ -94,17 +99,20 @@ namespace Mod.PickMob
 						? $"Remove item type {itemFocus.template.type} from auto pick list"
 						: $"Add item type {itemFocus.template.type} to auto pick list";
 				}
-				bools.Add(new ModMenuItemBoolean(new ModMenuItemBooleanConfig
+				if (toggleTypeTitle != null)
 				{
-					ID = "PickMob_ToggleFocusedType",
-					Title = toggleTypeTitle,
-					Description = toggleTypeDesc,
-					GetValueFunc = () => false,
-					SetValueAction = _ => PickMobCommands.ToggleItemOrMobType()
-				}));
+					bools.Add(new ModMenuItemBoolean(new ModMenuItemBooleanConfig
+					{
+						ID = "PickMob_ToggleFocusedType",
+						Title = toggleTypeTitle,
+						Description = toggleTypeDesc,
+						GetValueFunc = () => false,
+						SetValueAction = _ => PickMobCommands.ToggleItemOrMobType()
+					}));
+				}
 
 				// Item-only: block item ID
-				if (itemFocus != null)
+				if (hasValidItem)
 				{
 					bool isBlocked = PickMobConfig.IdItemBlocks.Contains(itemFocus.template.id);
 					bools.Add(new ModMenuItemBoolean(new ModMenuItemBooleanConfig
@@ -150,19 +158,22 @@ namespace Mod.PickMob
 			}
 
 			// --- Toggle current skill for slaughter ---
-			bool skillInList = PickMobConfig.IdSkillsTanSat.Contains(mySkillTemplate.id);
-			bools.Add(new ModMenuItemBoolean(new ModMenuItemBooleanConfig
+			if (mySkillTemplate != null)
 			{
-				ID = "PickMob_ToggleSkill",
-				Title = skillInList
-					? string.Format(Strings.pickMobRemoveFromSkillList, mySkillTemplate.name)
-					: string.Format(Strings.pickMobAddToSkillList, mySkillTemplate.name),
-				Description = skillInList
-					? $"Remove \"{mySkillTemplate.name}\" from slaughter skill list"
-					: $"Add \"{mySkillTemplate.name}\" to slaughter skill list",
-				GetValueFunc = () => false,
-				SetValueAction = _ => PickMobCommands.ToggleSelectedSkillForSlaughter()
-			}));
+				bool skillInList = PickMobConfig.IdSkillsTanSat.Contains(mySkillTemplate.id);
+				bools.Add(new ModMenuItemBoolean(new ModMenuItemBooleanConfig
+				{
+					ID = "PickMob_ToggleSkill",
+					Title = skillInList
+						? string.Format(Strings.pickMobRemoveFromSkillList, mySkillTemplate.name)
+						: string.Format(Strings.pickMobAddToSkillList, mySkillTemplate.name),
+					Description = skillInList
+						? $"Remove \"{mySkillTemplate.name}\" from slaughter skill list"
+						: $"Add \"{mySkillTemplate.name}\" to slaughter skill list",
+					GetValueFunc = () => false,
+					SetValueAction = _ => PickMobCommands.ToggleSelectedSkillForSlaughter()
+				}));
+			}
 
 			// --- Reset skill list to default ---
 			functions.Add(new ModMenuItemFunction(new ModMenuItemFunctionConfig
@@ -205,7 +216,12 @@ namespace Mod.PickMob
 						if (PickMobConfig.TypeMobsTanSat.Count > 0)
 						{
 							foreach (int mobType in PickMobConfig.TypeMobsTanSat)
-								infoMob += $"{Mob.arrMobTemplate[mobType].name} [{mobType}], ";
+							{
+								string mobName = (Mob.arrMobTemplate != null && mobType >= 0 && mobType < Mob.arrMobTemplate.Length
+									? Mob.arrMobTemplate[mobType]?.name
+									: null) ?? "Unknown";
+								infoMob += $"{mobName} [{mobType}], ";
+							}
 							infoMob = infoMob.Remove(infoMob.LastIndexOf(','), 2);
 						}
 						else
@@ -229,7 +245,7 @@ namespace Mod.PickMob
 						if (PickMobConfig.IdItemPicks.Count > 0)
 						{
 							foreach (short itemIdPick in PickMobConfig.IdItemPicks)
-								infoItem += $"{ItemTemplates.get(itemIdPick).name} [{itemIdPick}], ";
+								infoItem += $"{ItemTemplates.get(itemIdPick)?.name ?? "Unknown"} [{itemIdPick}], ";
 							infoItem = infoItem.Remove(infoItem.LastIndexOf(','), 2);
 						}
 						else
@@ -247,7 +263,7 @@ namespace Mod.PickMob
 						if (PickMobConfig.IdItemBlocks.Count > 0)
 						{
 							foreach (short itemIdBlock in PickMobConfig.IdItemBlocks)
-								infoItem += $"{ItemTemplates.get(itemIdBlock).name} [{itemIdBlock}], ";
+								infoItem += $"{ItemTemplates.get(itemIdBlock)?.name ?? "Unknown"} [{itemIdBlock}], ";
 							infoItem = infoItem.Remove(infoItem.LastIndexOf(','), 2);
 						}
 						else
@@ -275,19 +291,25 @@ namespace Mod.PickMob
 				Action = () =>
 				{
 					string infoskill = Strings.pickMobSkillList + ": ";
-					foreach (sbyte skillid in PickMobConfig.IdSkillsTanSat)
+					SkillTemplate[] templates = Char.myCharz()?.nClass?.skillTemplates;
+					bool hasMatchedSkill = false;
+					if (templates != null)
 					{
-						for (int i = 0; i < 8; i++)
+						foreach (sbyte skillid in PickMobConfig.IdSkillsTanSat)
 						{
-							SkillTemplate template = Char.myCharz().nClass.skillTemplates[i];
-							if (template.id == skillid)
+							for (int i = 0; i < templates.Length; i++)
 							{
-								infoskill += $"{template.name} [{skillid}]";
-								goto here;
+								if (templates[i] != null && templates[i].id == skillid)
+								{
+									infoskill += $"{templates[i].name} [{skillid}], ";
+									hasMatchedSkill = true;
+									break;
+								}
 							}
 						}
 					}
-					here:
+					if (hasMatchedSkill)
+						infoskill = infoskill.Substring(0, infoskill.Length - 2);
 					GameCanvas.startOKDlg(infoskill);
 				}
 			}));

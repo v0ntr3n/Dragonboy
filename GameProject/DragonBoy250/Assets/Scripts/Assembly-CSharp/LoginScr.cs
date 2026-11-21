@@ -452,7 +452,7 @@ public class LoginScr : mScreen, IActionListener
 		Service.gI().login(text, text2, GameMidlet.VERSION, (sbyte)(isLogin2 ? 1 : 0));
 		Res.outz(Controller.isEXTRA_LINK + " = Controller.isEXTRA_LINK " + text + " " + text2 + " " + GameMidlet.VERSION + " " + (sbyte)(isLogin2 ? 1 : 0));
 		Rms.saveRMSInt(ServerListScreen.RMS_svselect, ServerListScreen.ipSelect);
-		if (Session_ME.connected)
+		if (Session_ME.connected || Session_ME.connecting)
 		{
 			GameCanvas.startWaitDlg();
 		}
@@ -474,7 +474,7 @@ public class LoginScr : mScreen, IActionListener
 		{
 			Rms.saveRMSInt(Rms.RMS_check, 1);
 			Rms.saveRMSString(Rms.RMS_acc, tfUser.getText().ToLower().Trim());
-			Rms.saveRMSString(Rms.RMS_pass, tfPass.getText().ToLower().Trim());
+			Rms.saveRMSString(Rms.RMS_pass, tfPass.getText().Trim());
 		}
 		else
 		{

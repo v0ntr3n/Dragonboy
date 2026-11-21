@@ -1270,14 +1270,27 @@ namespace Mod.AccountManager
 					break;
 				}
 				case CommandType.FinishEditCustomServer:
-					if (string.IsNullOrEmpty(tfCustomServerName.getText()))
+				{
+					string serverName = tfCustomServerName.getText()?.Trim();
+					if (string.IsNullOrEmpty(serverName))
 					{
 						GameCanvas.startOKDlg(Strings.inGameAccountManagerServerNameBlank + '!');
 						break;
 					}
-					if (string.IsNullOrEmpty(tfCustomServerAddress.getText()))
+					if (serverName.Contains(":"))
+					{
+						GameCanvas.startOKDlg(Strings.invalidValue + '!');
+						break;
+					}
+					string serverAddress = tfCustomServerAddress.getText()?.Trim();
+					if (string.IsNullOrEmpty(serverAddress))
 					{
 						GameCanvas.startOKDlg(Strings.inGameAccountManagerServerAddressBlank + '!');
+						break;
+					}
+					if (serverAddress.Contains(":"))
+					{
+						GameCanvas.startOKDlg(Strings.invalidValue + '!');
 						break;
 					}
 					if (string.IsNullOrEmpty(tfCustomServerPort.getText()))
@@ -1295,9 +1308,10 @@ namespace Mod.AccountManager
 						GameCanvas.startOKDlg(string.Format(Strings.inputNumberOutOfRange, ushort.MinValue, ushort.MaxValue) + '!');
 						break;
 					}
-					customServer = new Server(tfCustomServerName.getText(), tfCustomServerAddress.getText(), (ushort)port);
+					customServer = new Server(serverName, serverAddress, (ushort)port);
 					isEditingCustomServer = false;
 					goto case CommandType.FinishInputAccount;
+				}
 				case CommandType.CancelEditCustomServer:
 					isEditingCustomServer = false;
 					break;

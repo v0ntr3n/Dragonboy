@@ -84,7 +84,10 @@ public class ChatTextField : IActionListener
 					lastChatTime = num;
 					parentScreen.onChatFromMe(tfChat.getText(), to);
 					tfChat.setText(string.Empty);
-					right.caption = mResources.CLOSE;
+					if (right != null)
+					{
+						right.caption = mResources.CLOSE;
+					}
 					tfChat.clearKb();
 				}
 			}
@@ -94,7 +97,7 @@ public class ChatTextField : IActionListener
 			if (tfChat.getText().Equals(string.Empty))
 			{
 				isShow = false;
-				parentScreen.onCancelChat();
+				parentScreen?.onCancelChat();
 			}
 			tfChat.clear();
 			break;
@@ -137,7 +140,10 @@ public class ChatTextField : IActionListener
 			tfChat.setText(str);
 			parentScreen?.onChatFromMe(str, to);
 			tfChat.setText(string.Empty);
-			right.caption = mResources.CLOSE;
+			if (right != null)
+			{
+				right.caption = mResources.CLOSE;
+			}
 		};
 		cmdChat2 = new Command();
 		cmdChat2.actionChat = delegate(string str)
@@ -211,11 +217,17 @@ public class ChatTextField : IActionListener
 		}
 		if (tfChat.getText().Equals(string.Empty))
 		{
-			right.caption = mResources.CLOSE;
+			if (right != null)
+			{
+				right.caption = mResources.CLOSE;
+			}
 		}
 		else
 		{
-			right.caption = mResources.DELETE;
+			if (right != null)
+			{
+				right.caption = mResources.DELETE;
+			}
 		}
 	}
 
@@ -232,7 +244,10 @@ public class ChatTextField : IActionListener
 		{
 			return;
 		}
-		right.caption = mResources.CLOSE;
+		if (right != null)
+		{
+			right.caption = mResources.CLOSE;
+		}
 		this.to = to;
 		if (Main.isWindowsPhone)
 		{
@@ -252,7 +267,10 @@ public class ChatTextField : IActionListener
 
 	public void startChat(IChatable parentScreen, string to)
 	{
-		right.caption = mResources.CLOSE;
+		if (right != null)
+		{
+			right.caption = mResources.CLOSE;
+		}
 		this.parentScreen = parentScreen;
 		this.to = to;
 		if (Main.isWindowsPhone)
@@ -321,9 +339,12 @@ public class ChatTextField : IActionListener
 		if (tfChat.justReturnFromTextBox)
 		{
 			tfChat.justReturnFromTextBox = false;
-			parentScreen.onChatFromMe(tfChat.getText(), to);
+			parentScreen?.onChatFromMe(tfChat.getText(), to);
 			tfChat.setText(string.Empty);
-			right.caption = mResources.CLOSE;
+			if (right != null)
+			{
+				right.caption = mResources.CLOSE;
+			}
 		}
 		if (!Main.isPC)
 		{

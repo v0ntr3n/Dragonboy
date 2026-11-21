@@ -6,6 +6,10 @@ public class MyHashTable
 
 	public object get(object k)
 	{
+		if (k == null)
+		{
+			return null;
+		}
 		return h[k];
 	}
 
@@ -26,25 +30,37 @@ public class MyHashTable
 
 	public void put(object k, object v)
 	{
-		if (h.ContainsKey(k))
+		if (k == null)
 		{
-			h.Remove(k);
+			return;
 		}
-		h.Add(k, v);
+		h[k] = v;
 	}
 
 	public void remove(object k)
 	{
+		if (k == null)
+		{
+			return;
+		}
 		h.Remove(k);
 	}
 
 	public void Remove(string key)
 	{
+		if (key == null)
+		{
+			return;
+		}
 		h.Remove(key);
 	}
 
 	public bool containsKey(object key)
 	{
+		if (key == null)
+		{
+			return false;
+		}
 		return h.ContainsKey(key);
 	}
 }

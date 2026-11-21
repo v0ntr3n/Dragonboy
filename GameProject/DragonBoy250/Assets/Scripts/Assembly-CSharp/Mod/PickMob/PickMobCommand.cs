@@ -52,7 +52,7 @@ namespace Mod.PickMob
 			ItemMap itemMap = Char.myCharz().itemFocus;
 			if (mob != null)
 				AddOrRemoveMonsterAutoAttack(mob.mobId);
-			else if (itemMap != null)
+			else if (itemMap != null && itemMap.template != null)
 				AddOrRemoveItemAutoPick(itemMap.template.id);
 			else
 				GameScr.info1.addInfo(Strings.pickMobPlsFocusOnMonsterOrItem + '!', 0);
@@ -76,15 +76,18 @@ namespace Mod.PickMob
 		[ChatCommand("addi")]
 		internal static void AddOrRemoveItemAutoPick(short id)
 		{
+			ItemTemplate template = ItemTemplates.get(id);
+			if (template == null)
+				return;
 			if (PickMobConfig.IdItemPicks.Contains(id))
 			{
 				PickMobConfig.IdItemPicks.Remove(id);
-				GameScr.info1.addInfo(string.Format(Strings.pickMobAutoPickItemListRemoved, ItemTemplates.get(id).name, id) + '!', 0);
+				GameScr.info1.addInfo(string.Format(Strings.pickMobAutoPickItemListRemoved, template.name, id) + '!', 0);
 			}
 			else
 			{
 				PickMobConfig.IdItemPicks.Add(id);
-				GameScr.info1.addInfo(string.Format(Strings.pickMobAutoPickItemListAdded, ItemTemplates.get(id).name, id) + '!', 0);
+				GameScr.info1.addInfo(string.Format(Strings.pickMobAutoPickItemListAdded, template.name, id) + '!', 0);
 			}
 		}
 
@@ -94,8 +97,8 @@ namespace Mod.PickMob
 			Mob mob = Char.myCharz().mobFocus;
 			ItemMap itemMap = Char.myCharz().itemFocus;
 			if (mob != null)
-				AddOrRemoveMonsterTypeAutoAttack(mob.getTemplate().mobTemplateId);
-			else if (itemMap != null)
+				AddOrRemoveMonsterTypeAutoAttack(mob.templateId);
+			else if (itemMap != null && itemMap.template != null)
 				AddOrRemoveItemTypeAutoPick(itemMap.template.type);
 			else
 				GameScr.info1.addInfo(Strings.pickMobPlsFocusOnMonsterOrItem + '!', 0);
@@ -104,15 +107,18 @@ namespace Mod.PickMob
 		[ChatCommand("addtm")]
 		internal static void AddOrRemoveMonsterTypeAutoAttack(int type)
 		{
+			if (Mob.arrMobTemplate == null || type < 0 || type >= Mob.arrMobTemplate.Length || Mob.arrMobTemplate[type] == null)
+				return;
+			MobTemplate template = Mob.arrMobTemplate[type];
 			if (PickMobConfig.TypeMobsTanSat.Contains(type))
 			{
 				PickMobConfig.TypeMobsTanSat.Remove(type);
-				GameScr.info1.addInfo(string.Format(Strings.pickMobMonsterTypeRemoved, Mob.arrMobTemplate[type].name, Mob.arrMobTemplate[type].mobTemplateId) + '!', 0);
+				GameScr.info1.addInfo(string.Format(Strings.pickMobMonsterTypeRemoved, template.name, template.mobTemplateId) + '!', 0);
 			}
 			else
 			{
 				PickMobConfig.TypeMobsTanSat.Add(type);
-				GameScr.info1.addInfo(string.Format(Strings.pickMobMonsterTypeAdded, Mob.arrMobTemplate[type].name, Mob.arrMobTemplate[type].mobTemplateId) + '!', 0);
+				GameScr.info1.addInfo(string.Format(Strings.pickMobMonsterTypeAdded, template.name, template.mobTemplateId) + '!', 0);
 			}
 		}
 
@@ -201,14 +207,21 @@ namespace Mod.PickMob
 		[ChatCommand("skill")]
 		internal static void ToggleSelectedSkillForSlaughter()
 		{
-			SkillTemplate template = Char.myCharz().myskill.template;
+			SkillTemplate template = Char.myCharz()?.myskill?.template;
+			if (template == null)
+				return;
 			AddOrRemoveSkillAutoAttack(template.id);
 		}
 
 		[ChatCommand("skill")]
 		internal static void AddOrRemoveSkillAutoAttack(int index)
 		{
-			SkillTemplate template = Char.myCharz().nClass.skillTemplates[index - 1];
+			SkillTemplate[] skillTemplates = Char.myCharz()?.nClass?.skillTemplates;
+			if (skillTemplates == null || index < 1 || index > skillTemplates.Length)
+				return;
+			SkillTemplate template = skillTemplates[index - 1];
+			if (template == null)
+				return;
 			if (PickMobConfig.IdSkillsTanSat.Contains(template.id))
 			{
 				PickMobConfig.IdSkillsTanSat.Remove(template.id);
@@ -224,7 +237,7 @@ namespace Mod.PickMob
 		[ChatCommand("skillid")]
 		internal static void AddOrRemoveSkillAutoAttack(sbyte id)
 		{
-			SkillTemplate template = Char.myCharz().nClass.skillTemplates.FirstOrDefault(t => t.id == id);
+			SkillTemplate template = Char.myCharz()?.nClass?.skillTemplates?.FirstOrDefault(t => t != null && t.id == id);
 			if (template == null)
 				return;
 			if (PickMobConfig.IdSkillsTanSat.Contains(id))
@@ -251,7 +264,7 @@ namespace Mod.PickMob
 		internal static void BlockFocusedItem()
 		{
 			ItemMap itemMap = Char.myCharz().itemFocus;
-			if (itemMap != null)
+			if (itemMap != null && itemMap.template != null)
 				BlockItem(itemMap.template.id);
 			else
 				GameScr.info1.addInfo(Strings.pickMobPlsFocusOnItem + '!', 0);
@@ -261,7 +274,7 @@ namespace Mod.PickMob
 		internal static void BlockFocusedItemType()
 		{
 			ItemMap itemMap = Char.myCharz().itemFocus;
-			if (itemMap != null)
+			if (itemMap != null && itemMap.template != null)
 				BlockItemType(itemMap.template.type);
 			else
 				GameScr.info1.addInfo(Strings.pickMobPlsFocusOnItem + '!', 0);
@@ -270,15 +283,18 @@ namespace Mod.PickMob
 		[ChatCommand("blocki")]
 		internal static void BlockItem(short id)
 		{
+			ItemTemplate template = ItemTemplates.get(id);
+			if (template == null)
+				return;
 			if (PickMobConfig.IdItemBlocks.Contains(id))
 			{
 				PickMobConfig.IdItemBlocks.Remove(id);
-				GameScr.info1.addInfo(string.Format(Strings.pickMobDontPickItemListAdded, ItemTemplates.get(id).name, id) + '!', 0);
+				GameScr.info1.addInfo(string.Format(Strings.pickMobDontPickItemListRemoved, template.name, id) + '!', 0);
 			}
 			else
 			{
 				PickMobConfig.IdItemBlocks.Add(id);
-				GameScr.info1.addInfo(string.Format(Strings.pickMobDontPickItemListRemoved, ItemTemplates.get(id).name, id) + '!', 0);
+				GameScr.info1.addInfo(string.Format(Strings.pickMobDontPickItemListAdded, template.name, id) + '!', 0);
 			}
 		}
 

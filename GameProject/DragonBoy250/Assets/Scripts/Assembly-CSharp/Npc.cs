@@ -62,7 +62,7 @@ public class Npc : Char
 		xSd = cx;
 		ySd = cy;
 		statusMe = status;
-		if (npcId != -1)
+		if (npcId != -1 && arrNpcTemplate != null && templateId >= 0 && templateId < arrNpcTemplate.Length)
 		{
 			template = arrNpcTemplate[templateId];
 		}
@@ -246,7 +246,7 @@ public class Npc : Char
 			{
 				if (template.npcTemplateId == 50 || template.npcTemplateId == 51)
 				{
-					if (duahau != null)
+					if (duahau != null && duaHauIndex >= 0 && duaHauIndex < duahau.Length)
 					{
 						if (template.npcTemplateId == 50 && mabuEff)
 						{
@@ -272,11 +272,12 @@ public class Npc : Char
 							}
 						}
 						int num = 0;
-						if (SmallImage.imgNew[duahau[duaHauIndex]] != null && SmallImage.imgNew[duahau[duaHauIndex]].img != null)
+						int imgId = duahau[duaHauIndex];
+						if (SmallImage.imgNew != null && imgId >= 0 && imgId < SmallImage.imgNew.Length && SmallImage.imgNew[imgId]?.img != null)
 						{
-							num = mGraphics.getImageHeight(SmallImage.imgNew[duahau[duaHauIndex]].img);
+							num = mGraphics.getImageHeight(SmallImage.imgNew[imgId].img);
 						}
-						SmallImage.drawSmallImage(g, duahau[duaHauIndex], cx + Res.random(-1, 1), cy, 0, mGraphics.BOTTOM | mGraphics.HCENTER);
+						SmallImage.drawSmallImage(g, imgId, cx + Res.random(-1, 1), cy, 0, mGraphics.BOTTOM | mGraphics.HCENTER);
 						if (Char.myCharz().npcFocus != null && Char.myCharz().npcFocus.Equals(this))
 						{
 							if (ChatPopup.currChatPopup == null)
@@ -395,12 +396,13 @@ public class Npc : Char
 			}
 			if (template.npcTemplateId == 50 || template.npcTemplateId == 51)
 			{
-				if (duahau != null)
+				if (duahau != null && duaHauIndex >= 0 && duaHauIndex < duahau.Length)
 				{
 					int num = 0;
-					if (SmallImage.imgNew[duahau[duaHauIndex]] != null && SmallImage.imgNew[duahau[duaHauIndex]].img != null)
+					int imgId = duahau[duaHauIndex];
+					if (SmallImage.imgNew != null && imgId >= 0 && imgId < SmallImage.imgNew.Length && SmallImage.imgNew[imgId]?.img != null)
 					{
-						num = mGraphics.getImageHeight(SmallImage.imgNew[duahau[duaHauIndex]].img);
+						num = mGraphics.getImageHeight(SmallImage.imgNew[imgId].img);
 					}
 					if (Char.myCharz().npcFocus != null && Char.myCharz().npcFocus.Equals(this))
 					{

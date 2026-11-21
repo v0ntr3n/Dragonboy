@@ -410,6 +410,12 @@ public class BigBoss2 : Mob, IMapObject
 
 	public new void updateMobAttack()
 	{
+		if (charAttack == null || charAttack.Length == 0 || dameHP == null || charAttack[0] == null)
+		{
+			status = 2;
+			tick = 0;
+			return;
+		}
 		if (type == 0)
 		{
 			if (tick == attack1.Length - 1)
@@ -425,6 +431,10 @@ public class BigBoss2 : Mob, IMapObject
 			{
 				for (int i = 0; i < charAttack.Length; i++)
 				{
+					if (charAttack[i] == null || i >= dameHP.Length)
+					{
+						continue;
+					}
 					charAttack[i].doInjure(dameHP[i], 0L, false, false);
 					ServerEffect.addServerEffect(102, charAttack[i].cx, charAttack[i].cy, 1);
 				}
@@ -442,6 +452,10 @@ public class BigBoss2 : Mob, IMapObject
 			{
 				for (int j = 0; j < charAttack.Length; j++)
 				{
+					if (charAttack[j] == null || j >= dameHP.Length)
+					{
+						continue;
+					}
 					MonsterDart.addMonsterDart(x + ((dir != 1) ? (-45) : 45), y - 25, true, dameHP[j], 0L, charAttack[j], 24);
 				}
 			}
@@ -463,6 +477,10 @@ public class BigBoss2 : Mob, IMapObject
 		{
 			for (int k = 0; k < charAttack.Length; k++)
 			{
+				if (charAttack[k] == null || k >= dameHP.Length)
+				{
+					continue;
+				}
 				charAttack[k].doInjure(dameHP[k], 0L, false, false);
 				ServerEffect.addServerEffect(102, charAttack[k].cx, charAttack[k].cy, 1);
 			}
@@ -548,30 +566,33 @@ public class BigBoss2 : Mob, IMapObject
 			SmallImage.drawSmallImage(g, smallBody, x, y + fy - 9, (dir != 1) ? 2 : 0, mGraphics.BOTTOM | mGraphics.HCENTER);
 		}
 		g.translate(0, -GameCanvas.transY);
-		int imageWidth = mGraphics.getImageWidth(imgHPtem);
-		int imageHeight = mGraphics.getImageHeight(imgHPtem);
-		int num = imageWidth;
-		int num2 = imageWidth;
-		int num3 = x - imageWidth;
-		int num4 = y - h - 5;
-		int num5 = imageWidth * 2 * per / 100;
-		if (num5 > num)
+		if (hp > 0 && imgHPtem != null)
 		{
-			num2 = num5 - num;
-			if (num2 <= 0)
+			int imageWidth = mGraphics.getImageWidth(imgHPtem);
+			int imageHeight = mGraphics.getImageHeight(imgHPtem);
+			int num = imageWidth;
+			int num2 = imageWidth;
+			int num3 = x - imageWidth;
+			int num4 = y - h - 5;
+			int num5 = imageWidth * 2 * per / 100;
+			if (num5 > num)
 			{
+				num2 = num5 - num;
+				if (num2 <= 0)
+				{
+					num2 = 0;
+				}
+			}
+			else
+			{
+				num = num5;
 				num2 = 0;
 			}
+			g.drawImage(GameScr.imgHP_tm_xam, num3, num4, mGraphics.TOP | mGraphics.LEFT);
+			g.drawImage(GameScr.imgHP_tm_xam, num3 + imageWidth, num4, mGraphics.TOP | mGraphics.LEFT);
+			g.drawRegion(imgHPtem, 0, 0, num, imageHeight, 0, num3, num4, mGraphics.TOP | mGraphics.LEFT);
+			g.drawRegion(imgHPtem, 0, 0, num2, imageHeight, 0, num3 + imageWidth, num4, mGraphics.TOP | mGraphics.LEFT);
 		}
-		else
-		{
-			num = num5;
-			num2 = 0;
-		}
-		g.drawImage(GameScr.imgHP_tm_xam, num3, num4, mGraphics.TOP | mGraphics.LEFT);
-		g.drawImage(GameScr.imgHP_tm_xam, num3 + imageWidth, num4, mGraphics.TOP | mGraphics.LEFT);
-		g.drawRegion(imgHPtem, 0, 0, num, imageHeight, 0, num3, num4, mGraphics.TOP | mGraphics.LEFT);
-		g.drawRegion(imgHPtem, 0, 0, num2, imageHeight, 0, num3 + imageWidth, num4, mGraphics.TOP | mGraphics.LEFT);
 		if (shock)
 		{
 			tShock++;

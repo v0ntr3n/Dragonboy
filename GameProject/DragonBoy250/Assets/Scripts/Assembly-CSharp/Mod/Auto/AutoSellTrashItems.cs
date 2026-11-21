@@ -55,20 +55,24 @@ namespace Mod.Auto
 
 		static void CheckShouldSellTrashItems()
 		{
-			if (!GameScr.gI().isBagFull())
+			if (Char.myCharz()?.arrItemBag == null || !GameScr.gI().isBagFull())
 				return;
 			PausePickMob();
 			lastMapID = TileMap.mapID;
 			lastZoneID = TileMap.zoneID;
 			lastX = Char.myCharz().cx;
 			lastY = Char.myCharz().cy;
-			for (int i = 0; i < Char.myCharz().arrItemBag.Length; i++)
+			var bag = Char.myCharz()?.arrItemBag;
+			if (bag != null)
 			{
-				Item item = Char.myCharz().arrItemBag[i];
-				if (item != null && ShouldMoveItemToChest(item))
+				for (int i = 0; i < bag.Length; i++)
 				{
-					steps = 1;
-					return;
+					Item item = bag[i];
+					if (item != null && ShouldMoveItemToChest(item))
+					{
+						steps = 1;
+						return;
+					}
 				}
 			}
 			steps = 3;
@@ -93,18 +97,27 @@ namespace Mod.Auto
 				Utils.TeleportMyChar(94, 336);
 			else if (Char.myCharz().cgender == 1 && Utils.Distance(Char.myCharz().cx, Char.myCharz().cy, 638, 336) > 15)
 				Utils.TeleportMyChar(638, 336);
-			else if (GameCanvas.panel.hasUse >= Char.myCharz().arrItemBox.Length)
-			{
-				GameCanvas.startOKDlg(Strings.autoSellTrashItemsBoxFull + '!');
-				//isEnabled = false;
-				steps = 3;
-			}
 			else
 			{
-				int i = Char.myCharz().arrItemBag.Length - 1;
+				var box = Char.myCharz()?.arrItemBox;
+				if (box == null || (GameCanvas.panel != null && GameCanvas.panel.hasUse >= box.Length))
+				{
+					if (box != null)
+						GameCanvas.startOKDlg(Strings.autoSellTrashItemsBoxFull + '!');
+					//isEnabled = false;
+					steps = 3;
+					return;
+				}
+				var bag = Char.myCharz()?.arrItemBag;
+				if (bag == null || bag.Length == 0)
+				{
+					steps = 3;
+					return;
+				}
+				int i = bag.Length - 1;
 				for (; i >= 0; i--)
 				{
-					Item item = Char.myCharz().arrItemBag[i];
+					Item item = bag[i];
 					if (item != null && ShouldMoveItemToChest(item))
 					{
 						Service.gI().getItem(1, (sbyte)i);
@@ -162,12 +175,22 @@ namespace Mod.Auto
 			}
 			else
 			{
-				int i = Char.myCharz().arrItemBag.Length - 1;
-				if (lastRemoveItemIndex != -1)
-					i = lastRemoveItemIndex;
+				var bag = Char.myCharz()?.arrItemBag;
+				if (bag == null || bag.Length == 0)
+				{
+					GameCanvas.panel?.hide();
+					GameCanvas.panel2?.hide();
+					removeAttempts = 0;
+					lastRemoveItemIndex = -1;
+					steps = 5;
+					return;
+				}
+				int i = bag.Length - 1;
+				if (lastRemoveItemIndex >= 0)
+					i = System.Math.Min(lastRemoveItemIndex, bag.Length - 1);
 				for (; i >= 0; i--)
 				{
-					Item item = Char.myCharz().arrItemBag[i];
+					Item item = bag[i];
 					if (item != null && !ShouldKeepItem(item))
 					{
 						Service.gI().saleItem(0, 1, (short)i);
@@ -195,22 +218,27 @@ namespace Mod.Auto
 
 		static void ThrowTrashItems()
 		{
-			if (Char.myCharz().arrItemBag.Length == 0)
+			var bag = Char.myCharz()?.arrItemBag;
+			if (bag == null || bag.Length == 0)
 			{
+				removeAttempts = 0;
+				lastRemoveItemIndex = -1;
 				steps = 6;
 				return;
 			}
 			if (Char.myCharz().cPower < 1_500_000)
 			{
+				removeAttempts = 0;
+				lastRemoveItemIndex = -1;
 				steps = 6;
 				return;
 			}
-			int i = Char.myCharz().arrItemBag.Length - 1;
-			if (lastRemoveItemIndex != -1)
-				i = lastRemoveItemIndex;
+			int i = bag.Length - 1;
+			if (lastRemoveItemIndex >= 0)
+				i = System.Math.Min(lastRemoveItemIndex, bag.Length - 1);
 			for (; i >= 0; i--)
 			{
-				Item item = Char.myCharz().arrItemBag[i];
+				Item item = bag[i];
 				if (item != null && !ShouldKeepItem(item))
 				{
 					Service.gI().useItem(1, 1, (sbyte)i, -1);
@@ -267,10 +295,14 @@ namespace Mod.Auto
 
 		static bool ShouldMoveItemToChest(Item item)
 		{
+			if (item == null || item.template == null)
+				return false;
 			return item.IsWearableAndVip() || item.template.type == ItemTemplateType.FlyPlatform || item.template.type == ItemTemplateType.VIPFlyPlatform || item.template.type == ItemTemplateType.Backpack || item.template.type == ItemTemplateType.AvatarAndDisguise || item.template.type == ItemTemplateType.UpgradeStone || item.template.type == ItemTemplateType.DragonBall || item.template.type == ItemTemplateType.ConsumableBuffItem || item.template.type == ItemTemplateType.Miscellaneous && item.template.id != 521;
 		}
 		static bool ShouldKeepItem(Item item)
 		{
+			if (item == null || item.template == null)
+				return false;
 			return ShouldMoveItemToChest(item) || item.template.type == ItemTemplateType.SenzuBean || item.template.id == 521;
 		}
 

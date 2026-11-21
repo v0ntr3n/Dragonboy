@@ -327,10 +327,8 @@ public class RadarScr : mScreen
 			}
 			if (focus_card != null)
 			{
-				int num = focus_card.amount * 100 / focus_card.max_amount;
-				hClip = num * imgBar_1.getHeight() / 100;
-				int num2 = RadarScr.num * 100 / list.size();
-				wClip = num2 * imgPro_1.getWidth() / 100;
+				hClip = (focus_card.max_amount > 0 && imgBar_1 != null) ? (focus_card.amount * 100 / focus_card.max_amount) * imgBar_1.getHeight() / 100 : 0;
+				wClip = (list != null && list.size() > 0 && imgPro_1 != null) ? (RadarScr.num * 100 / list.size()) * imgPro_1.getWidth() / 100 : 0;
 			}
 		}
 		catch (Exception ex)
@@ -481,6 +479,10 @@ public class RadarScr : mScreen
 			{
 				cmyText = 0;
 			}
+			if (focus_card == null || focus_card.cp == null)
+			{
+				return;
+			}
 			if (cmyText > focus_card.cp.lim)
 			{
 				cmyText = focus_card.cp.lim;
@@ -567,6 +569,10 @@ public class RadarScr : mScreen
 		if (cmyText < 0)
 		{
 			cmyText = 0;
+		}
+		if (focus_card == null || focus_card.cp == null)
+		{
+			return;
 		}
 		if (cmyText > focus_card.cp.lim)
 		{

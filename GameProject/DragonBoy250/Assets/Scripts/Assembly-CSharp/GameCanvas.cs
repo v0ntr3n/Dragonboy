@@ -532,6 +532,10 @@ public class GameCanvas : IActionListener
 			break;
 		}
 		case 88817:
+			if (Char.myCharz().npcFocus == null || Char.myCharz().npcFocus.template == null)
+			{
+				break;
+			}
 			ChatPopup.addChatPopup(string.Empty, 1, Char.myCharz().npcFocus);
 			Service.gI().menu(Char.myCharz().npcFocus.template.npcTemplateId, menu.menuSelectedItem, 0);
 			break;
@@ -574,12 +578,20 @@ public class GameCanvas : IActionListener
 		}
 		case 88821:
 		{
+			if (Char.myCharz().npcFocus == null || Char.myCharz().npcFocus.template == null)
+			{
+				break;
+			}
 			int menuId3 = (int)p;
 			ChatPopup.addChatPopup(string.Empty, 1, Char.myCharz().npcFocus);
 			Service.gI().menu(Char.myCharz().npcFocus.template.npcTemplateId, menuId3, menu.menuSelectedItem);
 			break;
 		}
 		case 88822:
+			if (Char.myCharz().npcFocus == null || Char.myCharz().npcFocus.template == null)
+			{
+				break;
+			}
 			ChatPopup.addChatPopup(string.Empty, 1, Char.myCharz().npcFocus);
 			Service.gI().menu(Char.myCharz().npcFocus.template.npcTemplateId, menu.menuSelectedItem, 0);
 			break;
@@ -734,6 +746,7 @@ public class GameCanvas : IActionListener
 			}
 			else
 			{
+				GameEvents.MarkExplicitZoneOpen();
 				Service.gI().openUIZone();
 			}
 			break;
@@ -1071,65 +1084,65 @@ public class GameCanvas : IActionListener
 				doResetToLoginScr(loginScr);
 			}
 			debug("Zzz", 0);
+			System.Collections.Generic.List<Controller.ConnectionEventItem> deferredConnectOK = null;
+			while (Controller.PendingConnectionEvents.TryDequeue(out Controller.ConnectionEventItem ev))
+			{
+				if (ev.Type == Controller.ConnectionEventType.ConnectOK)
+				{
+					if (currentScreen != serverScr || !serverScr.isPaintNewUi)
+					{
+						Controller.isMain = ev.IsMain;
+						Controller.isConnectOK = true;
+						HandleConnectOK();
+					}
+					else
+					{
+						if (deferredConnectOK == null)
+						{
+							deferredConnectOK = new System.Collections.Generic.List<Controller.ConnectionEventItem>();
+						}
+						deferredConnectOK.Add(ev);
+					}
+				}
+				else if (ev.Type == Controller.ConnectionEventType.Disconnected)
+				{
+					if (deferredConnectOK != null)
+					{
+						deferredConnectOK.RemoveAll(d => d.IsMain == ev.IsMain);
+					}
+					Controller.isMain = ev.IsMain;
+					Controller.isDisconnected = true;
+					HandleDisconnected();
+				}
+				else if (ev.Type == Controller.ConnectionEventType.ConnectionFail)
+				{
+					if (deferredConnectOK != null)
+					{
+						deferredConnectOK.RemoveAll(d => d.IsMain == ev.IsMain);
+					}
+					Controller.isMain = ev.IsMain;
+					Controller.isConnectionFail = true;
+					HandleConnectionFail();
+				}
+			}
+			if (deferredConnectOK != null)
+			{
+				for (int i = 0; i < deferredConnectOK.Count; i++)
+				{
+					Controller.PendingConnectionEvents.Enqueue(deferredConnectOK[i]);
+				}
+			}
 			if ((currentScreen != serverScr || !serverScr.isPaintNewUi) && Controller.isConnectOK)
 			{
-				if (Controller.isMain)
-				{
-					ServerListScreen.testConnect = 2;
-					Service.gI().setClientType();
-					Service.gI().androidPack();
-				}
-				else
-				{
-					Service.gI().setClientType2();
-					Service.gI().androidPack2();
-				}
-				Controller.isConnectOK = false;
+				HandleConnectOK();
 			}
 			if (Controller.isDisconnected)
 			{
-				if (!Controller.isMain)
-				{
-					if (currentScreen == serverScreen && !Service.reciveFromMainSession)
-					{
-						serverScreen.cancel();
-					}
-					if (currentScreen == loginScr && !Service.reciveFromMainSession)
-					{
-						onDisconnected();
-					}
-				}
-				else
-				{
-					onDisconnected();
-				}
-				Controller.isDisconnected = false;
+				HandleDisconnected();
 			}
 			if (Controller.isConnectionFail)
 			{
-				if (!Controller.isMain)
-				{
-					if (currentScreen == serverScreen && ServerListScreen.isGetData && !Service.reciveFromMainSession)
-					{
-						ServerListScreen.testConnect = 0;
-						serverScreen.cancel();
-						Debug.Log("connect fail 1");
-					}
-					if (currentScreen == loginScr && !Service.reciveFromMainSession)
-					{
-						onConnectionFail();
-						Debug.Log("connect fail 2");
-					}
-				}
-				else
-				{
-					if (Session_ME.gI().isCompareIPConnect())
-					{
-						onConnectionFail();
-					}
-					Debug.Log("connect fail 3");
-				}
-				Controller.isConnectionFail = false;
+				HandleConnectionFail();
 			}
 			if (Main.isResume)
 			{
@@ -1172,6 +1185,69 @@ public class GameCanvas : IActionListener
 		}
 	}
 
+	private void HandleConnectOK()
+	{
+		if (Controller.isMain)
+		{
+			ServerListScreen.testConnect = 2;
+			Service.gI().setClientType();
+			Service.gI().androidPack();
+		}
+		else
+		{
+			Service.gI().setClientType2();
+			Service.gI().androidPack2();
+		}
+		Controller.isConnectOK = false;
+	}
+
+	private void HandleDisconnected()
+	{
+		if (!Controller.isMain)
+		{
+			if (currentScreen == serverScreen && !Service.reciveFromMainSession)
+			{
+				serverScreen.cancel();
+			}
+			if (currentScreen == loginScr && !Service.reciveFromMainSession)
+			{
+				onDisconnected();
+			}
+		}
+		else
+		{
+			onDisconnected();
+		}
+		Controller.isDisconnected = false;
+	}
+
+	private void HandleConnectionFail()
+	{
+		Controller.isConnectionFail = false;
+		if (!Controller.isMain)
+		{
+			if (currentScreen == serverScreen && ServerListScreen.isGetData && !Service.reciveFromMainSession)
+			{
+				ServerListScreen.testConnect = 0;
+				serverScreen.cancel();
+				Debug.Log("connect fail 1");
+			}
+			if (currentScreen == loginScr && !Service.reciveFromMainSession)
+			{
+				onConnectionFail();
+				Debug.Log("connect fail 2");
+			}
+		}
+		else
+		{
+			if (Session_ME.gI().isCompareIPConnect())
+			{
+				onConnectionFail();
+			}
+			Debug.Log("connect fail 3");
+		}
+	}
+
 	public void onDisconnected()
 	{
 		if (Controller.isConnectionFail)
@@ -1200,6 +1276,7 @@ public class GameCanvas : IActionListener
 			endDlg();
 		}
 		Char.isLoadingMap = false;
+		isLoading = false;
 		if (Controller.isMain)
 		{
 			ServerListScreen.testConnect = 0;
@@ -1221,14 +1298,20 @@ public class GameCanvas : IActionListener
 		{
 			startOK(mResources.maychutathoacmatsong + " [2]", 8884, null);
 			Controller.isConnectionFail = false;
+			Controller.isLoadingData = false;
 			return;
 		}
 		isResume = true;
 		LoginScr.isContinueToLogin = false;
-		LoginScr.serverName = ServerListScreen.nameServer[ServerListScreen.ipSelect];
+		if (ServerListScreen.nameServer != null && ServerListScreen.ipSelect >= 0 && ServerListScreen.ipSelect < ServerListScreen.nameServer.Length)
+		{
+			LoginScr.serverName = ServerListScreen.nameServer[ServerListScreen.ipSelect];
+		}
 		if (currentScreen != serverScreen)
 		{
 			ServerListScreen.countDieConnect = 0;
+			endDlg();
+			startOK(mResources.maychutathoacmatsong, 8884, null);
 		}
 		else
 		{
@@ -1237,6 +1320,7 @@ public class GameCanvas : IActionListener
 			serverScreen.switchToMe();
 		}
 		Char.isLoadingMap = false;
+		isLoading = false;
 		if (Controller.isMain)
 		{
 			ServerListScreen.testConnect = 0;
@@ -1246,7 +1330,7 @@ public class GameCanvas : IActionListener
 
 	public static bool isWaiting()
 	{
-		if (InfoDlg.isShow || msgdlg != null && msgdlg.info.Equals(mResources.PLEASEWAIT) || Char.isLoadingMap || LoginScr.isContinueToLogin)
+		if (InfoDlg.isShow || (msgdlg != null && (msgdlg.isWait || (msgdlg.info != null && msgdlg.info.Length > 0 && msgdlg.info[0] == mResources.PLEASEWAIT))) || Char.isLoadingMap || LoginScr.isContinueToLogin)
 		{
 			return true;
 		}
@@ -1334,6 +1418,9 @@ public class GameCanvas : IActionListener
 		{
 			SoundMn.gI().stopAll();
 			LoginScr.isContinueToLogin = false;
+			isLoading = false;
+			Char.isLoadingMap = false;
+			Controller.isLoadingData = false;
 			TileMap.lastType = TileMap.bgType = 0;
 			Char.clearMyChar();
 			GameScr.clearGameScr();
@@ -1440,6 +1527,10 @@ public class GameCanvas : IActionListener
 			else
 			{
 				if (imgBG == null || imgBG[num] == null)
+				{
+					return;
+				}
+				if (bgW == null || num >= bgW.Length || bgW[num] <= 0)
 				{
 					return;
 				}
@@ -2175,6 +2266,7 @@ public class GameCanvas : IActionListener
 			}
 			if (lowGraphic)
 			{
+				tam?.DestroyTexture();
 				tam = loadImageRMS("/bg/b63.png");
 				return;
 			}

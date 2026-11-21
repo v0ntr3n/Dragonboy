@@ -24,9 +24,11 @@ public class Session_ME2 : ISession
 
 	static TcpClient sc;
 
-	public static bool connected;
+	private static int _connectionId;
 
-	public static bool connecting;
+	public static volatile bool connected;
+
+	public static volatile bool connecting;
 
 	static readonly Sender sender = new Sender();
 
@@ -40,7 +42,7 @@ public class Session_ME2 : ISession
 
 	public static int recvByteCount;
 
-	static bool getKeyComplete;
+	static volatile bool getKeyComplete;
 
 	public static sbyte[] key;
 
@@ -83,10 +85,13 @@ public class Session_ME2 : ISession
 			this.port = port;
 			getKeyComplete = false;
 			close();
+			int connId = Interlocked.Increment(ref _connectionId);
+			connecting = true;
 			Debug.Log("connecting...!");
 			Debug.Log("host: " + host);
 			Debug.Log("port: " + port);
-			initThread = new Thread(NetworkInit);
+			initThread = new Thread(() => NetworkInit(connId));
+			initThread.IsBackground = true;
 			initThread.Start();
 		}
 	}
@@ -104,7 +109,7 @@ public class Session_ME2 : ISession
 
 	public void clearSendingMessage()
 	{
-		sender.sendingMessage.Clear();
+		sender.Clear();
 	}
 
 	public static Session_ME2 gI()
@@ -116,22 +121,36 @@ public class Session_ME2 : ISession
 		return instance;
 	}
 
-	void NetworkInit()
+	void NetworkInit(int connId)
 	{
+		if (connId != Volatile.Read(ref _connectionId))
+		{
+			return;
+		}
 		isCancel = false;
 		connecting = true;
 		Thread.CurrentThread.Priority = ThreadPriority.Highest;
-		connected = true;
 		try
 		{
-			doConnect(host, port);
-			messageHandler.onConnectOK(isMainSession);
+			doConnect(host, port, connId);
+			if (connId != Volatile.Read(ref _connectionId))
+			{
+				return;
+			}
+			if (messageHandler != null)
+			{
+				messageHandler.onConnectOK(isMainSession);
+			}
 		}
 		catch (Exception)
 		{
+			if (connId != Volatile.Read(ref _connectionId))
+			{
+				return;
+			}
+			close();
 			if (messageHandler != null)
 			{
-				close();
 				messageHandler.onConnectionFail(isMainSession);
 			}
 		}
@@ -139,119 +158,184 @@ public class Session_ME2 : ISession
 
 	public void doConnect(string host, int port)
 	{
-		sc = new TcpClient();
-		sc.Connect(host, port);
+		doConnect(host, port, Volatile.Read(ref _connectionId));
+	}
+
+	void doConnect(string host, int port, int connId)
+	{
+		if (connId != Volatile.Read(ref _connectionId))
+		{
+			return;
+		}
+		TcpClient localSc = new TcpClient();
+		if (!localSc.ConnectAsync(host, port).Wait(10000))
+		{
+			localSc.Close();
+			throw new SocketException((int)SocketError.TimedOut);
+		}
+		if (connId != Volatile.Read(ref _connectionId))
+		{
+			try { localSc.Close(); } catch (Exception) { }
+			return;
+		}
+		sc = localSc;
 		dataStream = sc.GetStream();
 		dis = new BinaryReader(dataStream, new UTF8Encoding());
 		dos = new BinaryWriter(dataStream, new UTF8Encoding());
-		sendThread = new Thread(sender.run);
+		key = null;
+		connected = true;
+		timeConnected = currentTimeMillis();
+		connecting = false;
+		doSendMessage(new Message(-27), connId);
+		if (connId != Volatile.Read(ref _connectionId))
+		{
+			return;
+		}
+		sendThread = new Thread(() => sender.run(connId));
+		sendThread.IsBackground = true;
 		sendThread.Start();
 		MessageCollector messageCollector = new MessageCollector();
 		Cout.LogError("new -----");
-		collectorThread = new Thread(messageCollector.run);
+		collectorThread = new Thread(() => messageCollector.run(connId));
+		collectorThread.IsBackground = true;
 		collectorThread.Start();
-		timeConnected = currentTimeMillis();
-		connecting = false;
-		doSendMessage(new Message(-27));
 	}
+
+	private static readonly object _writeLock = new object();
 
 	static void doSendMessage(Message m)
 	{
+		doSendMessage(m, Volatile.Read(ref _connectionId));
+	}
+
+	static void doSendMessage(Message m, int connId)
+	{
 		sbyte[] data = m.getData();
-		try
+		bool shouldClean = false;
+		lock (_writeLock)
 		{
-			if (getKeyComplete)
+			try
 			{
-				sbyte value = writeKey(m.command);
-				dos.Write(value);
-			}
-			else
-			{
-				dos.Write(m.command);
-			}
-			if (data != null)
-			{
-				int num = data.Length;
-				if (getKeyComplete)
+				if (dos == null || connId != Volatile.Read(ref _connectionId))
 				{
-					int num2 = writeKey((sbyte)(num >> 8));
-					dos.Write((sbyte)num2);
-					int num3 = writeKey((sbyte)(num & 0xFF));
-					dos.Write((sbyte)num3);
+					return;
+				}
+				int dataLen = (data != null) ? data.Length : 0;
+				int len = 3 + dataLen;
+				byte[] buf = new byte[len];
+				int pos = 0;
+				bool encrypted = getKeyComplete;
+				if (encrypted)
+				{
+					buf[pos++] = (byte)writeKey(m.command);
 				}
 				else
 				{
-					dos.Write((sbyte)(num >> 8));
-					dos.Write((sbyte)(num & 0xFF));
+					buf[pos++] = (byte)m.command;
 				}
-				if (getKeyComplete)
+				if (data != null)
 				{
-					for (int i = 0; i < data.Length; i++)
+					if (encrypted)
 					{
-						sbyte value2 = writeKey(data[i]);
-						dos.Write(value2);
+						buf[pos++] = (byte)writeKey((sbyte)(dataLen >> 8));
+						buf[pos++] = (byte)writeKey((sbyte)(dataLen & 0xFF));
+						for (int i = 0; i < dataLen; i++)
+						{
+							buf[pos++] = (byte)writeKey(data[i]);
+						}
 					}
-				}
-				else
-				{
-					for (int i = 0; i < data.Length; i++)
+					else
 					{
-						dos.Write(data[i]);
+						buf[pos++] = (byte)(dataLen >> 8);
+						buf[pos++] = (byte)(dataLen & 0xFF);
+						Buffer.BlockCopy(data, 0, buf, pos, dataLen);
+						pos += dataLen;
 					}
-				}
-				sendByteCount += 5 + data.Length;
-			}
-			else
-			{
-				if (getKeyComplete)
-				{
-					int num4 = 0;
-					int num5 = writeKey((sbyte)(num4 >> 8));
-					dos.Write((sbyte)num5);
-					int num6 = writeKey((sbyte)(num4 & 0xFF));
-					dos.Write((sbyte)num6);
+					sendByteCount += 5 + dataLen;
 				}
 				else
 				{
-					dos.Write((ushort)0);
+					if (encrypted)
+					{
+						buf[pos++] = (byte)writeKey(0);
+						buf[pos++] = (byte)writeKey(0);
+					}
+					else
+					{
+						buf[pos++] = 0;
+						buf[pos++] = 0;
+					}
+					sendByteCount += 5;
 				}
-				sendByteCount += 5;
+				dos.Write(buf, 0, len);
+				dos.Flush();
 			}
-			dos.Flush();
+			catch (IOException ex)
+			{
+				Debug.Log(ex.StackTrace);
+				if (connId == Volatile.Read(ref _connectionId))
+				{
+					connected = false;
+					shouldClean = true;
+				}
+			}
+			catch (SocketException ex)
+			{
+				Debug.Log(ex.StackTrace);
+				if (connId == Volatile.Read(ref _connectionId))
+				{
+					connected = false;
+					shouldClean = true;
+				}
+			}
+			catch (Exception ex)
+			{
+				Debug.Log(ex.StackTrace);
+			}
 		}
-		catch (Exception ex)
+		if (shouldClean && connId == Volatile.Read(ref _connectionId))
 		{
-			Debug.Log(ex.StackTrace);
+			bool wasEstablished = currentTimeMillis() - timeConnected > 500;
+			cleanNetwork();
+			if (messageHandler != null)
+			{
+				if (wasEstablished)
+				{
+					messageHandler.onDisconnected(isMainSession);
+				}
+				else
+				{
+					messageHandler.onConnectionFail(isMainSession);
+				}
+			}
 		}
 	}
 
 	public static sbyte readKey(sbyte b)
 	{
-		sbyte[] array = key;
-		int num = curR;
-		curR = num + 1;
-		sbyte result = (sbyte)(array[num] & 0xFF ^ b & 0xFF);
-		if (curR >= key.Length)
+		sbyte[] localKey = key;
+		if (localKey == null || localKey.Length == 0)
 		{
-			curR %= key.Length;
+			return b;
 		}
-		return result;
+		int num = curR % localKey.Length;
+		curR = (num + 1) % localKey.Length;
+		return (sbyte)((localKey[num] & 0xFF) ^ (b & 0xFF));
 	}
 
 	public static sbyte writeKey(sbyte b)
 	{
-		sbyte[] array = key;
-		int num = curW;
-		curW = num + 1;
-		sbyte result = (sbyte)(array[num] & 0xFF ^ b & 0xFF);
-		if (curW >= key.Length)
+		sbyte[] localKey = key;
+		if (localKey == null || localKey.Length == 0)
 		{
-			curW %= key.Length;
+			return b;
 		}
-		return result;
+		int num = curW % localKey.Length;
+		curW = (num + 1) % localKey.Length;
+		return (sbyte)((localKey[num] & 0xFF) ^ (b & 0xFF));
 	}
 
-	private static readonly object _recieveLock = new object();
+	internal static readonly object RecieveLock = new object();
 
 	public static void onRecieveMsg(Message msg)
 	{
@@ -261,7 +345,7 @@ public class Session_ME2 : ISession
 		}
 		else
 		{
-			lock (_recieveLock)
+			lock (RecieveLock)
 			{
 				recieveMsg.addElement(msg);
 			}
@@ -279,7 +363,7 @@ public class Session_ME2 : ISession
 				break;
 			}
 			Message message;
-			lock (_recieveLock)
+			lock (RecieveLock)
 			{
 				if (recieveMsg.size() <= 0)
 				{
@@ -299,46 +383,53 @@ public class Session_ME2 : ISession
 
 	static void cleanNetwork()
 	{
+		Interlocked.Increment(ref _connectionId);
+		connected = false;
+		connecting = false;
+		getKeyComplete = false;
 		key = null;
 		curR = 0;
 		curW = 0;
 		try
 		{
-			connected = false;
-			connecting = false;
-			if (sc != null)
+			try { if (sc != null) sc.Close(); } catch (Exception) { }
+			try { if (dataStream != null) dataStream.Close(); } catch (Exception) { }
+			lock (_writeLock)
 			{
-				sc.Close();
-				sc = null;
-			}
-			if (dataStream != null)
-			{
-				dataStream.Close();
-				dataStream = null;
-			}
-			if (dos != null)
-			{
-				dos.Close();
+				try { if (dos != null) dos.Close(); } catch (Exception) { }
 				dos = null;
 			}
-			if (dis != null)
-			{
-				dis.Close();
-				dis = null;
-			}
-			sendThread = null;
-			collectorThread = null;
-			lock (_recieveLock)
-			{
-				recieveMsg.removeAllElements();
-			}
-			if (sender != null && sender.sendingMessage != null)
-			{
-				sender.sendingMessage.Clear();
-			}
+			try { if (dis != null) dis.Close(); } catch (Exception) { }
 		}
 		catch (Exception)
 		{
+		}
+		finally
+		{
+			connected = false;
+			connecting = false;
+			getKeyComplete = false;
+			key = null;
+			curR = 0;
+			curW = 0;
+			sc = null;
+			dataStream = null;
+			lock (_writeLock)
+			{
+				dos = null;
+			}
+			dis = null;
+			sendThread = null;
+			initThread = null;
+			collectorThread = null;
+			lock (RecieveLock)
+			{
+				recieveMsg.removeAllElements();
+			}
+			if (sender != null)
+			{
+				sender.Clear();
+			}
 		}
 	}
 
@@ -374,6 +465,7 @@ public class Session_ME2 : ISession
 	}
 	public class Sender
 	{
+		private readonly object _sendLock = new object();
 		public List<Message> sendingMessage;
 
 		public Sender()
@@ -383,23 +475,55 @@ public class Session_ME2 : ISession
 
 		public void AddMessage(Message message)
 		{
-			sendingMessage.Add(message);
+			lock (_sendLock)
+			{
+				sendingMessage.Add(message);
+			}
+		}
+
+		public void Clear()
+		{
+			lock (_sendLock)
+			{
+				sendingMessage?.Clear();
+			}
 		}
 
 		public void run()
 		{
-			while (connected)
+			run(Volatile.Read(ref _connectionId));
+		}
+
+		public void run(int connId)
+		{
+			while (connected && connId == Volatile.Read(ref _connectionId))
 			{
 				try
 				{
 					if (getKeyComplete)
 					{
-						while (sendingMessage.Count > 0)
+						while (connected && connId == Volatile.Read(ref _connectionId))
 						{
-							Message m = sendingMessage[0];
-							doSendMessage(m);
-							sendingMessage.RemoveAt(0);
+							Message m;
+							lock (_sendLock)
+							{
+								if (sendingMessage.Count <= 0)
+								{
+									break;
+								}
+								m = sendingMessage[0];
+								sendingMessage.RemoveAt(0);
+							}
+							if (connId != Volatile.Read(ref _connectionId))
+							{
+								return;
+							}
+							doSendMessage(m, connId);
 						}
+					}
+					if (connId != Volatile.Read(ref _connectionId))
+					{
+						return;
 					}
 					try
 					{
@@ -412,6 +536,10 @@ public class Session_ME2 : ISession
 				}
 				catch (Exception)
 				{
+					if (connId != Volatile.Read(ref _connectionId))
+					{
+						return;
+					}
 					Res.outz("error send message! ");
 				}
 			}
@@ -422,12 +550,17 @@ public class Session_ME2 : ISession
 	{
 		public void run()
 		{
+			run(Volatile.Read(ref _connectionId));
+		}
+
+		public void run(int connId)
+		{
 			try
 			{
-				while (connected)
+				while (connected && connId == Volatile.Read(ref _connectionId))
 				{
 					Message message = readMessage();
-					if (message == null)
+					if (message == null || connId != Volatile.Read(ref _connectionId))
 					{
 						break;
 					}
@@ -446,20 +579,20 @@ public class Session_ME2 : ISession
 					{
 						Cout.println("LOI NHAN  MESS THU 1");
 					}
-					try
-					{
-						Thread.Sleep(5);
-					}
-					catch (Exception)
-					{
-						Cout.println("LOI NHAN  MESS THU 2");
-					}
 				}
 			}
 			catch (Exception ex3)
 			{
+				if (connId != Volatile.Read(ref _connectionId))
+				{
+					return;
+				}
 				Debug.Log("error read message!");
 				Debug.Log(ex3.Message);
+			}
+			if (connId != Volatile.Read(ref _connectionId))
+			{
+				return;
 			}
 			if (!connected)
 			{
@@ -476,6 +609,10 @@ public class Session_ME2 : ISession
 					messageHandler.onConnectionFail(isMainSession);
 				}
 			}
+			if (connId != Volatile.Read(ref _connectionId))
+			{
+				return;
+			}
 			if (sc != null)
 			{
 				cleanNetwork();
@@ -487,17 +624,20 @@ public class Session_ME2 : ISession
 			try
 			{
 				sbyte b = message.reader().readSByte();
-				key = new sbyte[b];
+				if (b <= 0)
+				{
+					return;
+				}
+				sbyte[] newKey = new sbyte[b];
 				for (int i = 0; i < b; i++)
 				{
-					key[i] = message.reader().readSByte();
+					newKey[i] = message.reader().readSByte();
 				}
-				for (int j = 0; j < key.Length - 1; j++)
+				for (int j = 0; j < newKey.Length - 1; j++)
 				{
-					sbyte[] key = Session_ME2.key;
-					int num = j + 1;
-					key[num] ^= Session_ME2.key[j];
+					newKey[j + 1] ^= newKey[j];
 				}
+				key = newKey;
 				getKeyComplete = true;
 				GameMidlet.IP2 = message.reader().readUTF();
 				GameMidlet.PORT2 = message.reader().readInt();

@@ -158,6 +158,10 @@ public class ItemMap : IMapObject
 
 	public void paint(mGraphics g)
 	{
+		if (template == null)
+		{
+			return;
+		}
 		if (GraphicsReducer.OnItemMapPaint(this, g))
 		{
 			return;
@@ -208,7 +212,10 @@ public class ItemMap : IMapObject
 
 	private bool isAuraItem()
 	{
-		bool flag = false;
+		if (template == null)
+		{
+			return false;
+		}
 		if (template.type == 22)
 		{
 			return true;
@@ -256,6 +263,14 @@ public class ItemMap : IMapObject
 		if (GameCanvas.lowGraphic || !isAuraItem())
 		{
 			return;
+		}
+		if (yArg == null || xDot == null || yDot == null)
+		{
+			setAuraItem();
+			if (yArg == null || xDot == null || yDot == null)
+			{
+				return;
+			}
 		}
 		for (int i = 0; i < yArg.Length; i++)
 		{

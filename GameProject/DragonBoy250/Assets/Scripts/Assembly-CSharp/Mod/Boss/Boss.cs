@@ -72,7 +72,7 @@ namespace Mod
 		}
 		public static void AddBoss(string chatVip)
 		{
-			if (!isEnabled)
+			if (!isEnabled || string.IsNullOrEmpty(chatVip))
 				return;
 			if (strBossHasBeenKilled.Any(chatVip.Contains))
 			{
@@ -102,6 +102,8 @@ namespace Mod
 				return;
 			strBossAppeared.ForEach(s => chatVip = chatVip.Replace(s, "|"));
 			string[] parts = chatVip.Split('|');
+			if (parts.Length < 3)
+				return;
 			Boss appearedBoss = null;
 			try
 			{
@@ -124,8 +126,8 @@ namespace Mod
 				appearedBoss.map = parts[2];
 				appearedBoss.GetMapId(appearedBoss.name, appearedBoss.map);
 			}
-			if (parts.Length == 4)
-				appearedBoss.zoneId = int.Parse(parts[3]);
+			if (parts.Length >= 4 && int.TryParse(parts[3].Trim(), out int parsedZone))
+				appearedBoss.zoneId = parsedZone;
 			if (listBosses.Count > MAX_BOSS)
 				listBosses.RemoveAt(0);
 			if (listBosses.Count > MAX_BOSS_DISPLAY && offsetX == 0)
@@ -136,9 +138,11 @@ namespace Mod
 		}
 		static int GetMapID(string mapName)
 		{
+			if (TileMap.mapNames == null)
+				return -1;
 			for (int i = 0; i < TileMap.mapNames.Length; i++)
 			{
-				if (TileMap.mapNames[i].Equals(mapName))
+				if (string.Equals(TileMap.mapNames[i], mapName))
 					return i;
 			}
 			return -1;

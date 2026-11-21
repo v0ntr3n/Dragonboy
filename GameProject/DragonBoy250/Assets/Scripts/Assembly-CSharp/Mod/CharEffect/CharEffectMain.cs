@@ -166,36 +166,44 @@ namespace Mod.CharEffect
 			mFont.tahoma_7b_red.drawString(g, str, GameCanvas.w / 2, 50, mFont.CENTER);
 			if (focus.charEffectTime != null && focus.charEffectTime.HasAnyEffect())
 			{
+				if (charEffectImages == null || charEffectImages.Length < 20 || charEffectImages[0] == null)
+					return;
 				Dictionary<Image, string> effects = new Dictionary<Image, string>();
 				if (focus.charEffectTime.hasBlackStarDragonBall)
-					effects.Add(charEffectImages[TileMap.mapID - 85], focus.charEffectTime.timeHoldingBlackStarDragonBall + "s");
-				if (focus.charEffectTime.hasShield)
-					effects.Add(charEffectImages[7], "~" + focus.charEffectTime.timeShield + "s");
-				if (focus.charEffectTime.hasMonkey)
-					effects.Add(charEffectImages[8], focus.charEffectTime.timeMonkey + "s");
-				if (focus.charEffectTime.hasHuytSao)
-					effects.Add(charEffectImages[9], focus.charEffectTime.timeHuytSao + "s");
-				if (focus.charEffectTime.hasMobMe)
-					effects.Add(charEffectImages[10], focus.charEffectTime.timeMobMe + "s");
-				if (focus.charEffectTime.isHypnotized)
-					effects.Add(charEffectImages[11], focus.charEffectTime.isHypnotizedByMe ? "" : "~" + focus.charEffectTime.timeHypnotized + "s");
-				if (focus.charEffectTime.isTeleported)
-					effects.Add(charEffectImages[12], focus.charEffectTime.timeTeleported + "s");
-				if (focus.charEffectTime.isTDHS)
-					effects.Add(charEffectImages[13], focus.charEffectTime.timeTDHS + "s");
-				if (focus.charEffectTime.isTied)
-					effects.Add(charEffectImages[14], focus.charEffectTime.isTiedByMe ? "" : "~" + focus.charEffectTime.timeTied + "s");
-				if (focus.charEffectTime.isStone)
-					effects.Add(charEffectImages[15], focus.charEffectTime.timeStone + "s");
-				if (focus.charEffectTime.isChocolate)
-					effects.Add(charEffectImages[16], focus.charEffectTime.timeChocolate + "s");
-				if (focus.charEffectTime.isSelfExplode)
-					effects.Add(charEffectImages[17], focus.charEffectTime.timeSelfExplode + "s");
-				if (focus.charEffectTime.hasNamekianDragonBall)
-					effects.Add(charEffectImages[18], "???");
-				if (focus.charEffectTime.isQCKK)
-					effects.Add(charEffectImages[19], focus.charEffectTime.timeQCKK + "s");
+				{
+					int nrdIdx = TileMap.mapID - 85;
+					if (nrdIdx >= 0 && nrdIdx < 7 && charEffectImages[nrdIdx] != null)
+						effects[charEffectImages[nrdIdx]] = focus.charEffectTime.timeHoldingBlackStarDragonBall + "s";
+				}
+				if (focus.charEffectTime.hasShield && charEffectImages[7] != null)
+					effects[charEffectImages[7]] = "~" + focus.charEffectTime.timeShield + "s";
+				if (focus.charEffectTime.hasMonkey && charEffectImages[8] != null)
+					effects[charEffectImages[8]] = focus.charEffectTime.timeMonkey + "s";
+				if (focus.charEffectTime.hasHuytSao && charEffectImages[9] != null)
+					effects[charEffectImages[9]] = focus.charEffectTime.timeHuytSao + "s";
+				if (focus.charEffectTime.hasMobMe && charEffectImages[10] != null)
+					effects[charEffectImages[10]] = focus.charEffectTime.timeMobMe + "s";
+				if (focus.charEffectTime.isHypnotized && charEffectImages[11] != null)
+					effects[charEffectImages[11]] = focus.charEffectTime.isHypnotizedByMe ? "" : "~" + focus.charEffectTime.timeHypnotized + "s";
+				if (focus.charEffectTime.isTeleported && charEffectImages[12] != null)
+					effects[charEffectImages[12]] = focus.charEffectTime.timeTeleported + "s";
+				if (focus.charEffectTime.isTDHS && charEffectImages[13] != null)
+					effects[charEffectImages[13]] = focus.charEffectTime.timeTDHS + "s";
+				if (focus.charEffectTime.isTied && charEffectImages[14] != null)
+					effects[charEffectImages[14]] = focus.charEffectTime.isTiedByMe ? "" : "~" + focus.charEffectTime.timeTied + "s";
+				if (focus.charEffectTime.isStone && charEffectImages[15] != null)
+					effects[charEffectImages[15]] = focus.charEffectTime.timeStone + "s";
+				if (focus.charEffectTime.isChocolate && charEffectImages[16] != null)
+					effects[charEffectImages[16]] = focus.charEffectTime.timeChocolate + "s";
+				if (focus.charEffectTime.isSelfExplode && charEffectImages[17] != null)
+					effects[charEffectImages[17]] = focus.charEffectTime.timeSelfExplode + "s";
+				if (focus.charEffectTime.hasNamekianDragonBall && charEffectImages[18] != null)
+					effects[charEffectImages[18]] = "???";
+				if (focus.charEffectTime.isQCKK && charEffectImages[19] != null)
+					effects[charEffectImages[19]] = focus.charEffectTime.timeQCKK + "s";
 
+				if (effects.Count == 0)
+					return;
 				int totalWidth = charEffectImages[0].w / mGraphics.zoomLevel * effects.Count + PADDING * (effects.Count - 1);
 				int xStart = GameCanvas.w / 2 - totalWidth / 2;
 				g.fillRect(xStart - 3, 64 - 3, totalWidth + 6, 20 + mFont.tahoma_7b_white.getHeight() + 6);

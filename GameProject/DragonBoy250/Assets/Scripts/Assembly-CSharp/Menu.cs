@@ -336,6 +336,10 @@ public class Menu
 				{
 					pointerDownFirstX = -1000;
 					menuSelectedItem = (cmtoX + GameCanvas.px - menuX) / menuW;
+					if (menuSelectedItem < 0 || menuSelectedItem >= menuItems.size())
+					{
+						menuSelectedItem = -1;
+					}
 				}
 				int num = GameCanvas.px - pointerDownLastX[0];
 				if (num != 0 && menuSelectedItem != -1)
@@ -381,6 +385,10 @@ public class Menu
 				cmtoX = cmx;
 				pointerDownFirstX = -1000;
 				menuSelectedItem = (cmtoX + GameCanvas.px - menuX) / menuW;
+				if (menuSelectedItem < 0 || menuSelectedItem >= menuItems.size())
+				{
+					menuSelectedItem = -1;
+				}
 				pointerDownTime = 0;
 				waitToPerform = 10;
 			}
@@ -623,7 +631,7 @@ public class Menu
 		waitToPerform--;
 		if (waitToPerform == 0)
 		{
-			if (menuSelectedItem >= 0 && !isNotClose[menuSelectedItem])
+			if (isNotClose != null && menuSelectedItem >= 0 && menuSelectedItem < isNotClose.Length && !isNotClose[menuSelectedItem])
 			{
 				isClose = true;
 				touch = true;

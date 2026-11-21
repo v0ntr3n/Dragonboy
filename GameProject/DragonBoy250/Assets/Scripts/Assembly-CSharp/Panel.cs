@@ -1278,25 +1278,33 @@ public class Panel : IActionListener, IChatable
 		}
 		else if (chatTField.strChat.Equals(mResources.input_quantity + " "))
 		{
-			currItem.quantilyToBuy = int.Parse(chatTField.tfChat.getText());
-			if (currItem.quantilyToBuy > currItem.quantity)
+			if (currItem != null && int.TryParse(chatTField.tfChat.getText(), out int qtyXu) && qtyXu > 0 && qtyXu <= currItem.quantity)
+			{
+				currItem.quantilyToBuy = qtyXu;
+				isKiguiXu = true;
+				chatTField.isShow = false;
+			}
+			else
 			{
 				GameCanvas.startOKDlg(mResources.input_quantity_wrong);
+				chatTField.isShow = false;
 				return;
 			}
-			isKiguiXu = true;
-			chatTField.isShow = false;
 		}
 		else if (chatTField.strChat.Equals(mResources.input_quantity + "  "))
 		{
-			currItem.quantilyToBuy = int.Parse(chatTField.tfChat.getText());
-			if (currItem.quantilyToBuy > currItem.quantity)
+			if (currItem != null && int.TryParse(chatTField.tfChat.getText(), out int qtyLuong) && qtyLuong > 0 && qtyLuong <= currItem.quantity)
+			{
+				currItem.quantilyToBuy = qtyLuong;
+				isKiguiLuong = true;
+				chatTField.isShow = false;
+			}
+			else
 			{
 				GameCanvas.startOKDlg(mResources.input_quantity_wrong);
+				chatTField.isShow = false;
 				return;
 			}
-			isKiguiLuong = true;
-			chatTField.isShow = false;
 		}
 	}
 
@@ -1337,6 +1345,8 @@ public class Panel : IActionListener, IChatable
 
 	public int getXMap()
 	{
+		if (TileMap.planetID < 0 || TileMap.planetID >= mapId.Length)
+			return -1;
 		for (int i = 0; i < mapId[TileMap.planetID].Length; i++)
 		{
 			if (TileMap.mapID == mapId[TileMap.planetID][i])
@@ -1347,6 +1357,8 @@ public class Panel : IActionListener, IChatable
 
 	public int getYMap()
 	{
+		if (TileMap.planetID < 0 || TileMap.planetID >= mapId.Length)
+			return -1;
 		for (int i = 0; i < mapId[TileMap.planetID].Length; i++)
 		{
 			if (TileMap.mapID == mapId[TileMap.planetID][i])
@@ -1357,11 +1369,12 @@ public class Panel : IActionListener, IChatable
 
 	public int getXMapTask()
 	{
-		if (Char.myCharz().taskMaint == null)
+		var taskMaint = Char.myCharz().taskMaint;
+		if (TileMap.planetID < 0 || TileMap.planetID >= mapId.Length || taskMaint == null || GameScr.mapTasks == null || taskMaint.index < 0 || taskMaint.index >= GameScr.mapTasks.Length)
 			return -1;
 		for (int i = 0; i < mapId[TileMap.planetID].Length; i++)
 		{
-			if (GameScr.mapTasks[Char.myCharz().taskMaint.index] == mapId[TileMap.planetID][i])
+			if (GameScr.mapTasks[taskMaint.index] == mapId[TileMap.planetID][i])
 				return mapX[TileMap.planetID][i];
 		}
 		return -1;
@@ -1369,11 +1382,12 @@ public class Panel : IActionListener, IChatable
 
 	public int getYMapTask()
 	{
-		if (Char.myCharz().taskMaint == null)
+		var taskMaint = Char.myCharz().taskMaint;
+		if (TileMap.planetID < 0 || TileMap.planetID >= mapId.Length || taskMaint == null || GameScr.mapTasks == null || taskMaint.index < 0 || taskMaint.index >= GameScr.mapTasks.Length)
 			return -1;
 		for (int i = 0; i < mapId[TileMap.planetID].Length; i++)
 		{
-			if (GameScr.mapTasks[Char.myCharz().taskMaint.index] == mapId[TileMap.planetID][i])
+			if (GameScr.mapTasks[taskMaint.index] == mapId[TileMap.planetID][i])
 				return mapY[TileMap.planetID][i];
 		}
 		return -1;
@@ -3515,6 +3529,7 @@ public class Panel : IActionListener, IChatable
 		if (TileMap.lastPlanetId != TileMap.planetID)
 		{
 			Res.outz("LOAD TAM HINH");
+			imgMap?.DestroyTexture();
 			imgMap = GameCanvas.loadImageRMS("/img/map" + TileMap.planetID + ".png");
 			TileMap.lastPlanetId = TileMap.planetID;
 		}
@@ -3528,13 +3543,16 @@ public class Panel : IActionListener, IChatable
 			cmxMapLim = 0;
 		if (cmyMapLim < 0)
 			cmyMapLim = 0;
-		for (int i = 0; i < mapId[TileMap.planetID].Length; i++)
+		if (TileMap.planetID >= 0 && TileMap.planetID < mapId.Length)
 		{
-			if (TileMap.mapID == mapId[TileMap.planetID][i])
+			for (int i = 0; i < mapId[TileMap.planetID].Length; i++)
 			{
-				xMove = mapX[TileMap.planetID][i] + xScroll;
-				yMove = mapY[TileMap.planetID][i] + yScroll + 5;
-				break;
+				if (TileMap.mapID == mapId[TileMap.planetID][i])
+				{
+					xMove = mapX[TileMap.planetID][i] + xScroll;
+					yMove = mapY[TileMap.planetID][i] + yScroll + 5;
+					break;
+				}
 			}
 		}
 		xMap = getXMap() + xScroll;
@@ -3554,7 +3572,7 @@ public class Panel : IActionListener, IChatable
 	{
 		if (timeShow > 0)
 			timeShow--;
-		if (justRelease && Equals(GameCanvas.panel) && typeShop == 2 && maxPageShop[currentTabIndex] > 1)
+		if (justRelease && Equals(GameCanvas.panel) && typeShop == 2 && maxPageShop != null && currPageShop != null && currentTabIndex >= 0 && currentTabIndex < maxPageShop.Length && currentTabIndex < currPageShop.Length && maxPageShop[currentTabIndex] > 1)
 		{
 			if (cmy < -50)
 			{
@@ -3616,9 +3634,16 @@ public class Panel : IActionListener, IChatable
 					if (selected - num < 0)
 						Char.myCharz().charFocus.menuSelect = selected;
 					else
-						Char.myCharz().charFocus.menuSelect = short.Parse((string)vPlayerMenu_id.elementAt(selected - num));
+					{
+						string menuIdStr = (selected - num < vPlayerMenu_id.size()) ? (string)vPlayerMenu_id.elementAt(selected - num) : null;
+						short parsedMenuId;
+						if (menuIdStr != null && short.TryParse(menuIdStr, out parsedMenuId))
+							Char.myCharz().charFocus.menuSelect = parsedMenuId;
+					}
 				}
-				((Command)vPlayerMenu.elementAt(selected)).performAction();
+				Command playerMenuCmd = (selected >= 0 && selected < vPlayerMenu.size()) ? (Command)vPlayerMenu.elementAt(selected) : null;
+				if (playerMenuCmd != null)
+					playerMenuCmd.performAction();
 			}
 			vPlayerMenu.removeAllElements();
 			vPlayerMenu_id.removeAllElements();
@@ -3931,18 +3956,18 @@ public class Panel : IActionListener, IChatable
 						}
 					}
 				}
-				if (Char.myCharz()?.arrItemShop == null || currentTabIndex < 0 || currentTabIndex >= Char.myCharz().arrItemShop.Length || Char.myCharz().arrItemShop[currentTabIndex] == null || (Char.myCharz().arrItemShop[currentTabIndex].Length == 0 && type != 17))
+				if (Char.myCharz()?.arrItemShop == null || (type != 17 && (currentTabIndex < 0 || currentTabIndex >= Char.myCharz().arrItemShop.Length || Char.myCharz().arrItemShop[currentTabIndex] == null || Char.myCharz().arrItemShop[currentTabIndex].Length == 0)))
 				{
 					mFont.tahoma_7_grey.drawString(g, mResources.notYetSell, xScroll + wScroll / 2, yScroll + hScroll / 2 - 10, 2);
 					return;
 				}
 			}
-			if (Char.myCharz()?.arrItemShop == null || currentTabIndex < 0 || currentTabIndex >= Char.myCharz().arrItemShop.Length || Char.myCharz().arrItemShop[currentTabIndex] == null)
+			if (Char.myCharz()?.arrItemShop == null || (!(typeShop == 2 && type == 17) && (currentTabIndex < 0 || currentTabIndex >= Char.myCharz().arrItemShop.Length || Char.myCharz().arrItemShop[currentTabIndex] == null)))
 			{
 				return;
 			}
 			g.translate(0, -cmy);
-			Item[] array = Char.myCharz().arrItemShop[currentTabIndex];
+			Item[] array;
 			if (typeShop == 2 && (currentTabIndex == 4 || type == 17))
 			{
 				if (Char.myCharz().arrItemShop.Length <= 4 || Char.myCharz().arrItemShop[4] == null || Char.myCharz().arrItemShop[4].Length == 0)
@@ -3951,6 +3976,10 @@ public class Panel : IActionListener, IChatable
 					return;
 				}
 				array = Char.myCharz().arrItemShop[4];
+			}
+			else
+			{
+				array = Char.myCharz().arrItemShop[currentTabIndex];
 			}
 			int num = array.Length;
 			for (int i = 0; i < num; i++)
@@ -4293,9 +4322,9 @@ public class Panel : IActionListener, IChatable
 	internal void paintScrollArrow(mGraphics g)
 	{
 		g.translate(-g.getTranslateX(), -g.getTranslateY());
-		if (cmy > 24 && currentListLength > 0 || Equals(GameCanvas.panel) && typeShop == 2 && maxPageShop[currentTabIndex] > 1)
+		if (cmy > 24 && currentListLength > 0 || Equals(GameCanvas.panel) && typeShop == 2 && maxPageShop != null && currPageShop != null && currentTabIndex >= 0 && currentTabIndex < maxPageShop.Length && maxPageShop[currentTabIndex] > 1)
 			g.drawRegion(Mob.imgHP, 0, 0, 9, 6, 1, xScroll + wScroll - 12, yScroll + 3, 0);
-		if (cmy < cmyLim && currentListLength > 0 || Equals(GameCanvas.panel) && typeShop == 2 && maxPageShop[currentTabIndex] > 1)
+		if (cmy < cmyLim && currentListLength > 0 || Equals(GameCanvas.panel) && typeShop == 2 && maxPageShop != null && currPageShop != null && currentTabIndex >= 0 && currentTabIndex < maxPageShop.Length && maxPageShop[currentTabIndex] > 1)
 			g.drawRegion(Mob.imgHP, 0, 0, 9, 6, 0, xScroll + wScroll - 12, yScroll + hScroll - 8, 0);
 	}
 
@@ -5862,7 +5891,8 @@ public class Panel : IActionListener, IChatable
 			}
 			mFont.tahoma_7_white.drawString(g, mResources.say_hello, X + 60, 5, 0);
 			mFont.tahoma_7_white.drawString(g, strWantToBuy, X + 60, 17, 0);
-			mFont.tahoma_7_white.drawString(g, mResources.page + " " + (currPageShop[currentTabIndex] + 1) + "/" + maxPageShop[currentTabIndex], X + 60, 29, 0);
+			if (maxPageShop != null && currPageShop != null && currentTabIndex >= 0 && currentTabIndex < maxPageShop.Length && currentTabIndex < currPageShop.Length)
+				mFont.tahoma_7_white.drawString(g, mResources.page + " " + (currPageShop[currentTabIndex] + 1) + "/" + maxPageShop[currentTabIndex], X + 60, 29, 0);
 		}
 		else
 		{
@@ -6501,6 +6531,7 @@ public class Panel : IActionListener, IChatable
 		SoundMn.gI().buttonClose();
 		GameScr.isPaint = true;
 		TileMap.lastPlanetId = -1;
+		imgMap?.DestroyTexture();
 		imgMap = null;
 		mSystem.gcc();
 		isClanOption = false;
@@ -6540,11 +6571,8 @@ public class Panel : IActionListener, IChatable
 		SoundMn.gI().buttonClose();
 		GameScr.isPaint = true;
 		TileMap.lastPlanetId = -1;
-		if (imgMap != null)
-		{
-			imgMap.texture = null;
-			imgMap = null;
-		}
+		imgMap?.DestroyTexture();
+		imgMap = null;
 		mSystem.gcc();
 		isClanOption = false;
 		if (type != 4)
@@ -6823,17 +6851,20 @@ public class Panel : IActionListener, IChatable
 
 	internal void doFireTop()
 	{
-		if (selected >= -1)
+		if (selected >= 0)
 		{
 			if (isThachDau)
 			{
 				Service.gI().sendTop(topName, (sbyte)selected);
 				return;
 			}
+			TopInfo top = (vTop != null && selected < vTop.size()) ? (TopInfo)vTop.elementAt(selected) : null;
+			if (top == null)
+				return;
 			MyVector myVector = new MyVector(string.Empty);
-			myVector.addElement(new Command(mResources.CHAR_ORDER[0], this, 9999, (TopInfo)vTop.elementAt(selected)));
+			myVector.addElement(new Command(mResources.CHAR_ORDER[0], this, 9999, top));
 			GameCanvas.menu.startAt(myVector, X, (selected + 1) * ITEM_HEIGHT - cmy + yScroll);
-			addThachDauDetail((TopInfo)vTop.elementAt(selected));
+			addThachDauDetail(top);
 		}
 	}
 
@@ -7033,25 +7064,32 @@ public class Panel : IActionListener, IChatable
 		}
 		else
 		{
-			if (type == 17)
-				currItem = Char.myCharz().arrItemShop[4][selected];
-			else
-				currItem = Char.myCharz().arrItemShop[currentTabIndex][selected];
-			if (currItem.buyType == 0)
+			Item[][] arrItemShop = Char.myCharz().arrItemShop;
+			int shopTabIdx = (type == 17) ? 4 : currentTabIndex;
+			if (arrItemShop != null && shopTabIdx >= 0 && shopTabIdx < arrItemShop.Length)
 			{
-				if (currItem.isHaveOption(87))
-					myVector.addElement(new Command(mResources.kiguiLuong, this, 10013, currItem));
-				else
-					myVector.addElement(new Command(mResources.kiguiXu, this, 10012, currItem));
+				Item[] shopTab = arrItemShop[shopTabIdx];
+				if (shopTab != null && selected >= 0 && selected < shopTab.Length)
+					currItem = shopTab[selected];
 			}
-			else if (currItem.buyType == 1)
+			if (currItem != null)
 			{
-				myVector.addElement(new Command(mResources.huykigui, this, 10014, currItem));
-				myVector.addElement(new Command(mResources.upTop, this, 10018, currItem));
-			}
-			else if (currItem.buyType == 2)
-			{
-				myVector.addElement(new Command(mResources.nhantien, this, 10015, currItem));
+				if (currItem.buyType == 0)
+				{
+					if (currItem.isHaveOption(87))
+						myVector.addElement(new Command(mResources.kiguiLuong, this, 10013, currItem));
+					else
+						myVector.addElement(new Command(mResources.kiguiXu, this, 10012, currItem));
+				}
+				else if (currItem.buyType == 1)
+				{
+					myVector.addElement(new Command(mResources.huykigui, this, 10014, currItem));
+					myVector.addElement(new Command(mResources.upTop, this, 10018, currItem));
+				}
+				else if (currItem.buyType == 2)
+				{
+					myVector.addElement(new Command(mResources.nhantien, this, 10015, currItem));
+				}
 			}
 		}
 		if (currItem != null)
@@ -7066,7 +7104,7 @@ public class Panel : IActionListener, IChatable
 
 	internal void doFireArchivement()
 	{
-		if (selected >= 0 && Char.myCharz().arrArchive[selected].isFinish && !Char.myCharz().arrArchive[selected].isRecieve)
+		if (Char.myCharz().arrArchive != null && selected >= 0 && selected < Char.myCharz().arrArchive.Length && Char.myCharz().arrArchive[selected] != null && Char.myCharz().arrArchive[selected].isFinish && !Char.myCharz().arrArchive[selected].isRecieve)
 		{
 			if (!GameCanvas.isTouch)
 				Service.gI().getArchivemnt(selected);
@@ -8019,11 +8057,8 @@ public class Panel : IActionListener, IChatable
 
 	internal void doFireMap()
 	{
-		if (imgMap != null)
-		{
-			imgMap.texture = null;
-			imgMap = null;
-		}
+		imgMap?.DestroyTexture();
+		imgMap = null;
 		TileMap.lastPlanetId = -1;
 		mSystem.gcc();
 		SmallImage.loadBigRMS();

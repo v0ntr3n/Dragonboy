@@ -33,7 +33,7 @@ namespace Mod.AccountManager
 		{
 			get
 			{
-				if (string.IsNullOrEmpty(Password) && regexMatchUserAo.IsMatch(Username) && !Server.IsCustomIP())
+				if (string.IsNullOrEmpty(Password) && !string.IsNullOrEmpty(Username) && regexMatchUserAo.IsMatch(Username) && Server != null && !Server.IsCustomIP())
 					return AccountType.Unregistered;
 				return AccountType.Registered;
 			}

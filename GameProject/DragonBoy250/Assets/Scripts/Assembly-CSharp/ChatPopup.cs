@@ -118,7 +118,7 @@ public class ChatPopup : Effect2, IActionListener
 			return;
 		}
 		string[] array = new string[1] { chat };
-		if (c.charID != 5 && GameScr.info1.isDone)
+		if ((c == null || c.charID != 5) && GameScr.info1.isDone)
 		{
 			GameScr.info1.isUpdate = false;
 		}
@@ -141,7 +141,15 @@ public class ChatPopup : Effect2, IActionListener
 		{
 			return;	
 		}
+		if (string.IsNullOrEmpty(chat))
+		{
+			return;
+		}
 		string[] array = Res.split(chat, "\n", 0);
+		if (array == null || array.Length == 0)
+		{
+			return;
+		}
 		Char.isLockKey = true;
 		currChatPopup = addChatPopup(array[0], howLong, c);
 		currChatPopup.currentLine = 0;
@@ -362,16 +370,25 @@ public class ChatPopup : Effect2, IActionListener
 			if (says[i].StartsWith("|"))
 			{
 				string[] array = Res.split(says[i], "|", 0);
-				if (array.Length == 3)
+				if (array != null)
 				{
-					st = array[2];
+					if (array.Length == 3)
+					{
+						st = array[2];
+					}
+					if (array.Length == 4)
+					{
+						st = array[3];
+						if (int.TryParse(array[2], out int parsedAlign))
+						{
+							num7 = parsedAlign;
+						}
+					}
+					if (array.Length >= 2 && int.TryParse(array[1], out int parsedColor))
+					{
+						num8 = parsedColor;
+					}
 				}
-				if (array.Length == 4)
-				{
-					st = array[3];
-					num7 = int.Parse(array[2]);
-				}
-				num8 = int.Parse(array[1]);
 				num6 = num8;
 			}
 			else
@@ -411,21 +428,27 @@ public class ChatPopup : Effect2, IActionListener
 			if (says[i].StartsWith("<"))
 			{
 				string[] array2 = Res.split(says[i], "<", 0);
-				string[] array3 = Res.split(array2[1], ">", 1);
-				if (second == 0)
+				string[] array3 = (array2 != null && array2.Length >= 2) ? Res.split(array2[1], ">", 1) : null;
+				if (array3 != null && array3.Length >= 3)
 				{
-					second = int.Parse(array3[1]);
-				}
-				else
-				{
-					curr = mSystem.currentTimeMillis();
-					if (curr - last >= 1000)
+					if (second == 0)
 					{
-						last = curr;
-						second--;
+						if (int.TryParse(array3[1], out int parsedSecond))
+						{
+							second = parsedSecond;
+						}
 					}
+					else
+					{
+						curr = mSystem.currentTimeMillis();
+						if (curr - last >= 1000)
+						{
+							last = curr;
+							second--;
+						}
+					}
+					st = second + " " + array3[2];
 				}
-				st = second + " " + array3[2];
 				mFont2.drawString(g, st, cx + sayWidth / 2, cy + sayRun + i * 12 - strY + 12, num7);
 			}
 			else
@@ -554,16 +577,25 @@ public class ChatPopup : Effect2, IActionListener
 			if (says[i].StartsWith("|"))
 			{
 				string[] array = Res.split(says[i], "|", 0);
-				if (array.Length == 3)
+				if (array != null)
 				{
-					st = array[2];
+					if (array.Length == 3)
+					{
+						st = array[2];
+					}
+					if (array.Length == 4)
+					{
+						st = array[3];
+						if (int.TryParse(array[2], out int parsedAlign))
+						{
+							num8 = parsedAlign;
+						}
+					}
+					if (array.Length >= 2 && int.TryParse(array[1], out int parsedColor))
+					{
+						num9 = parsedColor;
+					}
 				}
-				if (array.Length == 4)
-				{
-					st = array[3];
-					num8 = int.Parse(array[2]);
-				}
-				num9 = int.Parse(array[1]);
 				num7 = num9;
 			}
 			else
@@ -588,21 +620,27 @@ public class ChatPopup : Effect2, IActionListener
 			if (says[i].StartsWith("<"))
 			{
 				string[] array2 = Res.split(says[i], "<", 0);
-				string[] array3 = Res.split(array2[1], ">", 1);
-				if (second == 0)
+				string[] array3 = (array2 != null && array2.Length >= 2) ? Res.split(array2[1], ">", 1) : null;
+				if (array3 != null && array3.Length >= 3)
 				{
-					second = int.Parse(array3[1]);
-				}
-				else
-				{
-					curr = mSystem.currentTimeMillis();
-					if (curr - last >= 1000)
+					if (second == 0)
 					{
-						last = curr;
-						second--;
+						if (int.TryParse(array3[1], out int parsedSecond))
+						{
+							second = parsedSecond;
+						}
 					}
+					else
+					{
+						curr = mSystem.currentTimeMillis();
+						if (curr - last >= 1000)
+						{
+							last = curr;
+							second--;
+						}
+					}
+					st = second + " " + array3[2];
 				}
-				st = second + " " + array3[2];
 				mFont2.drawString(g, st, cx + sayWidth / 2, cy + sayRun + i * 12 - strY, num8);
 			}
 			else
@@ -791,6 +829,10 @@ public class ChatPopup : Effect2, IActionListener
 			}
 		}
 		if (idAction != 8000 || performDelay > 0)
+		{
+			return;
+		}
+		if (currChatPopup == null || currChatPopup.lines == null)
 		{
 			return;
 		}

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
+using Mod.ModHelper;
 using UnityEngine;
 
 namespace Mod.Graphics
@@ -136,11 +136,7 @@ namespace Mod.Graphics
 									CurrentItemIndex = -1;
 							}
 							if (AllowSelectNone || CurrentItemIndex != -1)
-								new Thread(() =>
-								{
-									Thread.Sleep(50);
-									ItemSelected?.Invoke();
-								}).Start();
+								MainThreadDispatcher.Dispatch(() => ItemSelected?.Invoke());
 						}
 					}
 				}
@@ -240,11 +236,9 @@ namespace Mod.Graphics
 			}
 			if (GameCanvas.keyPressed[!Main.isPC ? 5 : 25])
 			{
+				GameCanvas.keyPressed[!Main.isPC ? 5 : 25] = false;
 				if (AllowSelectNone || CurrentItemIndex != -1)
-					new Thread(() =>
-					{
-						ItemSelected?.Invoke();
-					}).Start();
+					MainThreadDispatcher.Dispatch(() => ItemSelected?.Invoke());
 			}
 		}
 

@@ -74,6 +74,10 @@ public class Skill
 
 	public void paint(int x, int y, mGraphics g)
 	{
+		if (template == null)
+		{
+			return;
+		}
 		if (GameEvents.OnSkillPaint(this, x, y, g))
 		{
 			return;	
@@ -81,12 +85,16 @@ public class Skill
 		SmallImage.drawSmallImage(g, template.iconId, x, y, 0, StaticObj.VCENTER_HCENTER);
 		long num = mSystem.currentTimeMillis();
 		long num2 = num - lastTimeUseThisSkill;
-		if (num2 < coolDown)
+		if (coolDown > 0 && num2 < coolDown)
 		{
 			g.setColor(2721889, 0.7f);
 			if (paintCanNotUseSkill && GameCanvas.gameTick % 6 > 2)
 			{
 				g.setColor(876862);
+			}
+			if (num2 < 0)
+			{
+				num2 = 0;
 			}
 			int num3 = (int)(num2 * 20 / coolDown);
 			g.fillRect(x - 10, y - 10 + num3, 20, 20 - num3);

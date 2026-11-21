@@ -188,14 +188,38 @@ namespace Assets.src.g
 						dx = 0;
 						tick = 0;
 						cdir = lastDir;
-						for (int i = 0; i < charAttack.Length; i++)
+						if (charAttack != null)
 						{
-							charAttack[i].doInjure(damageAttack[i], 0L, false, false);
+							for (int i = 0; i < charAttack.Length; i++)
+							{
+								if (charAttack[i] == null)
+								{
+									continue;
+								}
+								long dmg = (damageAttack != null && i < damageAttack.Length) ? damageAttack[i] : 0L;
+								charAttack[i].doInjure(dmg, 0L, false, false);
+							}
 						}
 					}
 				}
 				if (skillID != 3)
 				{
+					return;
+				}
+				if (charAttack == null || pIndex < 0 || pIndex >= charAttack.Length)
+				{
+					skillID = -1;
+					pIndex = 0;
+					return;
+				}
+				while (pIndex < charAttack.Length && charAttack[pIndex] == null)
+				{
+					pIndex++;
+				}
+				if (pIndex >= charAttack.Length)
+				{
+					skillID = -1;
+					pIndex = 0;
 					return;
 				}
 				xTo = charAttack[pIndex].cx;
@@ -211,9 +235,10 @@ namespace Assets.src.g
 				{
 					cx = xTo;
 					cy = yTo;
-					charAttack[pIndex].doInjure(damageAttack[pIndex], 0L, false, false);
+					long dmg3 = (damageAttack != null && pIndex < damageAttack.Length) ? damageAttack[pIndex] : 0L;
+					charAttack[pIndex].doInjure(dmg3, 0L, false, false);
 					pIndex++;
-					if (pIndex == charAttack.Length)
+					if (pIndex >= charAttack.Length)
 					{
 						skillID = -1;
 						pIndex = 0;
@@ -232,12 +257,18 @@ namespace Assets.src.g
 			{
 				paintShadow(g);
 				g.translate(0, GameCanvas.transY);
-				checkFrameTick(skills[skillID]);
+				if (skills != null && skillID >= 0 && skillID < skills.Length)
+				{
+					checkFrameTick(skills[skillID]);
+				}
 				if (skillID == 0 || skillID == 1)
 				{
-					data1.paintFrame(g, frame, cx, cy + fy, (cdir != 1) ? 1 : 0, 2);
+					if (data1 != null)
+					{
+						data1.paintFrame(g, frame, cx, cy + fy, (cdir != 1) ? 1 : 0, 2);
+					}
 				}
-				else
+				else if (data2 != null)
 				{
 					data2.paintFrame(g, frame, cx, cy + fy, (cdir != 1) ? 1 : 0, 2);
 				}

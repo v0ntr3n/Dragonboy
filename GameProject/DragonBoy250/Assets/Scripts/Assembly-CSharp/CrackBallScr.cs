@@ -1,5 +1,4 @@
 using System;
-using System.Threading;
 
 public class CrackBallScr : mScreen
 {
@@ -92,6 +91,14 @@ public class CrackBallScr : mScreen
 	public static bool isCallStop;
 
 	public static bool isContinue;
+
+	private int autoCrackState;
+
+	private int autoCrackNum;
+
+	private bool autoCrackFlag;
+
+	private long autoCrackNextTime;
 
 	private byte[] fr = new byte[21]
 	{
@@ -244,6 +251,7 @@ public class CrackBallScr : mScreen
 			cost = price * checkNum();
 			checkNumTicket();
 			GameScr.gI().update();
+			AutoCrackBall();
 			if (timeStart - GameCanvas.timeNow > 0)
 			{
 				for (int i = 0; i < listBall.Length; i++)
@@ -517,6 +525,10 @@ public class CrackBallScr : mScreen
 
 	private void doClickBall(int index)
 	{
+		if (listBall == null || index < 0 || index >= listBall.Length)
+		{
+			return;
+		}
 		if (!listBall[index].isDone)
 		{
 			SoundMn.gI().getItem();
@@ -770,8 +782,12 @@ public class CrackBallScr : mScreen
 
 	public void startAutoCrackBall()
 	{
-		Thread thread = new Thread(AutoCrackBall);
-		thread.Start();
+		isAutoCrackBall = true;
+		isCallStop = false;
+		autoCrackNum = 0;
+		autoCrackFlag = false;
+		autoCrackState = 1;
+		autoCrackNextTime = GameCanvas.timeNow;
 	}
 
 	public void stopAutoCrackBall()
@@ -780,50 +796,78 @@ public class CrackBallScr : mScreen
 		indexSkillSelect = -1;
 		isCallStop = false;
 		isContinue = false;
+		autoCrackState = 0;
+		autoCrackNum = 0;
+		autoCrackFlag = false;
+		autoCrackNextTime = 0L;
 	}
 
 	public void AutoCrackBall()
 	{
-		int num = 0;
-		bool flag = false;
-		try
+		if (autoCrackState == 0)
 		{
-			while (isAutoCrackBall && GameCanvas.currentScreen == instance)
+			return;
+		}
+		if (!isAutoCrackBall || isCallStop || GameCanvas.currentScreen != instance)
+		{
+			stopAutoCrackBall();
+			return;
+		}
+		if (GameCanvas.timeNow < autoCrackNextTime)
+		{
+			return;
+		}
+		indexSkillSelect = 2;
+		switch (autoCrackState)
+		{
+		case 1:
+			if (autoCrackNum < 7 && step != 5)
 			{
-				indexSkillSelect = 2;
-				while (num < 7 && step != 5)
+				doClickBall(autoCrackNum);
+				autoCrackNum++;
+				if (autoCrackNum >= 7)
 				{
-					doClickBall(num);
-					num++;
-					Thread.Sleep(300);
+					autoCrackNextTime = GameCanvas.timeNow + 1100;
+					autoCrackState = 2;
 				}
-				if (num == 7)
+				else
 				{
-					Thread.Sleep(800);
-					gI().useSkillCrackBall();
-					Thread.Sleep(4000);
-					if (isCallStop)
-					{
-						stopAutoCrackBall();
-						Thread.ResetAbort();
-						break;
-					}
-					if (step == 5)
-					{
-						gI().useSkillCrackBall();
-						num = 0;
-					}
-					Thread.Sleep(1000);
-				}
-				if (step == 5 && num == 0 && !flag)
-				{
-					flag = true;
-					gI().useSkillCrackBall();
+					autoCrackNextTime = GameCanvas.timeNow + 300;
 				}
 			}
-		}
-		catch (Exception)
-		{
+			else if (autoCrackNum == 7)
+			{
+				autoCrackNextTime = GameCanvas.timeNow + 800;
+				autoCrackState = 2;
+			}
+			else if (step == 5 && autoCrackNum == 0 && !autoCrackFlag)
+			{
+				autoCrackFlag = true;
+				useSkillCrackBall();
+			}
+			break;
+		case 2:
+			useSkillCrackBall();
+			autoCrackNextTime = GameCanvas.timeNow + 4000;
+			autoCrackState = 3;
+			break;
+		case 3:
+			if (step == 5)
+			{
+				useSkillCrackBall();
+				autoCrackNum = 0;
+			}
+			autoCrackNextTime = GameCanvas.timeNow + 1000;
+			autoCrackState = 4;
+			break;
+		case 4:
+			if (step == 5 && autoCrackNum == 0 && !autoCrackFlag)
+			{
+				autoCrackFlag = true;
+				useSkillCrackBall();
+			}
+			autoCrackState = 1;
+			break;
 		}
 	}
 }

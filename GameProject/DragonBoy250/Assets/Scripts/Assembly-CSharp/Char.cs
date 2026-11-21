@@ -1272,6 +1272,10 @@ public class Char : IMapObject
 	{
 		try
 		{
+			if (GameScr.exps == null || GameScr.exps.Length == 0)
+			{
+				return;
+			}
 			long num = 1L;
 			long num2 = 0L;
 			int num3 = 0;
@@ -1284,6 +1288,10 @@ public class Char : IMapObject
 					num3 = num4;
 					break;
 				}
+			}
+			if (num <= 0)
+			{
+				num = 1L;
 			}
 			clevel = num3;
 			cLevelPercent = (int)(num2 * 10000 / num);
@@ -1314,10 +1322,10 @@ public class Char : IMapObject
 
 	public static void taskAction(bool isNextStep)
 	{
-		Task task = myCharz().taskMaint;
-		if (task.index > task.contentInfo.Length - 1)
+		Task task = myCharz()?.taskMaint;
+		if (task == null || task.contentInfo == null || task.index < 0 || task.index >= task.contentInfo.Length)
 		{
-			task.index = task.contentInfo.Length - 1;
+			return;
 		}
 		string text = task.contentInfo[task.index];
 		if (text != null && !text.Equals(string.Empty))
@@ -1639,24 +1647,11 @@ public class Char : IMapObject
 
 	public Waypoint isInEnterOfflinePoint()
 	{
-		Task task = myChar.taskMaint;
-		if (task != null && task.taskId == 0 && task.index < 6)
-		{
-			return null;
-		}
 		int num = TileMap.vGo.size();
-		for (sbyte b = 0; b < num; b++)
+		for (int b = 0; b < num; b++)
 		{
 			Waypoint waypoint = (Waypoint)TileMap.vGo.elementAt(b);
-			if (PopUp.vPopups.size() >= num)
-			{
-				PopUp popUp = (PopUp)PopUp.vPopups.elementAt(b);
-				if (!popUp.isPaint)
-				{
-					return null;
-				}
-			}
-			if (cx >= waypoint.minX && cx <= waypoint.maxX && cy >= waypoint.minY && cy <= waypoint.maxY && waypoint.isEnter && waypoint.isOffline)
+			if (waypoint != null && cx >= waypoint.minX && cx <= waypoint.maxX && cy >= waypoint.minY && cy <= waypoint.maxY && waypoint.isEnter && waypoint.isOffline)
 			{
 				return waypoint;
 			}
@@ -1666,24 +1661,11 @@ public class Char : IMapObject
 
 	public Waypoint isInEnterOnlinePoint()
 	{
-		Task task = myChar.taskMaint;
-		if (task != null && task.taskId == 0 && task.index < 6)
-		{
-			return null;
-		}
 		int num = TileMap.vGo.size();
-		for (sbyte b = 0; b < num; b++)
+		for (int b = 0; b < num; b++)
 		{
 			Waypoint waypoint = (Waypoint)TileMap.vGo.elementAt(b);
-			if (PopUp.vPopups.size() >= num)
-			{
-				PopUp popUp = (PopUp)PopUp.vPopups.elementAt(b);
-				if (!popUp.isPaint)
-				{
-					return null;
-				}
-			}
-			if (cx >= waypoint.minX && cx <= waypoint.maxX && cy >= waypoint.minY && cy <= waypoint.maxY && waypoint.isEnter && !waypoint.isOffline)
+			if (waypoint != null && cx >= waypoint.minX && cx <= waypoint.maxX && cy >= waypoint.minY && cy <= waypoint.maxY && waypoint.isEnter && !waypoint.isOffline)
 			{
 				return waypoint;
 			}
@@ -5046,7 +5028,7 @@ public class Char : IMapObject
 			return;
 		}
 		hasSendAttack = false;
-		if (stone || (me && myskill.template.id == 9 && cHP <= cHPFull / 10))
+		if (stone || (me && myskill?.template != null && myskill.template.id == 9 && cHP <= cHPFull / 10))
 		{
 			return;
 		}
@@ -5064,7 +5046,7 @@ public class Char : IMapObject
 			{
 				stopUseChargeSkill();
 			}
-			if ((myskill.template.id == 23 && ((charFocus != null && charFocus.holdEffID != 0) || (mobFocus != null && mobFocus.holdEffID != 0) || holdEffID != 0)) || sleepEff || blindEff)
+			if ((myskill?.template != null && myskill.template.id == 23 && ((charFocus != null && charFocus.holdEffID != 0) || (mobFocus != null && mobFocus.holdEffID != 0) || holdEffID != 0)) || sleepEff || blindEff)
 			{
 				return;
 			}
@@ -5756,12 +5738,22 @@ public class Char : IMapObject
 		}
 		if (num != -1)
 		{
+			if (SmallImage.imgNew == null || num < 0 || num >= SmallImage.imgNew.Length)
+			{
+				return;
+			}
 			Small small = SmallImage.imgNew[num];
 			if (small == null)
 			{
 				SmallImage.createImage(num);
 				return;
 			}
+			if (small.img == null)
+			{
+				return;
+			}
+			small.lastPaintTick = GameCanvas.gameTick;
+			small.timePaint = small.timeUpdate;
 			int y = GameCanvas.gameTick / 4 % num2 * (mGraphics.getImageHeight(small.img) / num2);
 			g.drawRegion(small.img, 0, y, mGraphics.getImageWidth(small.img), mGraphics.getImageHeight(small.img) / num2, 0, cx, cy + 2, mGraphics.BOTTOM | mGraphics.HCENTER);
 		}
@@ -5855,12 +5847,22 @@ public class Char : IMapObject
 				}
 				if (num != -1)
 				{
+					if (SmallImage.imgNew == null || num < 0 || num >= SmallImage.imgNew.Length)
+					{
+						return;
+					}
 					Small small = SmallImage.imgNew[num];
 					if (small == null)
 					{
 						SmallImage.createImage(num);
 						return;
 					}
+					if (small.img == null)
+					{
+						return;
+					}
+					small.lastPaintTick = GameCanvas.gameTick;
+					small.timePaint = small.timeUpdate;
 					int y = GameCanvas.gameTick / 4 % num2 * (mGraphics.getImageHeight(small.img) / num2);
 					g.drawRegion(small.img, 0, y, mGraphics.getImageWidth(small.img), mGraphics.getImageHeight(small.img) / num2, 0, cx, cy + 2, mGraphics.BOTTOM | mGraphics.HCENTER);
 				}
@@ -5927,7 +5929,8 @@ public class Char : IMapObject
 
 	public void paintHp(mGraphics g, int x, int y)
 	{
-		int num = (int)((int)cHP * 100 / cHPFull) / 10 - 1;
+		long hpFull = (cHPFull > 0) ? cHPFull : 1;
+		int num = (cHPFull > 0) ? ((int)(cHP * 100 / hpFull) / 10 - 1) : 0;
 		if (num < 0)
 		{
 			num = 0;
@@ -5944,8 +5947,8 @@ public class Char : IMapObject
 		{
 			return;
 		}
-		len = (int)(cHP * 100 / cHPFull * w_hp_bar) / 100;
-		num = (int)(cHP * 100 / cHPFull);
+		len = (cHPFull > 0) ? ((int)(cHP * 100 / hpFull * w_hp_bar) / 100) : 0;
+		num = (cHPFull > 0) ? (int)(cHP * 100 / hpFull) : 0;
 		if (num < 30)
 		{
 			imgHPtem = GameScr.imgHP_tm_do;
@@ -6010,8 +6013,16 @@ public class Char : IMapObject
 
 	public void paintCharName_HP_MP_Overhead(mGraphics g)
 	{
-		Part part = GameScr.parts[getFHead(head)];
-		int num = CharInfo[cf][0][2] - part.pi[CharInfo[cf][0][0]].dy + 5;
+		int fh = getFHead(head);
+		if (GameScr.parts == null || fh < 0 || fh >= GameScr.parts.Length || cf < 0 || cf >= CharInfo.Length)
+			return;
+		Part part = GameScr.parts[fh];
+		if (part == null || part.pi == null)
+			return;
+		int headPartIdx = CharInfo[cf][0][0];
+		if (headPartIdx < 0 || headPartIdx >= part.pi.Length)
+			return;
+		int num = CharInfo[cf][0][2] - part.pi[headPartIdx].dy + 5;
 		if ((isInvisiblez && !me) || (!me && TileMap.mapID == 113 && cy >= 360))
 		{
 			return;
@@ -6334,9 +6345,17 @@ public class Char : IMapObject
 
 	public bool isCharBodyImageID(int id)
 	{
+		if (GameScr.parts == null || head < 0 || head >= GameScr.parts.Length || leg < 0 || leg >= GameScr.parts.Length || body < 0 || body >= GameScr.parts.Length)
+		{
+			return false;
+		}
 		Part part = GameScr.parts[head];
 		Part part2 = GameScr.parts[leg];
 		Part part3 = GameScr.parts[body];
+		if (part?.pi == null || part2?.pi == null || part3?.pi == null)
+		{
+			return false;
+		}
 		for (int i = 0; i < CharInfo.Length; i++)
 		{
 			if (id == part.pi[CharInfo[i][0][0]].id)
@@ -6357,12 +6376,20 @@ public class Char : IMapObject
 
 	public void paintHead(mGraphics g, int cx, int cy, int look)
 	{
+		if (GameScr.parts == null || head < 0 || head >= GameScr.parts.Length || GameScr.parts[head] == null || GameScr.parts[head].pi == null)
+		{
+			return;
+		}
 		Part part = GameScr.parts[head];
 		SmallImage.drawSmallImage(g, part.pi[CharInfo[0][0][0]].id, cx, cy, (look != 0) ? 2 : 0, mGraphics.RIGHT | mGraphics.VCENTER);
 	}
 
 	public void paintHeadWithXY(mGraphics g, int x, int y, int look)
 	{
+		if (GameScr.parts == null || head < 0 || head >= GameScr.parts.Length || GameScr.parts[head] == null || GameScr.parts[head].pi == null)
+		{
+			return;
+		}
 		Part part = GameScr.parts[head];
 		SmallImage.drawSmallImage(g, part.pi[CharInfo[0][0][0]].id, x + CharInfo[0][0][1] + part.pi[CharInfo[0][0][0]].dx - 3, y + 3, look, mGraphics.LEFT | mGraphics.BOTTOM);
 	}
@@ -6373,9 +6400,17 @@ public class Char : IMapObject
 		{
 			return;
 		}
+		if (GameScr.parts == null || head < 0 || head >= GameScr.parts.Length || leg < 0 || leg >= GameScr.parts.Length || body < 0 || body >= GameScr.parts.Length)
+		{
+			return;
+		}
 		ph = GameScr.parts[head];
 		pl = GameScr.parts[leg];
 		pb = GameScr.parts[body];
+		if (ph?.pi == null || pl?.pi == null || pb?.pi == null)
+		{
+			return;
+		}
 		if (bag >= 0 && statusMe != 14)
 		{
 			if (!ClanImage.idImages.containsKey(bag + string.Empty))
@@ -6479,6 +6514,10 @@ public class Char : IMapObject
 	{
 		ty = 0;
 		SkillInfoPaint[] array = skillInfoPaint();
+		if (array == null || indexSkill < 0 || indexSkill >= array.Length)
+		{
+			return;
+		}
 		cf = array[indexSkill].status;
 		paintCharWithoutSkill(g);
 		if (cdir == 1)

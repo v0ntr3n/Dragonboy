@@ -81,11 +81,11 @@ public class Image
 		image.w = img.w;
 		image.h = img.h;
 		image.texture = img.texture;
-		image.isResourceAsset = img.isResourceAsset;
-		if (image.texture != null && !image.isResourceAsset)
+		if (image.texture != null && !img.isResourceAsset)
 		{
 			image.texture.Apply();
 		}
+		image.isResourceAsset = true;
 		return image;
 	}
 
@@ -366,7 +366,11 @@ public class Image
 		image.texture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
 		try
 		{
-			image.texture.LoadImage(imageData);
+			if (!image.texture.LoadImage(imageData))
+			{
+				image.DestroyTexture();
+				return null;
+			}
 			image.w = image.texture.width;
 			image.h = image.texture.height;
 			setTextureQuality(image);
@@ -374,6 +378,8 @@ public class Image
 		catch (Exception)
 		{
 			Cout.LogError("CREAT IMAGE FROM ARRAY FAIL \n" + Environment.StackTrace);
+			image.DestroyTexture();
+			return null;
 		}
 		return image;
 	}
@@ -390,7 +396,7 @@ public class Image
 				int num = i;
 				if (transform == 2)
 				{
-					num = w - i;
+					num = w - 1 - i;
 				}
 				int num2 = j;
 				image.texture.SetPixel(i, j, src.texture.GetPixel(x + num, y + num2));

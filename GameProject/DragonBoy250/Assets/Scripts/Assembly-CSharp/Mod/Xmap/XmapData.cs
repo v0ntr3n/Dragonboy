@@ -16,19 +16,63 @@ namespace Mod.Xmap
 		const int IdMapTpvgt = 19;
 		const int IdMapToCold = 109;
 
+		List<MapNext>[] links = Array.Empty<List<MapNext>>();
+		int loadedMapCount = -1;
+		int loadedGender = -1;
+		bool loadedColdUnlock = false;
+
 		internal MapGraphRepository()
 		{
-			Links = new List<MapNext>[TileMap.mapNames.Length];
-			for (int i = 0; i < Links.Length; i++)
-			{
-				Links[i] = new List<MapNext>();
-			}
-
-			Load();
+			EnsureLinksLoaded();
 		}
 
-		public List<MapNext>[] Links { get; }
+		public List<MapNext>[] Links
+		{
+			get
+			{
+				EnsureLinksLoaded();
+				return links;
+			}
+		}
+
 		public List<GroupMap> Groups { get; } = new List<GroupMap>();
+
+		internal void EnsureLinksLoaded()
+		{
+			int mapCount = TileMap.mapNames?.Length ?? 0;
+			if (mapCount <= 0)
+			{
+				if (links == null || links.Length != 0)
+				{
+					links = Array.Empty<List<MapNext>>();
+				}
+				loadedMapCount = -1;
+				loadedGender = -1;
+				loadedColdUnlock = false;
+				return;
+			}
+
+			Char myChar = Char.myCharz();
+			int gender = myChar?.cgender ?? -1;
+			bool coldUnlock = (myChar?.taskMaint?.taskId ?? 0) > 30;
+
+			if (mapCount == loadedMapCount && gender == loadedGender && coldUnlock == loadedColdUnlock && links != null && links.Length == mapCount)
+			{
+				return;
+			}
+
+			var rebuilt = new List<MapNext>[mapCount];
+			for (int i = 0; i < mapCount; i++)
+			{
+				rebuilt[i] = new List<MapNext>();
+			}
+
+			links = rebuilt;
+			Load();
+			loadedMapCount = mapCount;
+			loadedGender = gender;
+			loadedColdUnlock = coldUnlock;
+		}
 
 		public void ReloadGroups()
 		{
@@ -48,7 +92,12 @@ namespace Mod.Xmap
 
 		void AddLink(int mapStart, int to, TypeMapNext type, params int[] info)
 		{
-			Links[mapStart].Add(new MapNext(mapStart, to, type, info));
+			if (mapStart < 0 || mapStart >= links.Length)
+			{
+				return;
+			}
+
+			links[mapStart].Add(new MapNext(mapStart, to, type, info));
 		}
 
 		#region ================= MANUAL LINKS =================
@@ -336,9 +385,15 @@ namespace Mod.Xmap
 
 		void RemoveMapsHomeInGroupMaps()
 		{
+			Char myChar = Char.myCharz();
+			if (myChar == null)
+			{
+				return;
+			}
+
 			foreach (GroupMap groupMap in Groups)
 			{
-				groupMap.RemoveHomeMaps(Char.myCharz().cgender);
+				groupMap.RemoveHomeMaps(myChar.cgender);
 			}
 		}
 		#endregion
@@ -407,15 +462,19 @@ namespace Mod.Xmap
 			for (int i = 0; i < maps.Length; i++)
 			{
 				int mapStart = maps[i];
+				if (mapStart < 0 || mapStart >= links.Length)
+				{
+					continue;
+				}
 
 				if (i != 0)
 				{
-					Links[mapStart].Add(new MapNext(mapStart, maps[i - 1], TypeMapNext.AutoWaypoint, Array.Empty<int>()));
+					links[mapStart].Add(new MapNext(mapStart, maps[i - 1], TypeMapNext.AutoWaypoint, Array.Empty<int>()));
 				}
 
 				if (i != maps.Length - 1)
 				{
-					Links[mapStart].Add(new MapNext(mapStart, maps[i + 1], TypeMapNext.AutoWaypoint, Array.Empty<int>()));
+					links[mapStart].Add(new MapNext(mapStart, maps[i + 1], TypeMapNext.AutoWaypoint, Array.Empty<int>()));
 				}
 			}
 		}
@@ -424,7 +483,13 @@ namespace Mod.Xmap
 		#region ================= SPECIAL LINKS =================
 		void AddLinksHome()
 		{
-			int cgender = Char.myCharz().cgender;
+			Char myChar = Char.myCharz();
+			if (myChar == null)
+			{
+				return;
+			}
+
+			int cgender = myChar.cgender;
 			int mapHome = MapLookupService.IdMapHomeBase + cgender;
 			int mapLang = MapLookupService.IdMapLangBase * cgender;
 
@@ -434,10 +499,16 @@ namespace Mod.Xmap
 
 		void LoadLinkSieuThi()
 		{
+			Char myChar = Char.myCharz();
+			if (myChar == null)
+			{
+				return;
+			}
+
 			const int npcId = 10;
 			const int select = 0;
 
-			int offset = Char.myCharz().cgender;
+			int offset = myChar.cgender;
 			int mapTtvt = MapLookupService.IdMapTTVTBase + offset;
 
 			AddLink(IdMapSieuThi, mapTtvt, TypeMapNext.NpcMenu, npcId, select);
@@ -445,7 +516,8 @@ namespace Mod.Xmap
 
 		void LoadLinkToCold()
 		{
-			if (Char.myCharz().taskMaint.taskId <= 30)
+			var taskMaint = Char.myCharz()?.taskMaint;
+			if (taskMaint == null || taskMaint.taskId <= 30)
 			{
 				return;
 			}

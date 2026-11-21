@@ -23,6 +23,22 @@ public class Controller : IMessageHandler
 
 	public static bool isMain;
 
+	public enum ConnectionEventType
+	{
+		ConnectOK,
+		ConnectionFail,
+		Disconnected
+	}
+
+	public struct ConnectionEventItem
+	{
+		public ConnectionEventType Type;
+
+		public bool IsMain;
+	}
+
+	public static readonly System.Collections.Concurrent.ConcurrentQueue<ConnectionEventItem> PendingConnectionEvents = new System.Collections.Concurrent.ConcurrentQueue<ConnectionEventItem>();
+
 	private float demCount;
 
 	private int move;
@@ -69,20 +85,30 @@ public class Controller : IMessageHandler
 
 	public void onConnectOK(bool isMain1)
 	{
-		isMain = isMain1;
-		mSystem.onConnectOK();
+		PendingConnectionEvents.Enqueue(new ConnectionEventItem
+		{
+			Type = ConnectionEventType.ConnectOK,
+			IsMain = isMain1
+		});
 	}
 
 	public void onConnectionFail(bool isMain1)
 	{
-		isMain = isMain1;
-		mSystem.onConnectionFail();
+		Debug.LogError(">>>>>>>> Controller.isConnectionFail = true;");
+		PendingConnectionEvents.Enqueue(new ConnectionEventItem
+		{
+			Type = ConnectionEventType.ConnectionFail,
+			IsMain = isMain1
+		});
 	}
 
 	public void onDisconnected(bool isMain1)
 	{
-		isMain = isMain1;
-		mSystem.onDisconnected();
+		PendingConnectionEvents.Enqueue(new ConnectionEventItem
+		{
+			Type = ConnectionEventType.Disconnected,
+			IsMain = isMain1
+		});
 	}
 
 	public void requestItemPlayer(Message msg)
@@ -96,13 +122,14 @@ public class Controller : IMessageHandler
 			item.options = new MyVector();
 			try
 			{
-				while (true)
+				while (msg.reader().available() > 0)
 				{
 					ItemOption itemOption = readItemOption(msg);
-					if (itemOption != null)
+					if (itemOption == null)
 					{
-						item.options.addElement(itemOption);
+						break;
 					}
+					item.options.addElement(itemOption);
 				}
 			}
 			catch (Exception ex)
@@ -789,6 +816,7 @@ public class Controller : IMessageHandler
 					Res.outz("lent =" + num63);
 					sbyte[] data2 = new sbyte[num63];
 					msg.reader().read(ref data2, 0, num63);
+					GameScr.imgCapcha?.DestroyTexture();
 					GameScr.imgCapcha = Image.createImage(data2, 0, num63);
 					GameScr.gI().keyInput = "-----";
 					GameScr.gI().strCapcha = msg.reader().readUTF();
@@ -1157,6 +1185,7 @@ public class Controller : IMessageHandler
 				short num121 = msg.reader().readShort();
 				SmallImage.newSmallVersion = new sbyte[num121];
 				SmallImage.maxSmall = num121;
+				SmallImage.clearHastable();
 				SmallImage.imgNew = new Small[num121];
 				for (int num122 = 0; num122 < num121; num122++)
 				{
@@ -1269,7 +1298,7 @@ public class Controller : IMessageHandler
 						isLoadingData = true;
 						GameCanvas.endDlg();
 						ServerListScreen.demPercent++;
-						ServerListScreen.percent = ServerListScreen.demPercent * 100 / ServerListScreen.nBig;
+						ServerListScreen.percent = (ServerListScreen.nBig > 0) ? (ServerListScreen.demPercent * 100 / ServerListScreen.nBig) : 100;
 						string text3 = msg.reader().readUTF();
 						Res.outz(">>>vo serverPath: " + text3);
 						string[] array4 = Res.split(text3, "/", 0);
@@ -2247,23 +2276,23 @@ public class Controller : IMessageHandler
 						case 0:
 							if (TileMap.mapID != 170)
 							{
-								obj.useChargeSkill(false);
+								obj9.useChargeSkill(false);
 								break;
 							}
 							if (num124 >= 77 && num124 <= 83)
 							{
-								obj.useChargeSkill(true);
+								obj9.useChargeSkill(true);
 							}
 							if (num124 >= 70 && num124 <= 76)
 							{
-								obj.useChargeSkill(false);
+								obj9.useChargeSkill(false);
 							}
 							break;
 						case 1:
 						{
 							if (TileMap.mapID != 170)
 							{
-								obj.useChargeSkill(true);
+								obj9.useChargeSkill(true);
 								break;
 							}
 							bool isGround2 = true;
@@ -2275,7 +2304,7 @@ public class Controller : IMessageHandler
 							{
 								isGround2 = true;
 							}
-							obj.useChargeSkill(isGround2);
+							obj9.useChargeSkill(isGround2);
 							break;
 						}
 						default:
@@ -2290,17 +2319,17 @@ public class Controller : IMessageHandler
 								{
 									isGround = true;
 								}
-								obj.useChargeSkill(isGround);
+								obj9.useChargeSkill(isGround);
 							}
 							break;
 						}
-						obj.skillTemplateId = num124;
+						obj9.skillTemplateId = num124;
 						if (num124 >= 70 && num124 <= 76)
 						{
-							obj.isUseSkillAfterCharge = true;
+							obj9.isUseSkillAfterCharge = true;
 						}
-						obj.seconds = msg.reader().readShort();
-						obj.last = mSystem.currentTimeMillis();
+						obj9.seconds = msg.reader().readShort();
+						obj9.last = mSystem.currentTimeMillis();
 					}
 				}
 				if (b49 == 5)
@@ -2657,6 +2686,11 @@ public class Controller : IMessageHandler
 							loaded = createImage(array17);
 							if (loaded != null && loaded.texture != null)
 							{
+								Image prevSmallImg = SmallImage.imgNew[num154].img;
+								if (prevSmallImg != null && prevSmallImg != SmallImage.imgEmpty && prevSmallImg != loaded)
+								{
+									prevSmallImg.DestroyTexture();
+								}
 								SmallImage.imgNew[num154].img = loaded;
 							}
 						}
@@ -2672,7 +2706,12 @@ public class Controller : IMessageHandler
 						{
 							SmallImage.imgNew[num154] = new Small(SmallImage.imgEmpty, num154);
 						}
-						SmallImage.imgNew[num154].img = Image.createRGBImage(new int[1], 1, 1, true);
+						Image prevSmallImg = SmallImage.imgNew[num154].img;
+						if (prevSmallImg != null && prevSmallImg != SmallImage.imgEmpty)
+						{
+							prevSmallImg.DestroyTexture();
+						}
+						SmallImage.imgNew[num154].img = SmallImage.imgEmpty;
 					}
 				}
 				if (inBounds && array17 != null && loaded != null && loaded.texture != null && mGraphics.zoomLevel > 1)
@@ -2756,12 +2795,24 @@ public class Controller : IMessageHandler
 						array11[num137] = msg.reader().readByte();
 					}
 					image = Image.createImage(array11, 0, num136);
-					BgItem.imgNew.put(num135 + string.Empty, image);
+					string bgKey = num135 + string.Empty;
+					Image prevBgImg = BgItem.imgNew.get(bgKey) as Image;
+					if (prevBgImg != null && prevBgImg != image && prevBgImg != SmallImage.imgEmpty)
+					{
+						prevBgImg.DestroyTexture();
+					}
+					BgItem.imgNew.put(bgKey, image);
 				}
 				catch (Exception)
 				{
 					array11 = null;
-					BgItem.imgNew.put(num135 + string.Empty, Image.createRGBImage(new int[1], 1, 1, true));
+					string bgKey = num135 + string.Empty;
+					Image prevBgImg = BgItem.imgNew.get(bgKey) as Image;
+					if (prevBgImg != null && prevBgImg != SmallImage.imgEmpty)
+					{
+						prevBgImg.DestroyTexture();
+					}
+					BgItem.imgNew.put(bgKey, Image.createRGBImage(new int[1], 1, 1, true));
 				}
 				if (array11 != null)
 				{
@@ -4551,6 +4602,10 @@ public class Controller : IMessageHandler
 			long ppoint = msg.reader().readLong();
 			ChooseCharScr.playerData[i] = new PlayerData(playerID, name, head, body, leg, ppoint);
 		}
+		if (GameCanvas.chooseCharScr == null)
+		{
+			GameCanvas.chooseCharScr = new ChooseCharScr();
+		}
 		GameCanvas.chooseCharScr.switchToMe();
 		GameCanvas.chooseCharScr.updateChooseCharacter((byte)b);
 	}
@@ -5141,14 +5196,31 @@ public class Controller : IMessageHandler
 					string text = (string)BgItem.vKeysLast.elementAt(n);
 					if (!BgItem.isExistKeyNews(text))
 					{
-						BgItem.imgNew.remove(text);
-						if (BgItem.imgNew.containsKey(text + "blend" + 1))
+						Image evictedBg = BgItem.imgNew.get(text) as Image;
+						if (evictedBg != null && evictedBg != SmallImage.imgEmpty)
 						{
-							BgItem.imgNew.remove(text + "blend" + 1);
+							evictedBg.DestroyTexture();
 						}
-						if (BgItem.imgNew.containsKey(text + "blend" + 3))
+						BgItem.imgNew.remove(text);
+						string blendKey1 = text + "blend" + 1;
+						if (BgItem.imgNew.containsKey(blendKey1))
 						{
-							BgItem.imgNew.remove(text + "blend" + 3);
+							Image evictedBlend1 = BgItem.imgNew.get(blendKey1) as Image;
+							if (evictedBlend1 != null && evictedBlend1 != SmallImage.imgEmpty)
+							{
+								evictedBlend1.DestroyTexture();
+							}
+							BgItem.imgNew.remove(blendKey1);
+						}
+						string blendKey3 = text + "blend" + 3;
+						if (BgItem.imgNew.containsKey(blendKey3))
+						{
+							Image evictedBlend3 = BgItem.imgNew.get(blendKey3) as Image;
+							if (evictedBlend3 != null && evictedBlend3 != SmallImage.imgEmpty)
+							{
+								evictedBlend3.DestroyTexture();
+							}
+							BgItem.imgNew.remove(blendKey3);
 						}
 						BgItem.vKeysLast.removeElementAt(n);
 						n--;
@@ -5487,9 +5559,11 @@ public class Controller : IMessageHandler
 				catch (Exception ex2)
 				{
 					Res.err("2 LOI TAI CASE REQUEST_MAPTEMPLATE " + ex2.ToString());
+					GameCanvas.isLoading = false;
+					Char.isLoadingMap = false;
 				}
-				msg.cleanup();
-				messWait.cleanup();
+				msg?.cleanup();
+				messWait?.cleanup();
 				msg = (messWait = null);
 				GameScr.gI().switchToMe();
 				break;

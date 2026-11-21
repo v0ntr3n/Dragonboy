@@ -19,7 +19,6 @@ namespace Mod.BoMong.QuestHandler
 		}
 		public void OnQuestCompleted()
 		{
-			throw new NotImplementedException();
 		}
 		public void PreHandleQuest()
 		{

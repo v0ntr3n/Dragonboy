@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace Mod.ModHelper
 {
@@ -9,59 +11,70 @@ namespace Mod.ModHelper
 	{
 		struct ScheduledEntry
 		{
-			public float executeAtRealtime;
+			public long executeAtTicks;
 			public float intervalSeconds;
 			public Action action;
 			public int id;
 		}
-		
+
 		static readonly ConcurrentQueue<ScheduledEntry> _pending = new ConcurrentQueue<ScheduledEntry>();
+		static readonly ConcurrentQueue<int> _pendingCancellations = new ConcurrentQueue<int>();
 		static readonly List<ScheduledEntry> _scheduled = new List<ScheduledEntry>();
 		static readonly HashSet<int> _cancelledIds = new HashSet<int>();
 		static int _nextId;
-		
+
+		static long SecondsToTicks(float seconds)
+		{
+			return seconds > 0f ? (long)(seconds * Stopwatch.Frequency) : 0L;
+		}
+
 		public static int Schedule(float delaySeconds, Action action)
 		{
 			int id = System.Threading.Interlocked.Increment(ref _nextId);
 			_pending.Enqueue(new ScheduledEntry
 			{
-				executeAtRealtime = Time.realtimeSinceStartup + delaySeconds,
+				executeAtTicks = Stopwatch.GetTimestamp() + SecondsToTicks(delaySeconds),
 				intervalSeconds = -1f,
 				action = action,
 				id = id
 			});
 			return id;
 		}
-		
+
 		public static int ScheduleRepeating(float intervalSeconds, Action action)
 		{
 			int id = System.Threading.Interlocked.Increment(ref _nextId);
 			_pending.Enqueue(new ScheduledEntry
 			{
-				executeAtRealtime = Time.realtimeSinceStartup + intervalSeconds,
+				executeAtTicks = Stopwatch.GetTimestamp() + SecondsToTicks(intervalSeconds),
 				intervalSeconds = intervalSeconds,
 				action = action,
 				id = id
 			});
 			return id;
 		}
-		
+
 		public static void Cancel(int id)
 		{
-			_cancelledIds.Add(id);
+			_pendingCancellations.Enqueue(id);
 		}
-		
+
 		internal static void Tick()
 		{
-			while (_pending.TryDequeue(out ScheduledEntry entry))
+			while (_pendingCancellations.TryDequeue(out int cancelledId))
 			{
-				_scheduled.Add(entry);
+				_cancelledIds.Add(cancelledId);
+			}
+
+			while (_pending.TryDequeue(out ScheduledEntry pendingEntry))
+			{
+				_scheduled.Add(pendingEntry);
 			}
 
 			if (_scheduled.Count == 0)
 				return;
 
-			float now = Time.realtimeSinceStartup;
+			long nowTicks = Stopwatch.GetTimestamp();
 
 			for (int i = _scheduled.Count - 1; i >= 0; i--)
 			{
@@ -73,7 +86,7 @@ namespace Mod.ModHelper
 					continue;
 				}
 
-				if (now >= entry.executeAtRealtime)
+				if (nowTicks >= entry.executeAtTicks)
 				{
 					try
 					{
@@ -87,7 +100,7 @@ namespace Mod.ModHelper
 					if (entry.intervalSeconds > 0f)
 					{
 						// Reschedule for next interval
-						entry.executeAtRealtime = now + entry.intervalSeconds;
+						entry.executeAtTicks = nowTicks + SecondsToTicks(entry.intervalSeconds);
 						_scheduled[i] = entry;
 					}
 					else

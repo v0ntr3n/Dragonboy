@@ -57,10 +57,7 @@ public class CreateCharScr : mScreen, IActionListener
 		}
 		try
 		{
-			if (!GameCanvas.lowGraphic)
-			{
-				loadMapFromResource(new sbyte[3] { 39, 40, 41 });
-			}
+			loadMapFromResource(new sbyte[3] { 39, 40, 41 });
 			loadMapTableFromResource(new sbyte[3] { 39, 40, 41 });
 		}
 		catch (Exception ex)
@@ -537,7 +534,8 @@ public class CreateCharScr : mScreen, IActionListener
 					disY = 60;
 					if (GameCanvas.w > GameCanvas.h)
 					{
-						yButton = GameScr.popupY + 30 + 3 * num + part3.pi[Char.CharInfo[0][2][0]].dy + dy - 15;
+						int part3Dy = (part3 != null && part3.pi != null && Char.CharInfo[0][2][0] < part3.pi.Length && part3.pi[Char.CharInfo[0][2][0]] != null) ? part3.pi[Char.CharInfo[0][2][0]].dy : 0;
+						yButton = GameScr.popupY + 30 + 3 * num + part3Dy + dy - 15;
 						disY = 35;
 					}
 				}

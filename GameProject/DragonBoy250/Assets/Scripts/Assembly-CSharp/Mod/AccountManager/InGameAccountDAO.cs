@@ -85,8 +85,15 @@ namespace Mod.AccountManager
 
 		static List<Account> ReadAccountsFromStorage()
 		{
-			string jsonData = ModStorage.ReadString(StorageKeyAccounts, "[]");
-			return JsonConvert.DeserializeObject<List<Account>>(jsonData) ?? new List<Account>();
+			try
+			{
+				string jsonData = ModStorage.ReadString(StorageKeyAccounts, "[]");
+				return JsonConvert.DeserializeObject<List<Account>>(jsonData) ?? new List<Account>();
+			}
+			catch (Exception)
+			{
+				return new List<Account>();
+			}
 		}
 
 		static int FindAccountIndexByIdentity(List<Account> list, Account account)

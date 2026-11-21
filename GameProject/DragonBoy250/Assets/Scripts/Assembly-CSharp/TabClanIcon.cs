@@ -134,7 +134,7 @@ public class TabClanIcon : IActionListener
 		if (lastSelect >= 0 && lastSelect <= ClanImage.vClanImage.size() - 1)
 		{
 			ClanImage clanImage = (ClanImage)ClanImage.vClanImage.elementAt(lastSelect);
-			if (clanImage.idImage != null)
+			if (clanImage != null && clanImage.idImage != null)
 			{
 				Char.myCharz().paintBag(g, clanImage.idImage, GameCanvas.w / 2, y + 45, 1, false);
 			}
@@ -145,13 +145,18 @@ public class TabClanIcon : IActionListener
 		{
 			g.translate(0, -scrMain.cmy);
 		}
-		for (int i = 0; i < nItem; i++)
+		int maxItem = ((nItem < ClanImage.vClanImage.size()) ? nItem : ClanImage.vClanImage.size());
+		for (int i = 0; i < maxItem; i++)
 		{
 			int num = x + 10;
 			int num2 = y + i * WIDTH + disStart;
 			if (num2 + WIDTH - ((scrMain != null) ? scrMain.cmy : 0) >= y + disStart && num2 - ((scrMain != null) ? scrMain.cmy : 0) <= y + disStart + h)
 			{
 				ClanImage clanImage2 = (ClanImage)ClanImage.vClanImage.elementAt(i);
+				if (clanImage2 == null)
+				{
+					continue;
+				}
 				mFont mFont2 = mFont.tahoma_7_grey;
 				if (i == lastSelect)
 				{
@@ -169,7 +174,7 @@ public class TabClanIcon : IActionListener
 				{
 					mFont2.drawString(g, clanImage2.luong + " " + mResources.LUONG, num + w - 20, num2, mFont.RIGHT);
 				}
-				if (clanImage2.idImage != null)
+				if (clanImage2.idImage != null && clanImage2.idImage.Length > 0)
 				{
 					SmallImage.drawSmallImage(g, clanImage2.idImage[0], num, num2, 0, 0);
 				}
@@ -281,22 +286,31 @@ public class TabClanIcon : IActionListener
 		}
 		if (!isRequest)
 		{
-			if (lastSelect >= 0)
+			if (lastSelect >= 0 && lastSelect < ClanImage.vClanImage.size())
 			{
+				ClanImage ci = (ClanImage)ClanImage.vClanImage.elementAt(lastSelect);
+				if (ci == null)
+				{
+					return;
+				}
 				hide();
 				if (Char.myCharz().clan == null)
 				{
-					Service.gI().getClan(2, ((ClanImage)ClanImage.vClanImage.elementAt(lastSelect)).ID, text);
+					Service.gI().getClan(2, ci.ID, text);
 				}
 				else
 				{
-					Service.gI().getClan(4, ((ClanImage)ClanImage.vClanImage.elementAt(lastSelect)).ID, string.Empty);
+					Service.gI().getClan(4, ci.ID, string.Empty);
 				}
 			}
 		}
-		else if (lastSelect >= 0)
+		else if (lastSelect >= 0 && lastSelect < vItems.size())
 		{
-			Item item = (Item)vItems.elementAt(select);
+			Item item = (Item)vItems.elementAt(lastSelect);
+			if (item == null)
+			{
+				return;
+			}
 		}
 	}
 }

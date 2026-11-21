@@ -37,9 +37,9 @@ public class Main : MonoBehaviour
 
 	private int level;
 
-	private int updateCount;
+	internal int updateCount;
 
-	private int paintCount;
+	internal int paintCount;
 
 	private int count;
 
@@ -75,7 +75,6 @@ public class Main : MonoBehaviour
 
 	private void Start()
 	{
-		Application.targetFrameRate = 60;
 		if (started)
 		{
 			return;
@@ -109,9 +108,7 @@ public class Main : MonoBehaviour
 			}
 			fps++;
 			checkInput();
-			Session_ME.update();
-			Session_ME2.update();
-			if (Event.current.type.Equals(EventType.Repaint) && paintCount <= updateCount)
+			if (Event.current != null && Event.current.type.Equals(EventType.Repaint) && paintCount <= updateCount)
 			{
 				GameMidlet.gameCanvas.paint(g);
 				paintCount++;
@@ -126,7 +123,6 @@ public class Main : MonoBehaviour
 		{
 			Screen.orientation = ScreenOrientation.LandscapeLeft;
 			Application.runInBackground = true;
-			Application.targetFrameRate = 35;
 			base.useGUILayout = false;
 			isCompactDevice = detectCompactDevice();
 			if (main == null)
@@ -213,7 +209,7 @@ public class Main : MonoBehaviour
 
 	public static void closeKeyBoard()
 	{
-		if (TouchScreenKeyboard.visible)
+		if (TouchScreenKeyboard.visible && TField.kb != null)
 		{
 			TField.kb.active = false;
 			TField.kb = null;
@@ -223,6 +219,7 @@ public class Main : MonoBehaviour
 	private void FixedUpdate()
 	{
 		Rms.update();
+		Sound.update();
 		count++;
 		if (count >= 10)
 		{
@@ -260,10 +257,20 @@ public class Main : MonoBehaviour
 
 	private void Update()
 	{
+		if (count >= 10)
+		{
+			if (GameMidlet.gameCanvas != null)
+			{
+				checkPointerInput();
+			}
+			GameEvents.PreProcessIncomingNetworkQueue();
+			Session_ME.update();
+			Session_ME2.update();
+		}
 		GameEvents.OnUpdateMain();
 	}
 
-	private void checkInput()
+	private void checkPointerInput()
 	{
 		if (Input.GetMouseButtonDown(0))
 		{
@@ -285,6 +292,23 @@ public class Main : MonoBehaviour
 			lastMousePos.x = mousePosition3.x / (float)mGraphics.zoomLevel;
 			lastMousePos.y = mousePosition3.y / (float)mGraphics.zoomLevel + (float)mGraphics.addYWhenOpenKeyBoard;
 			GameMidlet.gameCanvas.pointerReleased((int)(mousePosition3.x / (float)mGraphics.zoomLevel), (int)(((float)Screen.height - mousePosition3.y) / (float)mGraphics.zoomLevel) + mGraphics.addYWhenOpenKeyBoard);
+		}
+		if (isPC)
+		{
+			GameMidlet.gameCanvas.scrollMouse((int)(Input.GetAxis("Mouse ScrollWheel") * 10f));
+			float x = Input.mousePosition.x;
+			float y = Input.mousePosition.y;
+			int x2 = (int)x / mGraphics.zoomLevel;
+			int y2 = (Screen.height - (int)y) / mGraphics.zoomLevel;
+			GameMidlet.gameCanvas.pointerMouse(x2, y2);
+		}
+	}
+
+	private void checkInput()
+	{
+		if (Event.current == null || GameMidlet.gameCanvas == null)
+		{
+			return;
 		}
 		if (Input.anyKeyDown && Event.current.type == EventType.KeyDown)
 		{
@@ -313,15 +337,6 @@ public class Main : MonoBehaviour
 			{
 				GameMidlet.gameCanvas.keyReleasedz(num2);
 			}
-		}
-		if (isPC)
-		{
-			GameMidlet.gameCanvas.scrollMouse((int)(Input.GetAxis("Mouse ScrollWheel") * 10f));
-			float x = Input.mousePosition.x;
-			float y = Input.mousePosition.y;
-			int x2 = (int)x / mGraphics.zoomLevel;
-			int y2 = (Screen.height - (int)y) / mGraphics.zoomLevel;
-			GameMidlet.gameCanvas.pointerMouse(x2, y2);
 		}
 	}
 
@@ -352,7 +367,7 @@ public class Main : MonoBehaviour
 		{
 			isResume = true;
 		}
-		if (TouchScreenKeyboard.visible)
+		if (TouchScreenKeyboard.visible && TField.kb != null)
 		{
 			TField.kb.active = false;
 			TField.kb = null;

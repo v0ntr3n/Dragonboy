@@ -12,12 +12,23 @@ namespace Mod.ModHelper
 		{
 			while (queue.TryDequeue(out Action action))
 			{
-				action();
+				if (action == null)
+					continue;
+				try
+				{
+					action();
+				}
+				catch (Exception ex)
+				{
+					UnityEngine.Debug.LogException(ex);
+				}
 			}
 		}
 
 		public static void Dispatch(Action action)
 		{
+			if (action == null)
+				return;
 			queue.Enqueue(action);
 		}
 	}

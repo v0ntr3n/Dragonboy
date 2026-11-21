@@ -45,6 +45,45 @@ public class mGraphics
 
 	public static Hashtable cachedTextures = new Hashtable();
 
+	private static readonly System.Collections.Generic.Dictionary<int, Texture2D> colorTexCache = new System.Collections.Generic.Dictionary<int, Texture2D>();
+
+	private const int MAX_COLOR_TEX_CACHE = 256;
+
+	private static int packColorKey(float cr, float cg, float cb, float ca)
+	{
+		int ia = Mathf.Clamp(Mathf.RoundToInt(ca * 255f), 0, 255);
+		int ir = Mathf.Clamp(Mathf.RoundToInt(cr * 255f), 0, 255);
+		int ig = Mathf.Clamp(Mathf.RoundToInt(cg * 255f), 0, 255);
+		int ib = Mathf.Clamp(Mathf.RoundToInt(cb * 255f), 0, 255);
+		return (ia << 24) | (ir << 16) | (ig << 8) | ib;
+	}
+
+	private static Texture2D getColorTexture(float cr, float cg, float cb, float ca)
+	{
+		int key = packColorKey(cr, cg, cb, ca);
+		Texture2D tex;
+		if (colorTexCache.TryGetValue(key, out tex) && tex != null)
+		{
+			return tex;
+		}
+		if (colorTexCache.Count >= MAX_COLOR_TEX_CACHE)
+		{
+			foreach (Texture2D cached in colorTexCache.Values)
+			{
+				if (cached != null)
+				{
+					UnityEngine.Object.Destroy(cached);
+				}
+			}
+			colorTexCache.Clear();
+		}
+		tex = new Texture2D(1, 1);
+		tex.SetPixel(0, 0, new Color(cr, cg, cb, ca));
+		tex.Apply();
+		colorTexCache[key] = tex;
+		return tex;
+	}
+
 	public static int addYWhenOpenKeyBoard;
 
 	public static Color transParentColor = new Color(1f, 1f, 1f, 0f);
@@ -101,6 +140,15 @@ public class mGraphics
 
 	public void cache(string key, Texture value)
 	{
+		if (value == null)
+		{
+			return;
+		}
+		if (key == null || GameCanvas.w <= 0 || GameCanvas.h <= 0)
+		{
+			UnityEngine.Object.Destroy(value);
+			return;
+		}
 		if (cachedTextures.Count > 400)
 		{
 			foreach (object obj in cachedTextures.Values)
@@ -121,6 +169,10 @@ public class mGraphics
 				UnityEngine.Object.Destroy(existing);
 			}
 			cachedTextures[key] = value;
+		}
+		else
+		{
+			UnityEngine.Object.Destroy(value);
 		}
 	}
 
@@ -235,16 +287,7 @@ public class mGraphics
 			x2 += translateX;
 			y2 += translateY;
 		}
-		string key = "dl" + r + g + b;
-		Texture2D texture2D = (Texture2D)cachedTextures[key];
-		if (texture2D == null)
-		{
-			texture2D = new Texture2D(1, 1);
-			Color color = new Color(r, g, b);
-			texture2D.SetPixel(0, 0, color);
-			texture2D.Apply();
-			cache(key, texture2D);
-		}
+		Texture2D texture2D = getColorTexture(r, g, b, 1f);
 		Vector2 vector = new Vector2(x1, y1);
 		Vector2 vector2 = new Vector2(x2, y2);
 		Vector2 vector3 = vector2 - vector;
@@ -298,17 +341,7 @@ public class mGraphics
 			y2 += translateY;
 		}
 
-		string key = "dl" + r + g + b;
-		Texture2D texture2D = (Texture2D)cachedTextures[key];
-
-		if (texture2D == null)
-		{
-			texture2D = new Texture2D(1, 1);
-			Color color = new Color(r, g, b);
-			texture2D.SetPixel(0, 0, color);
-			texture2D.Apply();
-			cache(key, texture2D);
-		}
+		Texture2D texture2D = getColorTexture(r, g, b, 1f);
 
 		Vector2 vector = new Vector2(x1, y1);
 		Vector2 vector2 = new Vector2(x2, y2);
@@ -423,18 +456,7 @@ public class mGraphics
 			x += translateX;
 			y += translateY;
 		}
-		int num = 1;
-		int num2 = 1;
-		string key = "fr" + num + num2 + r + g + b + a;
-		Texture2D texture2D = (Texture2D)cachedTextures[key];
-		if (texture2D == null)
-		{
-			texture2D = new Texture2D(num, num2);
-			Color color = new Color(r, g, b, a);
-			texture2D.SetPixel(0, 0, color);
-			texture2D.Apply();
-			cache(key, texture2D);
-		}
+		Texture2D texture2D = getColorTexture(r, g, b, a);
 		int num3 = 0;
 		int num4 = 0;
 		int num5 = 0;
@@ -962,6 +984,10 @@ public class mGraphics
 
 	public void drawRegion2(Image image, float x0, float y0, int w, int h, int transform, int x, int y, int anchor)
 	{
+		if (image == null || image.texture == null)
+		{
+			return;
+		}
 		GUI.color = image.colorBlend;
 		if (isTranslate)
 		{
@@ -974,9 +1000,17 @@ public class mGraphics
 		if (texture2D == null)
 		{
 			Image image2 = Image.createImage(image, (int)x0, (int)y0, w, h, transform);
+			if (image2 == null || image2.texture == null)
+			{
+				GUI.color = new Color(1f, 1f, 1f, 1f);
+				return;
+			}
 			texture2D = image2.texture;
-			cache(key, texture2D);
-			if (texture2D != null && texture2D.width * texture2D.height >= GameCanvas.w * GameCanvas.h)
+			if (GameCanvas.w > 0 && GameCanvas.h > 0 && texture2D.width * texture2D.height < GameCanvas.w * GameCanvas.h)
+			{
+				cache(key, texture2D);
+			}
+			else
 			{
 				destroyAfterDraw = true;
 			}
@@ -1358,39 +1392,60 @@ public class mGraphics
 
 	public void drawlineGL(MyVector totalLine)
 	{
+		if (lineMaterial == null)
+		{
+			CreateLineMaterial();
+		}
+		if (lineMaterial == null)
+		{
+			totalLine.removeAllElements();
+			return;
+		}
 		lineMaterial.SetPass(0);
 		GL.PushMatrix();
-		GL.Begin(1);
-		for (int i = 0; i < totalLine.size(); i++)
+		try
 		{
-			mLine mLine2 = (mLine)totalLine.elementAt(i);
-			GL.Color(new Color(mLine2.r, mLine2.g, mLine2.b, mLine2.a));
-			int num = mLine2.x1 * zoomLevel;
-			int num2 = mLine2.y1 * zoomLevel;
-			int num3 = mLine2.x2 * zoomLevel;
-			int num4 = mLine2.y2 * zoomLevel;
-			if (isTranslate)
+			GL.Begin(1);
+			try
 			{
-				num += translateX;
-				num2 += translateY;
-				num3 += translateX;
-				num4 += translateY;
-			}
-			for (int j = 0; j < zoomLevel; j++)
-			{
-				GL.Vertex(new Vector2(num + j, num2 + j));
-				GL.Vertex(new Vector2(num3 + j, num4 + j));
-				if (j > 0)
+				for (int i = 0; i < totalLine.size(); i++)
 				{
-					GL.Vertex(new Vector2(num + j, num2));
-					GL.Vertex(new Vector2(num3 + j, num4));
-					GL.Vertex(new Vector2(num, num2 + j));
-					GL.Vertex(new Vector2(num3, num4 + j));
+					mLine mLine2 = (mLine)totalLine.elementAt(i);
+					GL.Color(new Color(mLine2.r, mLine2.g, mLine2.b, mLine2.a));
+					int num = mLine2.x1 * zoomLevel;
+					int num2 = mLine2.y1 * zoomLevel;
+					int num3 = mLine2.x2 * zoomLevel;
+					int num4 = mLine2.y2 * zoomLevel;
+					if (isTranslate)
+					{
+						num += translateX;
+						num2 += translateY;
+						num3 += translateX;
+						num4 += translateY;
+					}
+					for (int j = 0; j < zoomLevel; j++)
+					{
+						GL.Vertex(new Vector2(num + j, num2 + j));
+						GL.Vertex(new Vector2(num3 + j, num4 + j));
+						if (j > 0)
+						{
+							GL.Vertex(new Vector2(num + j, num2));
+							GL.Vertex(new Vector2(num3 + j, num4));
+							GL.Vertex(new Vector2(num, num2 + j));
+							GL.Vertex(new Vector2(num3, num4 + j));
+						}
+					}
 				}
 			}
+			finally
+			{
+				GL.End();
+			}
 		}
-		GL.End();
-		GL.PopMatrix();
+		finally
+		{
+			GL.PopMatrix();
+		}
 		totalLine.removeAllElements();
 	}
 

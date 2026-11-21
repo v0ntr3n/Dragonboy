@@ -8,7 +8,13 @@ public class ImgByName
 
 	public static void SetImage(string name, Image img, sbyte nFrame)
 	{
-		hashImagePath.put(string.Empty + name, new MainImage(img, nFrame));
+		string key = string.Empty + name;
+		if (hashImagePath.get(key) is MainImage existing && existing.img != null && existing.img != img)
+		{
+			existing.img.DestroyTexture();
+			existing.img = null;
+		}
+		hashImagePath.put(key, new MainImage(img, nFrame));
 	}
 
 	public static MainImage getImagePath(string nameImg, MyHashTable hash)

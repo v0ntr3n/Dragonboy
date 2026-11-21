@@ -53,11 +53,21 @@ namespace Mod.Xmap
 		[CanBeNull]
 		internal Waypoint FindWaypoint(int mapId)
 		{
+			if (TileMap.vGo == null || TileMap.mapNames == null || mapId < 0 || mapId >= TileMap.mapNames.Length)
+			{
+				return null;
+			}
+
 			for (int i = 0; i < TileMap.vGo.size(); i++)
 			{
 				Waypoint waypoint = (Waypoint)TileMap.vGo.elementAt(i);
+				if (waypoint?.popup?.says == null)
+				{
+					continue;
+				}
+
 				string textPopup = Utils.getTextPopup(waypoint.popup);
-				if (textPopup.Equals(TileMap.mapNames[mapId]))
+				if (textPopup != null && textPopup.Equals(TileMap.mapNames[mapId]))
 				{
 					return waypoint;
 				}

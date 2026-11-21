@@ -5,7 +5,7 @@ namespace Mod.Graphics
 {
 	internal class UIImage : UnityEngine.UI.Image
 	{
-		internal static Mesh mesh = new Mesh();
+		internal static Mesh mesh;
 		static Texture2D texture;
 		static UIImage image;
 
@@ -19,13 +19,19 @@ namespace Mod.Graphics
 		[Obsolete]
 		internal static void PopulateMesh()
 		{
+			if (image == null || mesh == null)
+				return;
 			image.OnPopulateMesh(mesh);
 		}
 
 		internal static void OnStart()
 		{
 			GameObject mainCamera = GameObject.Find("Main Camera");
-			Canvas canvas = mainCamera.AddComponent<Canvas>();
+			if (mainCamera == null || image != null)
+				return;
+			Canvas canvas = mainCamera.GetComponent<Canvas>();
+			if (canvas == null)
+				canvas = mainCamera.AddComponent<Canvas>();
 			canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 			GameObject uiImageCooldown = new GameObject("Cooldown Effect");
 			image = uiImageCooldown.AddComponent<UIImage>();
@@ -38,6 +44,25 @@ namespace Mod.Graphics
 			image.fillClockwise = true;
 			uiImageCooldown.transform.SetParent(mainCamera.transform);
 			uiImageCooldown.transform.position = new Vector3(-500, -500);
+		}
+
+		protected override void OnDestroy()
+		{
+			base.OnDestroy();
+			if (sprite != null)
+			{
+				Destroy(sprite);
+				sprite = null;
+			}
+			if (texture != null)
+			{
+				Destroy(texture);
+				texture = null;
+			}
+			if (image == this)
+			{
+				image = null;
+			}
 		}
 	}
 }

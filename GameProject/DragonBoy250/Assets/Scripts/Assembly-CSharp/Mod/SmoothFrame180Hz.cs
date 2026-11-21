@@ -1,4 +1,3 @@
-using System.Reflection;
 using UnityEngine;
 
 namespace Mod
@@ -7,11 +6,6 @@ namespace Mod
 	public sealed class SmoothFrame180Hz : MonoBehaviour
 	{
 		static SmoothFrame180Hz _instance;
-		static FieldInfo _paintCountField;
-		static FieldInfo _updateCountField;
-		static bool _reflectionReady;
-		static readonly object ZeroBox = 0;
-		static readonly object MaxBox = int.MaxValue / 2;
 
 		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
 		static void Bootstrap()
@@ -38,16 +32,10 @@ namespace Mod
 
 		internal static void UnlockMainPaintGate()
 		{
-			if (!_reflectionReady)
-			{
-				_reflectionReady = true;
-				_paintCountField = typeof(Main).GetField("paintCount", BindingFlags.Instance | BindingFlags.NonPublic);
-				_updateCountField = typeof(Main).GetField("updateCount", BindingFlags.Instance | BindingFlags.NonPublic);
-			}
 			if (Main.main != null)
 			{
-				_paintCountField?.SetValue(Main.main, ZeroBox);
-				_updateCountField?.SetValue(Main.main, MaxBox);
+				Main.main.paintCount = 0;
+				Main.main.updateCount = 1;
 			}
 		}
 
@@ -59,21 +47,18 @@ namespace Mod
 				return;
 			}
 			UnlockMainPaintGate();
-			GameEvents.PreProcessIncomingNetworkQueue();
 			GameEvents.ApplySubTickPoseForRender();
 		}
 
 		void FixedUpdate()
 		{
 			UnlockMainPaintGate();
-			GameEvents.PreProcessIncomingNetworkQueue();
 			GameEvents.BeginFixedTick();
 		}
 
 		void Update()
 		{
 			UnlockMainPaintGate();
-			GameEvents.PreProcessIncomingNetworkQueue();
 			GameEvents.RestoreAuthoritativePose();
 		}
 

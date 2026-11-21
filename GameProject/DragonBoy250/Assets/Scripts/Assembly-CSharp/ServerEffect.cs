@@ -24,6 +24,10 @@ public class ServerEffect : Effect2
 
 	public static void addServerEffect(int id, int cx, int cy, int loopCount)
 	{
+		if (GameScr.efs == null || id <= 0 || id > GameScr.efs.Length || GameScr.efs[id - 1] == null)
+		{
+			return;
+		}
 		ServerEffect serverEffect = new ServerEffect();
 		serverEffect.eff = GameScr.efs[id - 1];
 		serverEffect.x = cx;
@@ -34,6 +38,10 @@ public class ServerEffect : Effect2
 
 	public static void addServerEffect(int id, int cx, int cy, int loopCount, int trans)
 	{
+		if (GameScr.efs == null || id <= 0 || id > GameScr.efs.Length || GameScr.efs[id - 1] == null)
+		{
+			return;
+		}
 		ServerEffect serverEffect = new ServerEffect();
 		serverEffect.eff = GameScr.efs[id - 1];
 		serverEffect.x = cx;
@@ -45,6 +53,10 @@ public class ServerEffect : Effect2
 
 	public static void addServerEffect(int id, Mob m, int loopCount)
 	{
+		if (GameScr.efs == null || id <= 0 || id > GameScr.efs.Length || GameScr.efs[id - 1] == null)
+		{
+			return;
+		}
 		ServerEffect serverEffect = new ServerEffect();
 		serverEffect.eff = GameScr.efs[id - 1];
 		serverEffect.m = m;
@@ -54,6 +66,10 @@ public class ServerEffect : Effect2
 
 	public static void addServerEffect(int id, Char c, int loopCount)
 	{
+		if (GameScr.efs == null || id <= 0 || id > GameScr.efs.Length || GameScr.efs[id - 1] == null)
+		{
+			return;
+		}
 		ServerEffect serverEffect = new ServerEffect();
 		serverEffect.eff = GameScr.efs[id - 1];
 		serverEffect.c = c;
@@ -63,6 +79,10 @@ public class ServerEffect : Effect2
 
 	public static void addServerEffect(int id, Char c, int loopCount, int trans)
 	{
+		if (GameScr.efs == null || id <= 0 || id > GameScr.efs.Length || GameScr.efs[id - 1] == null)
+		{
+			return;
+		}
 		ServerEffect serverEffect = new ServerEffect();
 		serverEffect.eff = GameScr.efs[id - 1];
 		serverEffect.c = c;
@@ -73,6 +93,10 @@ public class ServerEffect : Effect2
 
 	public static void addServerEffectWithTime(int id, int cx, int cy, int timeLengthInSecond)
 	{
+		if (GameScr.efs == null || id <= 0 || id > GameScr.efs.Length || GameScr.efs[id - 1] == null)
+		{
+			return;
+		}
 		ServerEffect serverEffect = new ServerEffect();
 		serverEffect.eff = GameScr.efs[id - 1];
 		serverEffect.x = cx;
@@ -83,6 +107,10 @@ public class ServerEffect : Effect2
 
 	public static void addServerEffectWithTime(int id, Char c, int timeLengthInSecond)
 	{
+		if (GameScr.efs == null || id <= 0 || id > GameScr.efs.Length || GameScr.efs[id - 1] == null)
+		{
+			return;
+		}
 		ServerEffect serverEffect = new ServerEffect();
 		serverEffect.eff = GameScr.efs[id - 1];
 		serverEffect.c = c;
@@ -92,6 +120,10 @@ public class ServerEffect : Effect2
 
 	public override void paint(mGraphics g)
 	{
+		if (eff == null || eff.arrEfInfo == null || eff.arrEfInfo.Length == 0 || i0 < 0 || i0 >= eff.arrEfInfo.Length || eff.arrEfInfo[i0] == null)
+		{
+			return;
+		}
 		if (mGraphics.zoomLevel == 1)
 		{
 			GameScr.countEff++;
@@ -119,6 +151,11 @@ public class ServerEffect : Effect2
 
 	public override void update()
 	{
+		if (eff == null || eff.arrEfInfo == null || eff.arrEfInfo.Length == 0 || i0 < 0 || i0 >= eff.arrEfInfo.Length)
+		{
+			Effect2.vEffect2.removeElement(this);
+			return;
+		}
 		if (endTime != 0)
 		{
 			i0++;

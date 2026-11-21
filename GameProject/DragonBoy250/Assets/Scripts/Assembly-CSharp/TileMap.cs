@@ -478,41 +478,52 @@ public class TileMap
 
 	public static void paintTile(mGraphics g, int frame, int indexX, int indexY)
 	{
-		if (imgTile != null)
+		if (imgTile == null || imgTile.Length == 0 || frame < 0 || (imgTile.Length > 1 && frame >= imgTile.Length))
 		{
-			if (imgTile.Length == 1)
-			{
-				g.drawRegion(imgTile[0], 0, frame * size, size, size, 0, indexX * size, indexY * size, 0);
-			}
-			else
-			{
-				g.drawImage(imgTile[frame], indexX * size, indexY * size, 0);
-			}
+			return;
+		}
+		if (imgTile.Length == 1)
+		{
+			g.drawRegion(imgTile[0], 0, frame * size, size, size, 0, indexX * size, indexY * size, 0);
+		}
+		else
+		{
+			g.drawImage(imgTile[frame], indexX * size, indexY * size, 0);
 		}
 	}
 
 	public static void paintTile(mGraphics g, int frame, int x, int y, int w, int h)
 	{
-		if (imgTile != null)
+		if (imgTile == null || imgTile.Length == 0 || frame < 0 || (imgTile.Length > 1 && frame >= imgTile.Length))
 		{
-			if (imgTile.Length == 1)
-			{
-				g.drawRegion(imgTile[0], 0, frame * w, w, w, 0, x, y, 0);
-			}
-			else
-			{
-				g.drawImage(imgTile[frame], x, y, 0);
-			}
+			return;
+		}
+		if (imgTile.Length == 1)
+		{
+			g.drawRegion(imgTile[0], 0, frame * w, w, w, 0, x, y, 0);
+		}
+		else
+		{
+			g.drawImage(imgTile[frame], x, y, 0);
 		}
 	}
 
 	public static void paintTilemapLOW(mGraphics g)
 	{
+		if (maps == null)
+		{
+			return;
+		}
 		for (int i = GameScr.gssx; i < GameScr.gssxe; i++)
 		{
 			for (int j = GameScr.gssy; j < GameScr.gssye; j++)
 			{
-				int num = maps[j * tmw + i] - 1;
+				int idx = j * tmw + i;
+				if (idx < 0 || idx >= maps.Length)
+				{
+					continue;
+				}
+				int num = maps[idx] - 1;
 				if (num != -1)
 				{
 					paintTile(g, num, i, j);
@@ -566,6 +577,10 @@ public class TileMap
 		{
 			((ItemMap)GameScr.vItemMap.elementAt(i)).paintAuraItemEff(g);
 		}
+		if (maps == null)
+		{
+			return;
+		}
 		for (int j = GameScr.gssx; j < GameScr.gssxe; j++)
 		{
 			for (int k = GameScr.gssy; k < GameScr.gssye; k++)
@@ -574,7 +589,12 @@ public class TileMap
 				{
 					continue;
 				}
-				int num = maps[k * tmw + j] - 1;
+				int idx = k * tmw + j;
+				if (idx < 0 || idx >= maps.Length)
+				{
+					continue;
+				}
+				int num = maps[idx] - 1;
 				if ((tileTypeAt(j, k) & 0x100) == 256)
 				{
 					continue;
@@ -628,7 +648,12 @@ public class TileMap
 		{
 			for (int l = GameScr.gssy; l < GameScr.gssye; l++)
 			{
-				int num2 = maps[l * tmw + 1] - 1;
+				int idx = l * tmw + 1;
+				if (idx < 0 || idx >= maps.Length)
+				{
+					continue;
+				}
+				int num2 = maps[idx] - 1;
 				if (num2 != -1)
 				{
 					paintTile(g, num2, 0, l);
@@ -640,12 +665,20 @@ public class TileMap
 			return;
 		}
 		int num3 = tmw - 2;
-		for (int m = GameScr.gssy; m < GameScr.gssye; m++)
+		if (num3 >= 0)
 		{
-			int num4 = maps[m * tmw + num3] - 1;
-			if (num4 != -1)
+			for (int m = GameScr.gssy; m < GameScr.gssye; m++)
 			{
-				paintTile(g, num4, num3 + 1, m);
+				int idx = m * tmw + num3;
+				if (idx < 0 || idx >= maps.Length)
+				{
+					continue;
+				}
+				int num4 = maps[idx] - 1;
+				if (num4 != -1)
+				{
+					paintTile(g, num4, num3 + 1, m);
+				}
 			}
 		}
 	}

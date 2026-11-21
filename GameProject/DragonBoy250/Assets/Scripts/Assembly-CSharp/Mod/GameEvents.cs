@@ -58,8 +58,6 @@ namespace Mod
 
 		static FieldInfo _midletIpField;
 		static FieldInfo _midletPortField;
-		static FieldInfo _myVectorListField;
-		static FieldInfo _myReaderBufferField;
 		static bool _endpointReflectionInitialized;
 		static int _splashTicksObserved;
 		static bool _splashLoadIpTriggered;
@@ -97,25 +95,8 @@ namespace Mod
 				return;
 			_endpointReflectionInitialized = true;
 			const BindingFlags staticFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
-			const BindingFlags instanceFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 			_midletIpField = typeof(GameMidlet).GetField("IP", staticFlags);
 			_midletPortField = typeof(GameMidlet).GetField("PORT", staticFlags);
-			foreach (FieldInfo field in typeof(MyVector).GetFields(instanceFlags))
-			{
-				if (typeof(System.Collections.IList).IsAssignableFrom(field.FieldType))
-				{
-					_myVectorListField = field;
-					break;
-				}
-			}
-			foreach (FieldInfo field in typeof(myReader).GetFields(instanceFlags))
-			{
-				if (field.FieldType == typeof(sbyte[]))
-				{
-					_myReaderBufferField = field;
-					break;
-				}
-			}
 		}
 
 		static bool IsLegacyOrWildcardHost(string candidate)
@@ -386,9 +367,9 @@ namespace Mod
 			try
 			{
 				myReader r = msg.reader();
-				if (r != null && _myReaderBufferField != null)
+				if (r != null)
 				{
-					return _myReaderBufferField.GetValue(r) as sbyte[];
+					return r.buffer;
 				}
 			}
 			catch
@@ -397,21 +378,20 @@ namespace Mod
 			return null;
 		}
 
-		static void NormalizeQueueServerListMessages(MyVector queue)
+		static void NormalizeQueueServerListMessages(MyVector queue, object queueLock)
 		{
-			if (queue == null || queue.size() <= 0)
-				return;
-			EnsureEndpointReflection();
-			System.Collections.IList backingList = _myVectorListField?.GetValue(queue) as System.Collections.IList;
-			if (backingList == null)
+			if (queue == null || queueLock == null)
 				return;
 			try
 			{
-				lock (backingList.SyncRoot)
+				lock (queueLock)
 				{
-					for (int i = 0; i < backingList.Count; i++)
+					int count = queue.size();
+					if (count <= 0)
+						return;
+					for (int i = 0; i < count; i++)
 					{
-						Message msg = backingList[i] as Message;
+						Message msg = queue.elementAt(i) as Message;
 						if (msg == null || msg.command != -29)
 							continue;
 						sbyte[] data = ExtractIncomingMessageBytes(msg);
@@ -445,7 +425,7 @@ namespace Mod
 						{
 							rebuilt[3 + newUtf.Length + k] = data[3 + utfLen + k];
 						}
-						backingList[i] = new Message(-29, rebuilt);
+						queue.setElementAt(new Message(-29, rebuilt), i);
 					}
 				}
 			}
@@ -456,8 +436,8 @@ namespace Mod
 
 		internal static void PreProcessIncomingNetworkQueue()
 		{
-			NormalizeQueueServerListMessages(Session_ME.recieveMsg);
-			NormalizeQueueServerListMessages(Session_ME2.recieveMsg);
+			NormalizeQueueServerListMessages(Session_ME.recieveMsg, Session_ME.RecieveLock);
+			NormalizeQueueServerListMessages(Session_ME2.recieveMsg, Session_ME2.RecieveLock);
 			if (IsLegacyOrWildcardHost(GameMidlet.IP2))
 			{
 				GameMidlet.IP2 = currentHost;
@@ -663,7 +643,6 @@ namespace Mod
 
 		internal static void OnMainStart()
 		{
-			UIImage.OnStart();
 			ApplyTeamobi2026ServerConfig();
 		}
 
@@ -708,7 +687,6 @@ namespace Mod
 		{
 			EnsureMainThreadRegistered();
 			UnlockMainPaintGate();
-			PreProcessIncomingNetworkQueue();
 			if (!string.Equals(ServerListScreen.linkweb, "suboi", StringComparison.Ordinal))
 			{
 				EnforceSuboiLabel(false);
@@ -992,7 +970,7 @@ namespace Mod
 				Service.gI().petInfo();
 			}
 
-			if (mSystem.currentTimeMillis() - lastTimeRequestZoneInfo > delayRequestZoneInfo)
+			if (!isOpenZoneUI && mSystem.currentTimeMillis() - lastTimeRequestZoneInfo > delayRequestZoneInfo)
 			{
 				delayRequestZoneInfo = Res.random(2000, 3000);
 				lastTimeRequestZoneInfo = mSystem.currentTimeMillis();
@@ -1271,19 +1249,21 @@ namespace Mod
 				CharEffectMain.Paint(g);
 				UIReportersManager.handlePaintGameScr(g);
 				g.setColor(Color.red);
-				for (int i = 0; i < GameScr.vCharInMap.size(); i++)
+				if (GameScr.vCharInMap != null)
 				{
-					Char @char = (Char)GameScr.vCharInMap.elementAt(i);
-					if (@char.cTypePk == 5)
+					for (int i = 0; i < GameScr.vCharInMap.size(); i++)
 					{
-						g.drawLineToBoss(Char.myCharz().cx - GameScr.cmx, Char.myCharz().cy - GameScr.cmy, @char.cx - GameScr.cmx, @char.cy - GameScr.cmy);
+						Char @char = (Char)GameScr.vCharInMap.elementAt(i);
+						if (@char != null && @char.cTypePk == 5)
+						{
+							g.drawLineToBoss(Char.myCharz().cx - GameScr.cmx, Char.myCharz().cy - GameScr.cmy, @char.cx - GameScr.cmx, @char.cy - GameScr.cmy);
+						}
 					}
 				}
 			}
 			catch (Exception e)
 			{
-				Debug.LogError(e);
-				throw;
+				UnityEngine.Debug.LogException(e);
 			}
 
 		}
@@ -1459,7 +1439,9 @@ namespace Mod
 
 		internal static void OnAddInfoChar(Char c, string info)
 		{
-			if (LocalizedString.saoMayLuoiThe.ContainsReversed(info.ToLower()) && AutoTrainPet.Mode > AutoTrainPetMode.Disabled && c.charID == -Char.myCharz().charID)
+			if (AutoTrainPet.Mode <= AutoTrainPetMode.Disabled || c == null || string.IsNullOrEmpty(info))
+				return;
+			if (LocalizedString.saoMayLuoiThe.ContainsReversed(info.ToLower()) && c.charID == -Char.myCharz().charID)
 			{
 				AutoTrainPet.saoMayLuoiThe = true;
 			}
@@ -1496,8 +1478,19 @@ namespace Mod
 			string filePath = Path.Combine(customAssetsPath, filename.Replace('/', Path.DirectorySeparatorChar) + ".png");
 			if (File.Exists(filePath))
 			{
+				byte[] bytes = File.ReadAllBytes(filePath);
 				texture2D = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-				if (!texture2D.LoadImage(File.ReadAllBytes(filePath)))
+				bool loaded = false;
+				try
+				{
+					loaded = texture2D.LoadImage(bytes);
+				}
+				catch
+				{
+					UnityEngine.Object.Destroy(texture2D);
+					throw;
+				}
+				if (!loaded)
 				{
 					UnityEngine.Object.Destroy(texture2D);
 					texture2D = Resources.Load<Texture2D>(filename);
@@ -2317,7 +2310,7 @@ namespace Mod
 						if (item.itemOption != null)
 						{
 							ItemOption itemOption = item.GetBestItemOption();
-							if (itemOption == null)
+							if (itemOption?.optionTemplate == null)
 								goto Label;
 							int param = itemOption.param;
 							int id = itemOption.optionTemplate.id;
@@ -2335,7 +2328,7 @@ namespace Mod
 								goto Label;
 							g.setColor(i == panel.selected ? 0x919600 : 0x987B55);
 							for (int j = 0; j < item.itemOption.Length; j++)
-								if (item.itemOption[j].optionTemplate.id == 72 && item.itemOption[j].param > 0)
+								if (item.itemOption[j]?.optionTemplate != null && item.itemOption[j].optionTemplate.id == 72 && item.itemOption[j].param > 0)
 								{
 									byte id_ = (byte)GetColor_Item_Upgrade(item.itemOption[j].param);
 									if (GetColor_ItemBg(id_) != -1)
@@ -2344,7 +2337,8 @@ namespace Mod
 
 							g.fillRect(panel.xScroll, y, 34, panel.ITEM_HEIGHT - 1);
 							CustomGraphics.PaintItemEffectInPanel(g, panel.xScroll + 17, y + 11, 34, panel.ITEM_HEIGHT - 1, item);
-							SmallImage.drawSmallImage(g, item.template.iconID, panel.xScroll + 34 / 2, panel.yScroll + i * panel.ITEM_HEIGHT + (panel.ITEM_HEIGHT - 1) / 2, 0, 3);
+							if (item?.template != null)
+								SmallImage.drawSmallImage(g, item.template.iconID, panel.xScroll + 34 / 2, panel.yScroll + i * panel.ITEM_HEIGHT + (panel.ITEM_HEIGHT - 1) / 2, 0, 3);
 						}
 
 						Label: ;
@@ -2385,7 +2379,7 @@ namespace Mod
 					if (item.itemOption != null)
 					{
 						ItemOption itemOption = item.GetBestItemOption();
-						if (itemOption == null)
+						if (itemOption?.optionTemplate == null)
 							goto Label;
 						int param = itemOption.param;
 						int id = itemOption.optionTemplate.id;
@@ -2403,7 +2397,7 @@ namespace Mod
 							goto Label;
 						g.setColor(i == panel.selected ? 0x919600 : 0x987B55);
 						for (int j = 0; j < item.itemOption.Length; j++)
-							if (item.itemOption[j].optionTemplate.id == 72 && item.itemOption[j].param > 0)
+							if (item.itemOption[j]?.optionTemplate != null && item.itemOption[j].optionTemplate.id == 72 && item.itemOption[j].param > 0)
 							{
 								byte id_ = (byte)GetColor_Item_Upgrade(item.itemOption[j].param);
 								if (GetColor_ItemBg(id_) != -1)
@@ -2413,8 +2407,9 @@ namespace Mod
 						g.fillRect(panel.xScroll, y, 24, panel.ITEM_HEIGHT - 1);
 						CustomGraphics.PaintItemEffectInPanel(g, panel.xScroll + 12, y + 11, 24, panel.ITEM_HEIGHT - 1,
 							item);
-						SmallImage.drawSmallImage(g, item.template.iconID, panel.xScroll + 24 / 2,
-							panel.yScroll + i * panel.ITEM_HEIGHT + (panel.ITEM_HEIGHT - 1) / 2, 0, 3);
+						if (item?.template != null)
+							SmallImage.drawSmallImage(g, item.template.iconID, panel.xScroll + 24 / 2,
+								panel.yScroll + i * panel.ITEM_HEIGHT + (panel.ITEM_HEIGHT - 1) / 2, 0, 3);
 					}
 
 					Label: ;
@@ -2465,7 +2460,7 @@ namespace Mod
 					if (item.itemOption != null)
 					{
 						ItemOption itemOption = item.GetBestItemOption();
-						if (itemOption == null)
+						if (itemOption?.optionTemplate == null)
 							goto Label;
 						int param = itemOption.param;
 						int id = itemOption.optionTemplate.id;
@@ -2483,7 +2478,7 @@ namespace Mod
 							goto Label;
 						g.setColor(i == panel.selected ? 0x919600 : 0x987B55);
 						for (int j = 0; j < item.itemOption.Length; j++)
-							if (item.itemOption[j].optionTemplate.id == 72 && item.itemOption[j].param > 0)
+							if (item.itemOption[j]?.optionTemplate != null && item.itemOption[j].optionTemplate.id == 72 && item.itemOption[j].param > 0)
 							{
 								byte id_ = (byte)GetColor_Item_Upgrade(item.itemOption[j].param);
 								if (GetColor_ItemBg(id_) != -1)
@@ -2492,16 +2487,19 @@ namespace Mod
 
 						g.fillRect(panel.xScroll, y, 34, panel.ITEM_HEIGHT - 1);
 						CustomGraphics.PaintItemEffectInPanel(g, panel.xScroll + 17, y + 14, 34, panel.ITEM_HEIGHT - 1, item);
-						SmallImage.drawSmallImage(g, item.template.iconID, panel.xScroll + 34 / 2, panel.yScroll + i * panel.ITEM_HEIGHT + (panel.ITEM_HEIGHT - 1) / 2, 0, 3);
+						if (item?.template != null)
+							SmallImage.drawSmallImage(g, item.template.iconID, panel.xScroll + 34 / 2, panel.yScroll + i * panel.ITEM_HEIGHT + (panel.ITEM_HEIGHT - 1) / 2, 0, 3);
 					}
 
 					Label: ;
 					CustomGraphics.PaintItemOptions(g, panel, item, y);
 				}
 			}
-			else if (panel.type == 2) //box
+			else if (panel.type == 2 && panel.currentTabIndex == 0) //box
 			{
-				Item[] arrItemBox = Char.myCharz().arrItemBox;
+				Item[] arrItemBox = Char.myCharz()?.arrItemBox;
+				if (arrItemBox == null)
+					return;
 				int offset = Math.max(panel.cmy / panel.ITEM_HEIGHT - 1, 0);
 				for (int i = offset;
 				     i < Mathf.Clamp(offset + panel.hScroll / panel.ITEM_HEIGHT + 2, 0, arrItemBox.Length);
@@ -2525,7 +2523,7 @@ namespace Mod
 					if (item.itemOption != null)
 					{
 						ItemOption itemOption = item.GetBestItemOption();
-						if (itemOption == null)
+						if (itemOption?.optionTemplate == null)
 							goto Label;
 						int param = itemOption.param;
 						int id = itemOption.optionTemplate.id;
@@ -2544,7 +2542,7 @@ namespace Mod
 						g.setColor(i == panel.selected ? 0x919600 : 0x987B55);
 						foreach (ItemOption option in item.itemOption)
 						{
-							if (option.optionTemplate.id == 72 && option.param > 0)
+							if (option?.optionTemplate != null && option.optionTemplate.id == 72 && option.param > 0)
 							{
 								byte id_ = (byte)GetColor_Item_Upgrade(option.param);
 								if (GetColor_ItemBg(id_) != -1)
@@ -2557,8 +2555,9 @@ namespace Mod
 						g.fillRect(panel.xScroll, y, 34, panel.ITEM_HEIGHT - 1);
 						CustomGraphics.PaintItemEffectInPanel(g, panel.xScroll + 17, y + 11, 34, panel.ITEM_HEIGHT - 1,
 							item);
-						SmallImage.drawSmallImage(g, item.template.iconID, panel.xScroll + 34 / 2,
-							y + (panel.ITEM_HEIGHT - 1) / 2, 0, 3);
+						if (item?.template != null)
+							SmallImage.drawSmallImage(g, item.template.iconID, panel.xScroll + 34 / 2,
+								y + (panel.ITEM_HEIGHT - 1) / 2, 0, 3);
 					}
 
 					Label: ;
@@ -2586,7 +2585,7 @@ namespace Mod
 					if (item.itemOption != null)
 					{
 						ItemOption itemOption = item.GetBestItemOption();
-						if (itemOption == null)
+						if (itemOption?.optionTemplate == null)
 							goto Label;
 						int param = itemOption.param;
 						int id = itemOption.optionTemplate.id;
@@ -2604,7 +2603,7 @@ namespace Mod
 							goto Label;
 						g.setColor(i == panel.selected ? 0x919600 : 0x987B55);
 						for (int j = 0; j < item.itemOption.Length; j++)
-							if (item.itemOption[j].optionTemplate.id == 72 && item.itemOption[j].param > 0)
+							if (item.itemOption[j]?.optionTemplate != null && item.itemOption[j].optionTemplate.id == 72 && item.itemOption[j].param > 0)
 							{
 								byte id_ = (byte)GetColor_Item_Upgrade(item.itemOption[j].param);
 								if (GetColor_ItemBg(id_) != -1)
@@ -2613,7 +2612,8 @@ namespace Mod
 
 						g.fillRect(panel.xScroll, y, 34, panel.ITEM_HEIGHT - 1);
 						CustomGraphics.PaintItemEffectInPanel(g, panel.xScroll + 17, y + 11, 34, panel.ITEM_HEIGHT - 1, item);
-						SmallImage.drawSmallImage(g, item.template.iconID, panel.xScroll + 34 / 2, panel.yScroll + i * panel.ITEM_HEIGHT + (panel.ITEM_HEIGHT - 1) / 2, 0, 3);
+						if (item?.template != null)
+							SmallImage.drawSmallImage(g, item.template.iconID, panel.xScroll + 34 / 2, panel.yScroll + i * panel.ITEM_HEIGHT + (panel.ITEM_HEIGHT - 1) / 2, 0, 3);
 					}
 
 					Label: ;
@@ -2629,8 +2629,10 @@ namespace Mod
 			         panel.type == 1 && panel.currentTabIndex == panel.currentTabName.Length - 1 &&
 			         GameCanvas.panel2 == null && panel.typeShop != 2) //my inventory
 			{
-				Item[] arrItemBody = Char.myCharz().arrItemBody;
-				Item[] arrItemBag = Char.myCharz().arrItemBag;
+				Item[] arrItemBody = Char.myCharz()?.arrItemBody;
+				Item[] arrItemBag = Char.myCharz()?.arrItemBag;
+				if (arrItemBody == null || arrItemBag == null)
+					return;
 				int totalItems = arrItemBody.Length + arrItemBag.Length;
 				int offset = Math.max(panel.cmy / panel.ITEM_HEIGHT, 0);
 
@@ -2653,7 +2655,7 @@ namespace Mod
 					if (item.itemOption != null)
 					{
 						ItemOption itemOption = item.GetBestItemOption();
-						if (itemOption == null)
+						if (itemOption?.optionTemplate == null)
 							goto Label;
 						int param = itemOption.param;
 						int id = itemOption.optionTemplate.id;
@@ -2690,7 +2692,7 @@ namespace Mod
 
 						foreach (ItemOption option in item.itemOption)
 						{
-							if (option.optionTemplate.id == 72 && option.param > 0)
+							if (option?.optionTemplate != null && option.optionTemplate.id == 72 && option.param > 0)
 							{
 								byte id_ = (byte)GetColor_Item_Upgrade(option.param);
 								if (GetColor_ItemBg(id_) != -1)
@@ -2705,8 +2707,9 @@ namespace Mod
 						CustomGraphics.PaintItemEffectInPanel(g,
 							panel.xScroll + 17 + (panel == GameCanvas.panel2 ? 2 : 0), y + 11, 34,
 							panel.ITEM_HEIGHT - 1, item);
-						SmallImage.drawSmallImage(g, item.template.iconID, panel.xScroll + 34 / 2,
-							y + (panel.ITEM_HEIGHT - 1) / 2, 0, 3);
+						if (item?.template != null)
+							SmallImage.drawSmallImage(g, item.template.iconID, panel.xScroll + 34 / 2,
+								y + (panel.ITEM_HEIGHT - 1) / 2, 0, 3);
 					}
 
 					Label: ;
@@ -2961,8 +2964,9 @@ namespace Mod
 
 		internal static bool OnOpenUIZone(GameScr instance, Message message)
 		{
-			bool bg = _isBackgroundZonePoll;
+			bool bg = _isBackgroundZonePoll && !isOpenZoneUI;
 			_isBackgroundZonePoll = false;
+			isOpenZoneUI = false;
 			if (!bg)
 			{
 				InfoDlg.hide();

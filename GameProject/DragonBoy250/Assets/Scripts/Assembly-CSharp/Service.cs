@@ -3064,7 +3064,7 @@ public class Service
 		}
 		catch (Exception ex)
 		{
-			Cout.println(ex.Message + ex.StackTrace);
+			ex.StackTrace.ToString();
 		}
 		finally
 		{
@@ -3085,7 +3085,7 @@ public class Service
 		}
 		catch (Exception ex)
 		{
-			Cout.println(ex.Message + ex.StackTrace);
+			ex.StackTrace.ToString();
 		}
 		finally
 		{

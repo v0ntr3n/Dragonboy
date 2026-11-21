@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Threading;
 using Mod;
@@ -6,10 +7,53 @@ using UnityEngine;
 
 public class Rms
 {
+	private sealed class RmsRequest
+	{
+		public string Filename;
+
+		public sbyte[] Data;
+
+		public bool IsSave;
+
+		public ManualResetEventSlim Done;
+
+		private int _pendingOwners;
+
+		public RmsRequest(string filename, sbyte[] data, bool isSave)
+		{
+			Filename = filename;
+			Data = data;
+			IsSave = isSave;
+			Done = new ManualResetEventSlim(false);
+			_pendingOwners = 2;
+		}
+
+		public void Signal()
+		{
+			try
+			{
+				Done.Set();
+			}
+			catch (ObjectDisposedException)
+			{
+			}
+		}
+
+		public void Release()
+		{
+			if (Interlocked.Decrement(ref _pendingOwners) == 0)
+			{
+				Done.Dispose();
+			}
+		}
+	}
 
 	const int INTERVAL = 5;
 
 	const int MAXTIME = 500;
+
+	private static readonly ConcurrentQueue<RmsRequest> _requestQueue = new ConcurrentQueue<RmsRequest>();
+
 	public static volatile int status;
 
 	public static sbyte[] data;
@@ -105,80 +149,60 @@ public class Rms
 		GameEvents.OnSaveRMSString(ref filename, ref data);
 	}
 
-	private static readonly object _ioLock = new object();
-
 	static void _saveRMS(string filename, sbyte[] data)
 	{
-		lock (_ioLock)
+		RmsRequest req = new RmsRequest(filename, data, true);
+		_requestQueue.Enqueue(req);
+		try
 		{
-			if (status != 0)
-			{
-				Debug.LogError("Cannot save RMS " + filename + " because current is saving " + Rms.filename);
-				return;
-			}
-			Rms.filename = filename;
-			Rms.data = data;
-			status = 2;
-			int i;
-			for (i = 0; i < 500; i++)
-			{
-				Thread.Sleep(5);
-				if (status == 0)
-				{
-					break;
-				}
-			}
-			if (i == 500)
+			if (!req.Done.Wait(INTERVAL * MAXTIME))
 			{
 				Debug.LogError("TOO LONG TO SAVE RMS " + filename);
-#pragma warning disable 0420
-				Interlocked.CompareExchange(ref status, 0, 2);
-#pragma warning restore 0420
 			}
+		}
+		finally
+		{
+			req.Release();
 		}
 	}
 
 	static sbyte[] _loadRMS(string filename)
 	{
-		lock (_ioLock)
+		RmsRequest req = new RmsRequest(filename, null, false);
+		_requestQueue.Enqueue(req);
+		try
 		{
-			if (status != 0)
-			{
-				Debug.LogError("Cannot load RMS " + filename + " because current is loading " + Rms.filename);
-				return null;
-			}
-			Rms.filename = filename;
-			data = null;
-			status = 3;
-			int i;
-			for (i = 0; i < 500; i++)
-			{
-				Thread.Sleep(5);
-				if (status == 0)
-				{
-					break;
-				}
-			}
-			if (i == 500)
+			if (!req.Done.Wait(INTERVAL * MAXTIME))
 			{
 				Debug.LogError("TOO LONG TO LOAD RMS " + filename);
-#pragma warning disable 0420
-				Interlocked.CompareExchange(ref status, 0, 3);
-#pragma warning restore 0420
+				return null;
 			}
-			return data;
+			return req.Data;
+		}
+		finally
+		{
+			req.Release();
 		}
 	}
 
 	public static void update()
 	{
-#pragma warning disable 0420
-		if (System.Threading.Interlocked.CompareExchange(ref status, 1, 2) == 2)
-#pragma warning restore 0420
+		while (_requestQueue.TryDequeue(out RmsRequest req))
 		{
+			if (req == null)
+			{
+				continue;
+			}
 			try
 			{
-				__saveRMS(filename, data);
+				if (req.IsSave)
+				{
+					__saveRMS(req.Filename, req.Data);
+				}
+				else
+				{
+					req.Data = __loadRMS(req.Filename);
+				}
 			}
 			catch (Exception ex)
 			{
@@ -186,24 +210,8 @@ public class Rms
 			}
 			finally
 			{
-				status = 0;
-			}
-		}
-#pragma warning disable 0420
-		else if (System.Threading.Interlocked.CompareExchange(ref status, 1, 3) == 3)
-#pragma warning restore 0420
-		{
-			try
-			{
-				data = __loadRMS(filename);
-			}
-			catch (Exception ex)
-			{
-				Debug.LogException(ex);
-			}
-			finally
-			{
-				status = 0;
+				req.Signal();
+				req.Release();
 			}
 		}
 	}
@@ -211,7 +219,7 @@ public class Rms
 	public static int loadRMSInt(string file)
 	{
 		sbyte[] array = loadRMS(file);
-		return array != null ? array[0] : -1;
+		return (array != null && array.Length > 0) ? array[0] : (-1);
 	}
 
 	public static void saveRMSInt(string file, int x)
@@ -240,14 +248,59 @@ public class Rms
 
 	static void __saveRMS(string filename, sbyte[] data)
 	{
+		if (data == null)
+		{
+			return;
+		}
 		GameEvents.OnRmsFileIo(() =>
 		{
 			string text = GetiPhoneDocumentsPath() + "/" + filename;
-			FileStream fileStream = new FileStream(text, FileMode.Create);
-			fileStream.Write(ArrayCast.cast(data), 0, data.Length);
-			fileStream.Flush();
-			fileStream.Close();
-			Main.setBackupIcloud(text);
+			string tmpPath = text + ".tmp";
+			try
+			{
+				string dir = Path.GetDirectoryName(text);
+				if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+				{
+					Directory.CreateDirectory(dir);
+				}
+				byte[] bytes = ArrayCast.cast(data);
+				using (FileStream fileStream = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
+				{
+					fileStream.Write(bytes, 0, bytes.Length);
+					fileStream.Flush(true);
+				}
+				if (File.Exists(text))
+				{
+					try
+					{
+						File.Replace(tmpPath, text, null);
+					}
+					catch (PlatformNotSupportedException)
+					{
+						File.Delete(text);
+						File.Move(tmpPath, text);
+					}
+				}
+				else
+				{
+					File.Move(tmpPath, text);
+				}
+				Main.setBackupIcloud(text);
+			}
+			catch (Exception ex)
+			{
+				Debug.LogException(ex);
+				try
+				{
+					if (File.Exists(tmpPath))
+					{
+						File.Delete(tmpPath);
+					}
+				}
+				catch (Exception)
+				{
+				}
+			}
 		});
 	}
 
@@ -258,10 +311,13 @@ public class Rms
 		{
 			try
 			{
-				FileStream fileStream = new FileStream(GetiPhoneDocumentsPath() + "/" + filename, FileMode.Open);
-				byte[] array = new byte[fileStream.Length];
-				fileStream.Read(array, 0, array.Length);
-				fileStream.Close();
+				string path = GetiPhoneDocumentsPath() + "/" + filename;
+				if (!File.Exists(path))
+				{
+					loaded = null;
+					return;
+				}
+				byte[] array = File.ReadAllBytes(path);
 				loaded = ArrayCast.cast(array);
 			}
 			catch (Exception)

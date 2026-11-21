@@ -50,7 +50,11 @@ namespace Mod.ModMenu
             _config = config;
         }
 
-        internal string getSelectedValue() => Values[(int)SelectedValue];
+        internal string getSelectedValue()
+        {
+            int idx = (int)SelectedValue;
+            return (Values != null && idx >= 0 && idx < Values.Length) ? Values[idx] : string.Empty;
+        }
 
         internal void SwitchSelection()
         {

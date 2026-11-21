@@ -23,7 +23,10 @@ namespace Mod.CustomPanel
 
 		internal static void Show(CustomPanelMenuConfig config, Panel panel = null)
 		{
-			(panel == null ? customPanel : GetCustomPanel(panel)).ConfigAndShow(config);
+			Panel targetPanel = panel ?? GameCanvas.panel;
+			if (targetPanel == null)
+				return;
+			GetCustomPanel(targetPanel).ConfigAndShow(config);
 		}
 
 		static CustomPanelMenu GetCustomPanel(Panel panel)
@@ -70,30 +73,42 @@ namespace Mod.CustomPanel
 
 		internal static bool PaintTabHeader(Panel panel, mGraphics g)
 		{
-			if (GetCustomPanel(panel).config.PaintTabHeaderAction == null)
+			CustomPanelMenu customPanelMenu = GetCustomPanel(panel);
+			if (customPanelMenu == null || customPanelMenu.config == null || customPanelMenu.config.PaintTabHeaderAction == null)
 				return false;
-			GetCustomPanel(panel).config.PaintTabHeaderAction(panel, g);
+			customPanelMenu.config.PaintTabHeaderAction(panel, g);
 			return true;
 		}
 
 		internal static void SetTab(Panel panel)
 		{
-			GetCustomPanel(panel).config.SetTabAction(panel);
+			CustomPanelMenu customPanelMenu = GetCustomPanel(panel);
+			if (customPanelMenu == null || customPanelMenu.config == null)
+				return;
+			customPanelMenu.config.SetTabAction?.Invoke(panel);
 		}
 
 		internal static void DoFire(Panel panel)
 		{
-			GetCustomPanel(panel).config.DoFireItemAction(panel);
+			CustomPanelMenu customPanelMenu = GetCustomPanel(panel);
+			if (customPanelMenu == null || customPanelMenu.config == null)
+				return;
+			customPanelMenu.config.DoFireItemAction?.Invoke(panel);
 		}
 
 		internal static void Paint(Panel panel, mGraphics g)
 		{
-			GetCustomPanel(panel).config.PaintAction(panel, g);
+			CustomPanelMenu customPanelMenu = GetCustomPanel(panel);
+			if (customPanelMenu == null || customPanelMenu.config == null)
+				return;
+			customPanelMenu.config.PaintAction?.Invoke(panel, g);
 		}
 
 		internal static void PaintTopInfo(Panel panel, mGraphics g)
 		{
 			CustomPanelMenu customPanelMenu = GetCustomPanel(panel);
+			if (customPanelMenu == null || customPanelMenu.config == null)
+				return;
 			if (customPanelMenu.config.PaintTopInfoAction != null)
 			{
 				customPanelMenu.config.PaintTopInfoAction(panel, g);
@@ -104,7 +119,10 @@ namespace Mod.CustomPanel
 			mFont.tahoma_7_yellow.drawString(g, Strings.gameVersion + ": v" + GameMidlet.VERSION, panel.X + 60, 16, mFont.LEFT, mFont.tahoma_7_grey);
 			g.setClip(0, 0, GameCanvas.w, GameCanvas.h);
 			mFont.tahoma_7_yellow.drawString(g, mResources.character + ": " + Char.myCharz().cName, panel.X + 60, 27, mFont.LEFT, mFont.tahoma_7_grey);
-			mFont.tahoma_7_yellow.drawString(g, mResources.account + " " + mResources.account_server.ToLower() + " " + ServerListScreen.nameServer[ServerListScreen.ipSelect], panel.X + 60, 38, mFont.LEFT, mFont.tahoma_7_grey);
+			string serverName = (ServerListScreen.nameServer != null && ServerListScreen.ipSelect >= 0 && ServerListScreen.ipSelect < ServerListScreen.nameServer.Length)
+				? ServerListScreen.nameServer[ServerListScreen.ipSelect]
+				: string.Empty;
+			mFont.tahoma_7_yellow.drawString(g, mResources.account + " " + mResources.account_server.ToLower() + " " + serverName, panel.X + 60, 38, mFont.LEFT, mFont.tahoma_7_grey);
 		}
 	}
 }

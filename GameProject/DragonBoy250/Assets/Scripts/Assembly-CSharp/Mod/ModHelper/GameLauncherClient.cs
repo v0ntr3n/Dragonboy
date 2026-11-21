@@ -442,25 +442,39 @@ namespace Mod.ModHelper
 					if (!string.IsNullOrEmpty(candidate) &&
 					    string.Equals(candidate.Trim(), trimmed, StringComparison.OrdinalIgnoreCase))
 					{
-						Utils.server = null;
-						ServerListScreen.ipSelect = i;
-						Rms.saveRMSInt("svselect", i);
+						SetServerByIndex(i);
 						return;
 					}
 				}
 
 				if (int.TryParse(trimmed, out int index) && index >= 0 && index < ServerListScreen.nameServer.Length)
 				{
-					Utils.server = null;
-					ServerListScreen.ipSelect = index;
-					Rms.saveRMSInt("svselect", index);
+					SetServerByIndex(index);
 					return;
 				}
 			}
 
-			Utils.server = null;
-			ServerListScreen.ipSelect = 0;
-			Rms.saveRMSInt("svselect", 0);
+			SetServerByIndex(0);
+		}
+
+		static void SetServerByIndex(int i)
+		{
+			if (ServerListScreen.address != null && ServerListScreen.port != null &&
+			    i >= 0 && i < ServerListScreen.address.Length && i < ServerListScreen.port.Length &&
+			    !string.IsNullOrEmpty(ServerListScreen.address[i]))
+			{
+				Utils.server = new JObject
+				{
+					["ip"] = ServerListScreen.address[i],
+					["port"] = ServerListScreen.port[i]
+				};
+			}
+			else
+			{
+				Utils.server = null;
+			}
+			ServerListScreen.ipSelect = i;
+			Rms.saveRMSInt("svselect", i);
 		}
 
 		void SendCharacterInfo()

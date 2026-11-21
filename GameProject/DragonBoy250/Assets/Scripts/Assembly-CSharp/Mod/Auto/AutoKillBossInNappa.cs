@@ -31,6 +31,8 @@ namespace Mod.Auto
 		{
 			return target != null
 			       && !target.meDead
+			       && target.cHP > 0
+			       && GameScr.findCharInMap(target.charID) == target
 			       && target.cTypePk == 5
 			       && target.cx >= 0
 			       && target.cy >= 0

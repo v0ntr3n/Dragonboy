@@ -141,7 +141,7 @@ namespace Mod.ModHelper.Menu
 			string[] captions = payload.captions;
 
 			string caption = captions[selected];
-			if (Char.chatPopup != null && Char.chatPopup.c.avatar == Utils.ID_NPC_MOD_FACE)
+			if (Char.chatPopup != null && Char.chatPopup.c != null && Char.chatPopup.c.avatar == Utils.ID_NPC_MOD_FACE)
 				Char.chatPopup = null;
 			action.Invoke(selected, caption, captions);
 		}

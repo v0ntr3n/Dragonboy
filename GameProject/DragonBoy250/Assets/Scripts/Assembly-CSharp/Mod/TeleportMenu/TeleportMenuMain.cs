@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Mod.CustomPanel;
+using Mod.ModHelper;
 using Mod.ModHelper.CommandMod.Chat;
 using Mod.ModHelper.CommandMod.Hotkey;
 using Mod.ModHelper.Menu;
@@ -23,7 +24,7 @@ namespace Mod.TeleportMenu
 		const int MaxDisguiseEquipRetries = 10;
 
 		static long lastTimeAutoTeleportTo;
-		static bool isChangeDisguise;
+		static volatile bool isChangeDisguise;
 		static int previousDisguiseId = -1;
 
 		[ChatCommand("tele"), HotkeyCommand('z')]
@@ -91,10 +92,10 @@ namespace Mod.TeleportMenu
 					{
 						for (int i = 0; i < GameScr.vCharInMap.size(); i++)
 						{
-							Char ch = (Char)GameScr.vCharInMap.elementAt(i);
-							if (ch.IsNormalChar())
+							Char mapChar = (Char)GameScr.vCharInMap.elementAt(i);
+							if (mapChar.IsNormalChar())
 							{
-								TeleportChar teleportChar1 = new TeleportChar(ch);
+								TeleportChar teleportChar1 = new TeleportChar(mapChar);
 								if (!listTeleportChars.Contains(teleportChar1))
 									listTeleportChars.Add(teleportChar1);
 							}
@@ -236,6 +237,81 @@ namespace Mod.TeleportMenu
 			return templateId >= 592 && templateId <= 594;
 		}
 
+		static bool TryEquipDisguiseOnMainThread(Func<short, bool> matchTemplate, out bool alreadyEquipped, out bool foundInBag)
+		{
+			bool equipped = false;
+			bool found = false;
+			using (ManualResetEventSlim done = new ManualResetEventSlim(false))
+			{
+				MainThreadDispatcher.Dispatch(() =>
+				{
+					try
+					{
+						short equippedId = GetEquippedDisguiseId();
+						if (matchTemplate(equippedId))
+						{
+							equipped = true;
+							return;
+						}
+
+						Item[] bagItems = Char.myCharz()?.arrItemBag;
+						if (bagItems != null)
+						{
+							for (int i = 0; i < bagItems.Length && i <= sbyte.MaxValue; i++)
+							{
+								Item item = bagItems[i];
+								if (item?.template != null && matchTemplate(item.template.id))
+								{
+									found = true;
+									Service.gI().getItem(4, (sbyte)i);
+									break;
+								}
+							}
+						}
+					}
+					finally
+					{
+						try
+						{
+							done.Set();
+						}
+						catch (ObjectDisposedException)
+						{
+						}
+					}
+				});
+
+				if (!done.Wait(2000))
+				{
+					alreadyEquipped = false;
+					foundInBag = false;
+					return false;
+				}
+			}
+
+			alreadyEquipped = equipped;
+			foundInBag = found;
+			return true;
+		}
+
+		static void EquipDisguiseWithRetry(Func<short, bool> matchTemplate, int delayMs)
+		{
+			for (int retries = 0; retries < MaxDisguiseEquipRetries; retries++)
+			{
+				if (!TryEquipDisguiseOnMainThread(matchTemplate, out bool alreadyEquipped, out bool foundInBag))
+				{
+					break;
+				}
+
+				if (alreadyEquipped || !foundInBag)
+				{
+					break;
+				}
+
+				Thread.Sleep(delayMs);
+			}
+		}
+
 		internal static void Update()
 		{
 			int nameUpdateInterval = (int)(60 * Time.timeScale);
@@ -276,80 +352,50 @@ namespace Mod.TeleportMenu
 						{
 							try
 							{
-								Item[] bagItems = Char.myCharz()?.arrItemBag;
-								if (bagItems != null)
-								{
-									for (int j = 0; j < bagItems.Length; j++)
-									{
-										Item item = bagItems[j];
-										if (item?.template != null && item.template.id == restoreDisguiseId)
-										{
-											int retries = 0;
-											do
-											{
-												Service.gI().getItem(4, (sbyte)j);
-												Thread.Sleep(500);
-												retries++;
-											} while (GetEquippedDisguiseId() != restoreDisguiseId && retries < MaxDisguiseEquipRetries);
-											break;
-										}
-									}
-								}
-
+								EquipDisguiseWithRetry(id => id == restoreDisguiseId, 500);
 								previousDisguiseId = -1;
 							}
 							finally
 							{
 								isChangeDisguise = false;
 							}
-						}).Start();
+						}) { IsBackground = true }.Start();
 					}
 				}
 				if (!isCharInMap && isAutoTeleportTo && !isChangeDisguise && mSystem.currentTimeMillis() - lastTimeAutoTeleportTo >= 2000)
 				{
 					lastTimeAutoTeleportTo = mSystem.currentTimeMillis();
 					targetChar.LastTimeTeleportTo = lastTimeAutoTeleportTo;
+					short equippedId = GetEquippedDisguiseId();
+					if (!IsYardratDisguise(equippedId) && previousDisguiseId == -1 && equippedId != -1)
+					{
+						Item[] bagItems = Char.myCharz()?.arrItemBag;
+						if (bagItems != null)
+						{
+							for (int i = 0; i < bagItems.Length; i++)
+							{
+								Item item = bagItems[i];
+								if (item?.template != null && IsYardratDisguise(item.template.id))
+								{
+									previousDisguiseId = equippedId;
+									break;
+								}
+							}
+						}
+					}
 					isChangeDisguise = true;
 					new Thread(() =>
 					{
 						try
 						{
-							short equippedId = GetEquippedDisguiseId();
-							if (!IsYardratDisguise(equippedId))
-							{
-								Item[] bagItems = Char.myCharz()?.arrItemBag;
-								if (bagItems != null)
-								{
-									for (int i = 0; i < bagItems.Length; i++)
-									{
-										Item item = bagItems[i];
-										if (item?.template != null && IsYardratDisguise(item.template.id))
-										{
-											if (previousDisguiseId == -1 && equippedId != -1)
-											{
-												previousDisguiseId = equippedId;
-											}
-
-											int retries = 0;
-											do
-											{
-												Service.gI().getItem(4, (sbyte)i);
-												Thread.Sleep(250);
-												retries++;
-											} while (!IsYardratDisguise(GetEquippedDisguiseId()) && retries < MaxDisguiseEquipRetries);
-											break;
-										}
-									}
-								}
-							}
-
-							TeleportToPlayer(targetChar.ID, false);
+							EquipDisguiseWithRetry(IsYardratDisguise, 250);
+							MainThreadDispatcher.Dispatch(() => TeleportToPlayer(targetChar.ID, false));
 						}
 						finally
 						{
 							isChangeDisguise = false;
 						}
-					}).Start();
+					}) { IsBackground = true }.Start();
 				}
 			}
 		}
@@ -368,7 +414,7 @@ namespace Mod.TeleportMenu
 		internal static void DoFireTeleportListPanel(Panel panel)
 		{
 			listTeleportChars_orderByName = listTeleportChars.OrderBy(tC => tC.Name).ToList();
-			if (panel.selected < 0)
+			if (panel.selected < 0 || panel.selected >= listTeleportChars_orderByName.Count)
 				return;
 			string str = "";
 			Action action = null;
@@ -459,7 +505,10 @@ namespace Mod.TeleportMenu
 
 		static void TeleportToPlayer(int charId, bool isAutoUseYardrat = true)
 		{
-			GameEvents.OnGotoPlayer(charId, isAutoUseYardrat);
+			if (!GameEvents.OnGotoPlayer(charId, isAutoUseYardrat))
+			{
+				Service.gI().gotoPlayer(charId);
+			}
 		}
 		class TeleportMenuChatable : IChatable
 		{

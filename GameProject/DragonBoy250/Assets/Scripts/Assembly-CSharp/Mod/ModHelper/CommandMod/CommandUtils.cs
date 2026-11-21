@@ -24,9 +24,11 @@ namespace Mod.ModHelper.CommandMod
         /// <returns>Danh sách các hàm trong class.</returns>
         public static MethodInfo[] getMethods(string typeFullName)
         {
-            return typeof(CommandUtils).Assembly
-                .GetTypes().FirstOrDefault(x => x.FullName.ToLower() == typeFullName.ToLower())
-                .GetMethods(STATIC_VOID);
+            if (string.IsNullOrEmpty(typeFullName))
+                return null;
+            Type type = typeof(CommandUtils).Assembly
+                .GetTypes().FirstOrDefault(x => x.FullName != null && x.FullName.Equals(typeFullName, StringComparison.OrdinalIgnoreCase));
+            return type?.GetMethods(STATIC_VOID);
         }
 
         /// <summary>

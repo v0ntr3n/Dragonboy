@@ -374,8 +374,17 @@ public class Mob : IMapObject
 		return this is BachTuoc || this is BigBoss2 || this is BigBoss || this is NewBoss;
 	}
 
+	private bool HasValidTemplate()
+	{
+		return arrMobTemplate != null && templateId >= 0 && templateId < arrMobTemplate.Length && arrMobTemplate[templateId] != null;
+	}
+
 	public void getData()
 	{
+		if (!HasValidTemplate())
+		{
+			return;
+		}
 		if (arrMobTemplate[templateId].data == null)
 		{
 			arrMobTemplate[templateId].data = new EffectData();
@@ -392,7 +401,12 @@ public class Mob : IMapObject
 			}
 			if (lastMob.size() > 15)
 			{
-				arrMobTemplate[int.Parse((string)lastMob.elementAt(0))].data = null;
+				int idx = int.Parse((string)lastMob.elementAt(0));
+				if (idx >= 0 && idx < arrMobTemplate.Length && arrMobTemplate[idx] != null)
+				{
+					arrMobTemplate[idx].data?.img?.DestroyTexture();
+					arrMobTemplate[idx].data = null;
+				}
 				lastMob.removeElementAt(0);
 			}
 			lastMob.addElement(templateId + string.Empty);
@@ -446,7 +460,9 @@ public class Mob : IMapObject
 		{
 			if (arrMobTemplate[j].data != null && num > 5)
 			{
+				arrMobTemplate[j].data?.img?.DestroyTexture();
 				arrMobTemplate[j].data = null;
+				num--;
 			}
 		}
 	}
@@ -822,7 +838,7 @@ public class Mob : IMapObject
 		{
 			timeStatus = 4;
 			status = 7;
-			if (getTemplate().type != 0 && Res.abs(x - xFirst) < 30)
+			if (HasValidTemplate() && getTemplate().type != 0 && Res.abs(x - xFirst) < 30)
 			{
 				x -= 10 * dir;
 			}
@@ -870,6 +886,10 @@ public class Mob : IMapObject
 
 	public static NewBoss getNewBoss(sbyte idBoss)
 	{
+		if (GameScr.vMob == null || idBoss < 0 || idBoss >= GameScr.vMob.size())
+		{
+			return null;
+		}
 		Mob mob = (Mob)GameScr.vMob.elementAt(idBoss);
 		if (mob is NewBoss)
 		{
@@ -1005,7 +1025,7 @@ public class Mob : IMapObject
 			}
 			injureBy = null;
 		}
-		else if (arrMobTemplate[templateId].type != 0 && injureBy != null)
+		else if (HasValidTemplate() && arrMobTemplate[templateId].type != 0 && injureBy != null)
 		{
 			int num = -injureBy.cdir << 1;
 			if (x > xFirst - arrMobTemplate[templateId].rangeMove && x < xFirst + arrMobTemplate[templateId].rangeMove)
@@ -1017,6 +1037,10 @@ public class Mob : IMapObject
 
 	public void updateMobStandWait()
 	{
+		if (!HasValidTemplate())
+		{
+			return;
+		}
 		checkFrameTick(stand);
 		switch (arrMobTemplate[templateId].type)
 		{
@@ -1070,6 +1094,10 @@ public class Mob : IMapObject
 
 	public void updateMobAttack()
 	{
+		if (!HasValidTemplate())
+		{
+			return;
+		}
 		if (cFocus == null && mobToAttack == null)
 		{
 			status = 2;
@@ -1186,6 +1214,10 @@ public class Mob : IMapObject
 			if (isDontMove || isWind)
 			{
 				checkFrameTick(stand);
+				return;
+			}
+			if (!HasValidTemplate())
+			{
 				return;
 			}
 			switch (arrMobTemplate[templateId].type)
@@ -1339,6 +1371,10 @@ public class Mob : IMapObject
 
 	public MobTemplate getTemplate()
 	{
+		if (!HasValidTemplate())
+		{
+			return null;
+		}
 		return arrMobTemplate[templateId];
 	}
 
@@ -1360,7 +1396,7 @@ public class Mob : IMapObject
 		{
 			return false;
 		}
-		if (arrMobTemplate[templateId] == null)
+		if (!HasValidTemplate())
 		{
 			return false;
 		}
@@ -1381,7 +1417,7 @@ public class Mob : IMapObject
 
 	public bool isUpdate()
 	{
-		if (arrMobTemplate[templateId] == null)
+		if (!HasValidTemplate())
 		{
 			return false;
 		}
@@ -1456,7 +1492,10 @@ public class Mob : IMapObject
 		{
 			if (!changBody)
 			{
-				arrMobTemplate[templateId].data.paintFrame(g, frame, xMFB, yMFB, (dir != 1) ? 1 : 0, 2);
+				if (arrMobTemplate != null && templateId >= 0 && templateId < arrMobTemplate.Length && arrMobTemplate[templateId]?.data != null)
+				{
+					arrMobTemplate[templateId].data.paintFrame(g, frame, xMFB, yMFB, (dir != 1) ? 1 : 0, 2);
+				}
 			}
 			else
 			{
@@ -1615,7 +1654,7 @@ public class Mob : IMapObject
 
 	public void GetFrame()
 	{
-		if (isGetFr && isTypeNewMod() && arrMobTemplate[templateId].data != null)
+		if (isGetFr && isTypeNewMod() && HasValidTemplate() && arrMobTemplate[templateId].data != null)
 		{
 			frameArr = (int[][])Controller.frameHT_NEWBOSS.get(templateId + string.Empty);
 			stand = frameArr[0];
@@ -1630,7 +1669,7 @@ public class Mob : IMapObject
 
 	public bool isTypeNewMod()
 	{
-		if (arrMobTemplate[templateId].data != null && arrMobTemplate[templateId].data.typeData == 2)
+		if (HasValidTemplate() && arrMobTemplate[templateId].data != null && arrMobTemplate[templateId].data.typeData == 2)
 		{
 			return true;
 		}

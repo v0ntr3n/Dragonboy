@@ -336,10 +336,14 @@ public class Item
 
 	public bool isHaveOption(int id)
 	{
+		if (this.itemOption == null)
+		{
+			return false;
+		}
 		for (int i = 0; i < this.itemOption.Length; i++)
 		{
 			ItemOption itemOption = this.itemOption[i];
-			if (itemOption != null && itemOption.optionTemplate.id == id)
+			if (itemOption?.optionTemplate != null && itemOption.optionTemplate.id == id)
 			{
 				return true;
 			}

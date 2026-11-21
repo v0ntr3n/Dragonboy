@@ -158,42 +158,7 @@ public class ServerListScreen : mScreen, IActionListener
 		cmdUpdateServer = new Command();
 		cmdUpdateServer.actionChat = delegate(string str)
 		{
-			string text = str;
-			string text2 = str;
-			if (text == null)
-			{
-				text = linkDefault;
-			}
-			else
-			{
-				if (text == null && text2 != null)
-				{
-					if (text2.Equals(string.Empty) || text2.Length < 20)
-					{
-						text2 = linkDefault;
-					}
-					getServerList(text2);
-				}
-				if (text != null && text2 == null)
-				{
-					if (text.Equals(string.Empty) || text.Length < 20)
-					{
-						text = linkDefault;
-					}
-					getServerList(text);
-				}
-				if (text != null && text2 != null)
-				{
-					if (text.Length > text2.Length)
-					{
-						getServerList(text);
-					}
-					else
-					{
-						getServerList(text2);
-					}
-				}
-			}
+			getServerList(string.IsNullOrEmpty(str) || str.Length < 20 ? linkDefault : str);
 		};
 		setLinkDefault(mSystem.LANGUAGE);
 	}
@@ -213,6 +178,7 @@ public class ServerListScreen : mScreen, IActionListener
 			loadScreen = true;
 			testConnect = 0;
 			isGetData = false;
+			Controller.isLoadingData = false;
 			mSystem.println(">>>>>isGetData: " + isGetData);
 			Rms.clearAll();
 			switchToMe();
@@ -539,41 +505,58 @@ public class ServerListScreen : mScreen, IActionListener
 
 	public static void getServerList(string str)
 	{
+		if (string.IsNullOrEmpty(str))
+		{
+			if (str != linkDefault && !string.IsNullOrEmpty(linkDefault))
+			{
+				getServerList(linkDefault);
+			}
+			return;
+		}
 		string[] array = Res.split(str.Trim(), ",", 0);
 		Res.outz(">>> getServerList= " + str);
-		mResources.loadLanguague(sbyte.Parse(array[array.Length - 2]));
-		nameServer = new string[array.Length - 2];
-		address = new string[array.Length - 2];
-		port = new int[array.Length - 2];
-		language = new sbyte[array.Length - 2];
-		typeSv = new sbyte[array.Length - 2];
-		isNew = new sbyte[array.Length - 2];
-		hasConnected = new bool[2];
-		for (int i = 0; i < array.Length - 2; i++)
+		if (array == null || array.Length < 3 || !sbyte.TryParse(array[array.Length - 2].Trim(), out sbyte langDefault) || !sbyte.TryParse(array[array.Length - 1].Trim(), out sbyte parsedPriority))
+		{
+			if (str != linkDefault && !string.IsNullOrEmpty(linkDefault))
+			{
+				getServerList(linkDefault);
+			}
+			return;
+		}
+		int count = array.Length - 2;
+		string[] parsedNames = new string[count];
+		string[] parsedAddresses = new string[count];
+		int[] parsedPorts = new int[count];
+		sbyte[] parsedLanguages = new sbyte[count];
+		sbyte[] parsedTypeSv = new sbyte[count];
+		sbyte[] parsedIsNew = new sbyte[count];
+		for (int i = 0; i < count; i++)
 		{
 			string[] array2 = Res.split(array[i].Trim(), ":", 0);
-			nameServer[i] = array2[0];
-			address[i] = array2[1];
-			port[i] = int.Parse(array2[2].Trim());
-			language[i] = sbyte.Parse(array2[3].Trim());
-			try
+			if (array2 == null || array2.Length < 4 || !int.TryParse(array2[2].Trim(), out int parsedPort) || !sbyte.TryParse(array2[3].Trim(), out sbyte parsedLang))
 			{
-				typeSv[i] = sbyte.Parse(array2[4].Trim());
+				if (str != linkDefault && !string.IsNullOrEmpty(linkDefault))
+				{
+					getServerList(linkDefault);
+				}
+				return;
 			}
-			catch (Exception)
-			{
-				typeSv[i] = 0;
-			}
-			try
-			{
-				isNew[i] = sbyte.Parse(array2[5].Trim());
-			}
-			catch (Exception)
-			{
-				isNew[i] = 0;
-			}
+			parsedNames[i] = array2[0];
+			parsedAddresses[i] = array2[1];
+			parsedPorts[i] = parsedPort;
+			parsedLanguages[i] = parsedLang;
+			parsedTypeSv[i] = array2.Length > 4 && sbyte.TryParse(array2[4].Trim(), out sbyte parsedType) ? parsedType : (sbyte)0;
+			parsedIsNew[i] = array2.Length > 5 && sbyte.TryParse(array2[5].Trim(), out sbyte parsedNew) ? parsedNew : (sbyte)0;
 		}
-		serverPriority = sbyte.Parse(array[array.Length - 1]);
+		mResources.loadLanguague(langDefault);
+		nameServer = parsedNames;
+		address = parsedAddresses;
+		port = parsedPorts;
+		language = parsedLanguages;
+		typeSv = parsedTypeSv;
+		isNew = parsedIsNew;
+		hasConnected = new bool[2];
+		serverPriority = parsedPriority;
 		Res.outz(">>> getServerList= serverPriority: " + serverPriority);
 		saveIP();
 	}
@@ -692,6 +675,18 @@ public class ServerListScreen : mScreen, IActionListener
 
 	public void selectServer()
 	{
+		if (nameServer == null || nameServer.Length == 0)
+		{
+			return;
+		}
+		if (ipSelect < 0)
+		{
+			ipSelect = 0;
+		}
+		else if (ipSelect >= nameServer.Length)
+		{
+			ipSelect = nameServer.Length - 1;
+		}
 		flagServer = 30;
 		GameCanvas.startWaitDlg(mResources.PLEASEWAIT);
 		Session_ME.gI().close();
@@ -842,11 +837,11 @@ public class ServerListScreen : mScreen, IActionListener
 				}
 			}
 		}
-		else if (loadScreen)
+		else if (loadScreen && cmd != null && cmd.Length > 0)
 		{
 			if (GameCanvas.keyPressed[8])
 			{
-				int num2 = mGraphics.zoomLevel <= 1 ? 4 : 2;
+				int num2 = mGraphics.zoomLevel <= 1 ? cmd.Length - 1 : System.Math.Min(2, cmd.Length - 1);
 				GameCanvas.keyPressed[8] = false;
 				selected++;
 				if (selected > num2)
@@ -857,7 +852,7 @@ public class ServerListScreen : mScreen, IActionListener
 			}
 			if (GameCanvas.keyPressed[2])
 			{
-				int num3 = mGraphics.zoomLevel <= 1 ? 4 : 2;
+				int num3 = mGraphics.zoomLevel <= 1 ? cmd.Length - 1 : System.Math.Min(2, cmd.Length - 1);
 				GameCanvas.keyPressed[2] = false;
 				selected--;
 				if (selected < 0)
@@ -991,14 +986,25 @@ public class ServerListScreen : mScreen, IActionListener
 		isWait = false;
 		GameCanvas.loginScr = null;
 		string text = Rms.loadRMSString(Rms.RMS_ResVersion);
-		int num = text == null || !(text != string.Empty) ? -1 : int.Parse(text);
+		int num = !string.IsNullOrEmpty(text) && int.TryParse(text, out int parsedResVer) ? parsedResVer : -1;
 		if (num > 0)
 		{
 			loadScreen = true;
 			GameCanvas.loadBG(0);
 		}
 		bigOk = true;
-		cmd[2 + nCmdPlay].caption = mResources.server + ": " + nameServer[ipSelect];
+		if (nameServer != null && nameServer.Length > 0)
+		{
+			if (ipSelect < 0)
+			{
+				ipSelect = 0;
+			}
+			else if (ipSelect >= nameServer.Length)
+			{
+				ipSelect = nameServer.Length - 1;
+			}
+			cmd[2 + nCmdPlay].caption = mResources.server + ": " + nameServer[ipSelect];
+		}
 		center = new Command(string.Empty, this, cmd[selected].idAction, null);
 		cmd[1 + nCmdPlay].caption = mResources.change_account;
 		if (cmd.Length == 4 + nCmdPlay)
@@ -1019,14 +1025,25 @@ public class ServerListScreen : mScreen, IActionListener
 		isWait = false;
 		GameCanvas.loginScr = null;
 		string text = Rms.loadRMSString(Rms.RMS_ResVersion);
-		int num = text == null || !(text != string.Empty) ? -1 : int.Parse(text);
+		int num = !string.IsNullOrEmpty(text) && int.TryParse(text, out int parsedResVer) ? parsedResVer : -1;
 		if (num > 0)
 		{
 			loadScreen = true;
 			GameCanvas.loadBG(0);
 		}
 		bigOk = true;
-		cmd[2 + nCmdPlay].caption = mResources.server + ": " + nameServer[ipSelect];
+		if (nameServer != null && nameServer.Length > 0)
+		{
+			if (ipSelect < 0)
+			{
+				ipSelect = 0;
+			}
+			else if (ipSelect >= nameServer.Length)
+			{
+				ipSelect = nameServer.Length - 1;
+			}
+			cmd[2 + nCmdPlay].caption = mResources.server + ": " + nameServer[ipSelect];
+		}
 		center = new Command(string.Empty, this, cmd[selected].idAction, null);
 		cmd[1 + nCmdPlay].caption = mResources.change_account;
 		if (cmd.Length == 4 + nCmdPlay)
@@ -1054,6 +1071,7 @@ public class ServerListScreen : mScreen, IActionListener
 		stopDownload = true;
 		GameCanvas.serverScreen.show2();
 		isGetData = false;
+		Controller.isLoadingData = false;
 		cmdDownload.isFocus = true;
 		center = new Command(string.Empty, this, 2, null);
 	}
@@ -1140,6 +1158,18 @@ public class ServerListScreen : mScreen, IActionListener
 
 	public static void ConnectIP()
 	{
+		if (nameServer == null || nameServer.Length == 0)
+		{
+			return;
+		}
+		if (ipSelect < 0)
+		{
+			ipSelect = 0;
+		}
+		else if (ipSelect >= nameServer.Length)
+		{
+			ipSelect = nameServer.Length - 1;
+		}
 		GameMidlet.IP = address[ipSelect];
 		GameMidlet.PORT = port[ipSelect];
 		mResources.loadLanguague(language[ipSelect]);
@@ -1159,6 +1189,17 @@ public class ServerListScreen : mScreen, IActionListener
 
 	public void Login_New()
 	{
+		if (nameServer != null && nameServer.Length > 0)
+		{
+			if (ipSelect < 0)
+			{
+				ipSelect = 0;
+			}
+			else if (ipSelect >= nameServer.Length)
+			{
+				ipSelect = nameServer.Length - 1;
+			}
+		}
 		if (GameCanvas.loginScr == null)
 		{
 			GameCanvas.loginScr = new LoginScr();
@@ -1169,11 +1210,11 @@ public class ServerListScreen : mScreen, IActionListener
 		string text = Rms.loadRMSString(Rms.RMS_userAo + ipSelect);
 		try
 		{
-			if (!Rms.loadRMSString(Rms.RMS_acc).Equals(string.Empty))
+			if (!string.IsNullOrEmpty(Rms.loadRMSString(Rms.RMS_acc)))
 			{
 				flag = true;
 			}
-			if (!text.Equals(string.Empty))
+			if (!string.IsNullOrEmpty(text))
 			{
 				flag2 = true;
 			}
@@ -1185,7 +1226,7 @@ public class ServerListScreen : mScreen, IActionListener
 		Service.gI().setClientType();
 		if (!flag && !flag2)
 		{
-			if (text == null || text.Equals(string.Empty))
+			if (string.IsNullOrEmpty(text))
 			{
 				Debug.LogError(">>>>Login_New: login2: ");
 				Service.gI().login2(string.Empty);
@@ -1196,7 +1237,7 @@ public class ServerListScreen : mScreen, IActionListener
 				Service.gI().login(text, string.Empty, GameMidlet.VERSION, 1);
 			}
 			Rms.saveRMSInt(RMS_svselect, ipSelect);
-			if (Session_ME.connected)
+			if (Session_ME.connected || Session_ME.connecting)
 			{
 				GameCanvas.startWaitDlg();
 			}
@@ -1209,7 +1250,10 @@ public class ServerListScreen : mScreen, IActionListener
 		{
 			GameCanvas.loginScr.doLogin();
 		}
-		LoginScr.serverName = nameServer[ipSelect];
+		if (nameServer != null && nameServer.Length > 0)
+		{
+			LoginScr.serverName = nameServer[ipSelect];
+		}
 	}
 
 	public static void LoadRMS_ExtraLink()
@@ -1265,8 +1309,9 @@ public class ServerListScreen : mScreen, IActionListener
 			dataOutputStream.writeByte((sbyte)typeClass.Length);
 			for (int i = 0; i < typeClass.Length; i++)
 			{
-				dataOutputStream.writeByte(typeClass[i]);
-				if (typeClass[i] > -1 && listChar != null && listChar[i] != null)
+				bool hasChar = typeClass[i] > -1 && listChar != null && i < listChar.Length && listChar[i] != null;
+				dataOutputStream.writeByte(hasChar ? typeClass[i] : (sbyte)-1);
+				if (hasChar)
 				{
 					dataOutputStream.writeShort((short)listChar[i].head);
 					dataOutputStream.writeShort((short)listChar[i].body);
@@ -1337,11 +1382,11 @@ public class ServerListScreen : mScreen, IActionListener
 		bool flag2 = false;
 		try
 		{
-			if (!Rms.loadRMSString(Rms.RMS_acc).Equals(string.Empty))
+			if (!string.IsNullOrEmpty(Rms.loadRMSString(Rms.RMS_acc)))
 			{
 				flag = true;
 			}
-			if (!Rms.loadRMSString(Rms.RMS_userAo + ipSelect).Equals(string.Empty))
+			if (!string.IsNullOrEmpty(Rms.loadRMSString(Rms.RMS_userAo + ipSelect)))
 			{
 				flag2 = true;
 			}

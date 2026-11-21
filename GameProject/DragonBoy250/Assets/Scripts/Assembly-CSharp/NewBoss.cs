@@ -151,12 +151,17 @@ public class NewBoss : Mob, IMapObject
 		w_hp_bar = 100;
 		len = w_hp_bar;
 		updateHp_bar();
-		if (Mob.arrMobTemplate[templateId].data == null)
+		if (HasValidTemplate() && Mob.arrMobTemplate[templateId].data == null)
 		{
 			Service.gI().requestModTemplate(templateId);
 		}
 		status = 2;
 		frameArr = null;
+	}
+
+	private bool HasValidTemplate()
+	{
+		return Mob.arrMobTemplate != null && templateId >= 0 && templateId < Mob.arrMobTemplate.Length && Mob.arrMobTemplate[templateId] != null;
 	}
 
 	public override void setBody(short id)
@@ -250,6 +255,10 @@ public class NewBoss : Mob, IMapObject
 
 	public override void update()
 	{
+		if (!HasValidTemplate())
+		{
+			return;
+		}
 		if (frameArr == null && Mob.arrMobTemplate[templateId].data != null)
 		{
 			GetFrame();
@@ -371,6 +380,7 @@ public class NewBoss : Mob, IMapObject
 		this.type = type;
 		base.dir = dir;
 		status = 3;
+		tick = 0;
 		if (x != xTo || y != yTo)
 		{
 			x += (xTo - x) / 4;
@@ -380,15 +390,24 @@ public class NewBoss : Mob, IMapObject
 
 	public new void updateMobAttack()
 	{
+		if (frameArr == null || type < 1 || type + 1 >= frameArr.Length || frameArr[type + 1] == null || frameArr[type + 1].Length == 0 || frameArr.Length <= 16 || frameArr[15] == null || type - 1 >= frameArr[15].Length || frameArr[16] == null || type - 1 >= frameArr[16].Length)
+		{
+			status = 2;
+			return;
+		}
 		if (tick == frameArr[type + 1].Length - 1)
 		{
 			status = 2;
 		}
 		checkFrameTick(frameArr[type + 1]);
-		if (tick == frameArr[15][type - 1])
+		if (tick == frameArr[15][type - 1] && charAttack != null && dameHP != null)
 		{
 			for (int i = 0; i < charAttack.Length; i++)
 			{
+				if (charAttack[i] == null || i >= dameHP.Length)
+				{
+					continue;
+				}
 				charAttack[i].doInjure(dameHP[i], 0L, false, false);
 				ServerEffect.addServerEffect(frameArr[16][type - 1], charAttack[i].cx, charAttack[i].cy, 1);
 			}
@@ -397,6 +416,10 @@ public class NewBoss : Mob, IMapObject
 
 	public new void updateMobWalk()
 	{
+		if (!HasValidTemplate())
+		{
+			return;
+		}
 		checkFrameTick(frameArr[1]);
 		sbyte speed = Mob.arrMobTemplate[templateId].speed;
 		int num = speed;
@@ -457,7 +480,7 @@ public class NewBoss : Mob, IMapObject
 
 	public override void paint(mGraphics g)
 	{
-		if (Mob.arrMobTemplate[templateId].data == null || isHide)
+		if (!HasValidTemplate() || Mob.arrMobTemplate[templateId].data == null || isHide)
 		{
 			return;
 		}
@@ -515,49 +538,52 @@ public class NewBoss : Mob, IMapObject
 		{
 			return;
 		}
-		int imageWidth = mGraphics.getImageWidth(imgHPtem);
-		int imageHeight = mGraphics.getImageHeight(imgHPtem);
-		int num2 = imageWidth;
-		int num3 = imageWidth;
-		int num4 = x - imageWidth;
-		int num5 = y - h - 5;
-		int num6 = imageWidth * 2 * per / 100;
-		int num7 = num6;
-		if (per_tem >= per)
+		if (imgHPtem != null)
 		{
-			num7 = imageWidth * (per_tem -= ((GameCanvas.gameTick % 6 <= 3) ? offset : offset++)) / 100;
-			if (per_tem <= 0)
+			int imageWidth = mGraphics.getImageWidth(imgHPtem);
+			int imageHeight = mGraphics.getImageHeight(imgHPtem);
+			int num2 = imageWidth;
+			int num3 = imageWidth;
+			int num4 = x - imageWidth;
+			int num5 = y - h - 5;
+			int num6 = imageWidth * 2 * per / 100;
+			int num7 = num6;
+			if (per_tem >= per)
 			{
-				per_tem = 0;
+				num7 = imageWidth * (per_tem -= ((GameCanvas.gameTick % 6 <= 3) ? offset : offset++)) / 100;
+				if (per_tem <= 0)
+				{
+					per_tem = 0;
+				}
+				if (per_tem < per)
+				{
+					per_tem = per;
+				}
+				if (offset >= 3)
+				{
+					offset = 3;
+				}
 			}
-			if (per_tem < per)
+			if (num6 > num2)
 			{
-				per_tem = per;
+				num3 = num6 - num2;
+				if (num3 <= 0)
+				{
+					num3 = 0;
+				}
 			}
-			if (offset >= 3)
+			else
 			{
-				offset = 3;
-			}
-		}
-		if (num6 > num2)
-		{
-			num3 = num6 - num2;
-			if (num3 <= 0)
-			{
+				num2 = num6;
 				num3 = 0;
 			}
+			g.drawImage(GameScr.imgHP_tm_xam, num4, num5, mGraphics.TOP | mGraphics.LEFT);
+			g.drawImage(GameScr.imgHP_tm_xam, num4 + imageWidth, num5, mGraphics.TOP | mGraphics.LEFT);
+			g.setColor(16777215);
+			g.fillRect(num4, num5, num7, 2);
+			g.drawRegion(imgHPtem, 0, 0, num2, imageHeight, 0, num4, num5, mGraphics.TOP | mGraphics.LEFT);
+			g.drawRegion(imgHPtem, 0, 0, num3, imageHeight, 0, num4 + imageWidth, num5, mGraphics.TOP | mGraphics.LEFT);
 		}
-		else
-		{
-			num2 = num6;
-			num3 = 0;
-		}
-		g.drawImage(GameScr.imgHP_tm_xam, num4, num5, mGraphics.TOP | mGraphics.LEFT);
-		g.drawImage(GameScr.imgHP_tm_xam, num4 + imageWidth, num5, mGraphics.TOP | mGraphics.LEFT);
-		g.setColor(16777215);
-		g.fillRect(num4, num5, num7, 2);
-		g.drawRegion(imgHPtem, 0, 0, num2, imageHeight, 0, num4, num5, mGraphics.TOP | mGraphics.LEFT);
-		g.drawRegion(imgHPtem, 0, 0, num3, imageHeight, 0, num4 + imageWidth, num5, mGraphics.TOP | mGraphics.LEFT);
 	}
 
 	public new int getHPColor()
@@ -684,6 +710,10 @@ public class NewBoss : Mob, IMapObject
 
 	public new void GetFrame()
 	{
+		if (!HasValidTemplate() || Mob.arrMobTemplate[templateId].data == null)
+		{
+			return;
+		}
 		try
 		{
 			frameArr = (int[][])Controller.frameHT_NEWBOSS.get(templateId + string.Empty);

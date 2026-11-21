@@ -61,15 +61,21 @@ public class MonsterDart : Effect2
 
 	public MonsterDart(int x, int y, bool isBoss, long dame, long dameMp, Char c, int dartType)
 	{
-		info = GameScr.darts[dartType];
+		info = (GameScr.darts != null && dartType >= 0 && dartType < GameScr.darts.Length) ? GameScr.darts[dartType] : null;
 		this.x = x;
 		this.y = y;
 		this.isBoss = isBoss;
 		this.dame = dame;
 		this.dameMp = dameMp;
 		this.c = c;
-		va = info.va;
-		setAngle(Res.angle(c.cx - x, c.cy - y));
+		if (info != null)
+		{
+			va = info.va;
+		}
+		if (c != null)
+		{
+			setAngle(Res.angle(c.cx - x, c.cy - y));
+		}
 		if (x >= GameScr.cmx && x <= GameScr.cmx + GameCanvas.w)
 		{
 			SoundMn.gI().mobKame(dartType);
@@ -78,7 +84,7 @@ public class MonsterDart : Effect2
 
 	public MonsterDart(int x, int y, bool isBoss, long dame, long dameMp, int xTo, int yTo, int dartType)
 	{
-		info = GameScr.darts[dartType];
+		info = (GameScr.darts != null && dartType >= 0 && dartType < GameScr.darts.Length) ? GameScr.darts[dartType] : null;
 		this.x = x;
 		this.y = y;
 		this.isBoss = isBoss;
@@ -86,7 +92,10 @@ public class MonsterDart : Effect2
 		this.dameMp = dameMp;
 		this.xTo = xTo;
 		this.yTo = yTo;
-		va = info.va;
+		if (info != null)
+		{
+			va = info.va;
+		}
 		setAngle(Res.angle(xTo - x, yTo - y));
 		if (x >= GameScr.cmx && x <= GameScr.cmx + GameCanvas.w)
 		{
@@ -104,19 +113,32 @@ public class MonsterDart : Effect2
 
 	public static void addMonsterDart(int x, int y, bool isBoss, long dame, long dameMp, Char c, int dartType)
 	{
+		if (c == null || GameScr.darts == null || dartType < 0 || dartType >= GameScr.darts.Length || GameScr.darts[dartType] == null)
+		{
+			return;
+		}
 		Effect2.vEffect2.addElement(new MonsterDart(x, y, isBoss, dame, dameMp, c, dartType));
 	}
 
 	public static void addMonsterDart(int x, int y, bool isBoss, long dame, long dameMp, int xTo, int yTo, int dartType)
 	{
+		if (GameScr.darts == null || dartType < 0 || dartType >= GameScr.darts.Length || GameScr.darts[dartType] == null)
+		{
+			return;
+		}
 		Effect2.vEffect2.addElement(new MonsterDart(x, y, isBoss, dame, dameMp, xTo, yTo, dartType));
 	}
 
 	public override void update()
 	{
+		if (info == null)
+		{
+			Effect2.vEffect2.removeElement(this);
+			return;
+		}
 		for (int i = 0; i < info.nUpdate; i++)
 		{
-			if (info.tail.Length > 0)
+			if (info.tail != null && info.tail.Length > 0)
 			{
 				darts.addElement(new SmallDart(x, y));
 			}
@@ -187,11 +209,12 @@ public class MonsterDart : Effect2
 			y += num4;
 			dy &= 1023;
 		}
-		for (int j = 0; j < darts.size(); j++)
+		int tailLen = (info.tail != null) ? info.tail.Length : 0;
+		for (int j = darts.size() - 1; j >= 0; j--)
 		{
 			SmallDart smallDart = (SmallDart)darts.elementAt(j);
 			smallDart.index++;
-			if (smallDart.index >= info.tail.Length)
+			if (smallDart.index >= tailLen)
 			{
 				darts.removeElementAt(j);
 			}
@@ -216,34 +239,67 @@ public class MonsterDart : Effect2
 
 	public override void paint(mGraphics g)
 	{
+		if (info == null || info.headBorder == null || info.headBorder.Length == 0)
+		{
+			return;
+		}
 		int num = findDirIndexFromAngle(360 - angle);
 		int num2 = FRAME[num];
 		int transform = TRANSFORM[num];
-		for (int i = darts.size() / 2; i < darts.size(); i++)
+		if (info.tailBorder != null && info.tailBorder.Length > 0)
 		{
-			SmallDart smallDart = (SmallDart)darts.elementAt(i);
-			SmallImage.drawSmallImage(g, info.tailBorder[smallDart.index], smallDart.x, smallDart.y, 0, 3);
+			for (int i = darts.size() / 2; i < darts.size(); i++)
+			{
+				SmallDart smallDart = (SmallDart)darts.elementAt(i);
+				if (smallDart != null && smallDart.index >= 0 && smallDart.index < info.tailBorder.Length)
+				{
+					SmallImage.drawSmallImage(g, info.tailBorder[smallDart.index], smallDart.x, smallDart.y, 0, 3);
+				}
+			}
 		}
 		int num3 = GameCanvas.gameTick % info.headBorder.Length;
-		SmallImage.drawSmallImage(g, info.headBorder[num3][num2], x, y, transform, 3);
-		for (int j = 0; j < darts.size(); j++)
+		if (info.headBorder[num3] != null && num2 >= 0 && num2 < info.headBorder[num3].Length)
 		{
-			SmallDart smallDart2 = (SmallDart)darts.elementAt(j);
-			SmallImage.drawSmallImage(g, info.tail[smallDart2.index], smallDart2.x, smallDart2.y, 0, 3);
+			SmallImage.drawSmallImage(g, info.headBorder[num3][num2], x, y, transform, 3);
 		}
-		SmallImage.drawSmallImage(g, info.head[num3][num2], x, y, transform, 3);
-		for (int k = 0; k < darts.size(); k++)
+		if (info.tail != null && info.tail.Length > 0)
 		{
-			SmallDart smallDart3 = (SmallDart)darts.elementAt(k);
-			if (Res.abs(r.nextInt(100)) < info.xdPercent)
+			for (int j = 0; j < darts.size(); j++)
 			{
-				SmallImage.drawSmallImage(g, (GameCanvas.gameTick % 2 != 0) ? info.xd2[smallDart3.index] : info.xd1[smallDart3.index], smallDart3.x, smallDart3.y, 0, 3);
+				SmallDart smallDart2 = (SmallDart)darts.elementAt(j);
+				if (smallDart2 != null && smallDart2.index >= 0 && smallDart2.index < info.tail.Length)
+				{
+					SmallImage.drawSmallImage(g, info.tail[smallDart2.index], smallDart2.x, smallDart2.y, 0, 3);
+				}
+			}
+		}
+		if (info.head != null && num3 < info.head.Length && info.head[num3] != null && num2 >= 0 && num2 < info.head[num3].Length)
+		{
+			SmallImage.drawSmallImage(g, info.head[num3][num2], x, y, transform, 3);
+		}
+		if (info.xd1 != null && info.xd2 != null)
+		{
+			for (int k = 0; k < darts.size(); k++)
+			{
+				SmallDart smallDart3 = (SmallDart)darts.elementAt(k);
+				if (smallDart3 != null && Res.abs(r.nextInt(100)) < info.xdPercent)
+				{
+					short[] xdArr = (GameCanvas.gameTick % 2 != 0) ? info.xd2 : info.xd1;
+					if (smallDart3.index >= 0 && smallDart3.index < xdArr.Length)
+					{
+						SmallImage.drawSmallImage(g, xdArr[smallDart3.index], smallDart3.x, smallDart3.y, 0, 3);
+					}
+				}
 			}
 		}
 	}
 
 	public static void addMonsterDart(int x2, int y2, bool checkIsBoss, int dame2, int dameMp2, Mob mobToAttack, sbyte dartType)
 	{
+		if (mobToAttack == null)
+		{
+			return;
+		}
 		addMonsterDart(x2, y2, checkIsBoss, dame2, dameMp2, mobToAttack.x, mobToAttack.y, dartType);
 	}
 }

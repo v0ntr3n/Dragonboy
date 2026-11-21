@@ -158,13 +158,12 @@ namespace Mod.Yardat
 			}
 
 			Skill skill = SkillPicker.GetSkillAttack();
-
-			GameScr.gI().doSelectSkill(skill, true);
-
 			if (skill == null)
 			{
 				return;
 			}
+
+			GameScr.gI().doSelectSkill(skill, true);
 
 			long cooldown = GetCooldownAutoChangeFocus(skill);
 			long now = mSystem.currentTimeMillis();

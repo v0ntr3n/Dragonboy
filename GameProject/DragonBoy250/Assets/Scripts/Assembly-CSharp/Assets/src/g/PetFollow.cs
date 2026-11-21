@@ -52,7 +52,11 @@ namespace Assets.src.g
 			if (fimg >= 1)
 			{
 				this.fimg = fimg;
-				frame = frameNew;
+				if (frameNew != null && frameNew.Length > 0)
+				{
+					frame = frameNew;
+					count = 0;
+				}
 				this.wimg = wimg;
 				this.himg = himg;
 			}
@@ -75,8 +79,16 @@ namespace Assets.src.g
 		public void update()
 		{
 			moveCamera();
+			if (frame == null || frame.Length == 0)
+			{
+				return;
+			}
 			if (GameCanvas.gameTick % 3 == 0)
 			{
+				if (count >= frame.Length)
+				{
+					count = 0;
+				}
 				f = frame[count];
 				count++;
 			}

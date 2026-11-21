@@ -91,9 +91,13 @@ public class InfoMe
 			{
 			}
 		}
-		if (info.info != null && info.info.charInfo == null && charId != null)
+		if (info != null && info.info != null && info.info.charInfo == null && charId != null && Char.myCharz() != null)
 		{
-			SmallImage.drawSmallImage(g, charId[Char.myCharz().cgender][f], cmx, cmy + 3 + ((GameCanvas.gameTick % 10 > 5) ? 1 : 0), (dir != 1) ? 2 : 0, StaticObj.VCENTER_HCENTER);
+			int gender = Char.myCharz().cgender;
+			if (gender >= 0 && gender < charId.Length && charId[gender] != null && f >= 0 && f < charId[gender].Length)
+			{
+				SmallImage.drawSmallImage(g, charId[gender][f], cmx, cmy + 3 + ((GameCanvas.gameTick % 10 > 5) ? 1 : 0), (dir != 1) ? 2 : 0, StaticObj.VCENTER_HCENTER);
+			}
 		}
 		g.translate(-g.getTranslateX(), -g.getTranslateY());
 	}

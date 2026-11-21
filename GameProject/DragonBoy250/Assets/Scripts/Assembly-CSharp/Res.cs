@@ -254,6 +254,14 @@ public class Res
 
 	public static int random_Am_0(int a)
 	{
+		if (a == 0)
+		{
+			return 0;
+		}
+		if (a == 1 || a == -1)
+		{
+			return a;
+		}
 		int num;
 		for (num = 0; num == 0; num = r.nextInt() % a)
 		{
@@ -284,19 +292,7 @@ public class Res
 
 	public static int sqrt(int a)
 	{
-		if (a <= 0)
-		{
-			return 0;
-		}
-		int num = (a + 1) / 2;
-		int num2;
-		do
-		{
-			num2 = num;
-			num = num / 2 + a / (2 * num);
-		}
-		while (Math.abs(num2 - num) > 1);
-		return num;
+		return (a <= 0) ? 0 : (int)System.Math.Sqrt(a);
 	}
 
 	public static int rnd(int a)

@@ -46,6 +46,10 @@ namespace Mod.Graphics
 					g.drawRegion(Mob.imgHP, 0, 0, 9, 6, 0, _this.cx, _this.cy - _this.ch - 7, mGraphics.BOTTOM | mGraphics.HCENTER);
 			if (_this.indexEffTask < 0 || _this.effTask == null || _this.cTypePk != 0)
 				return true;
+			if (_this.effTask.arrEfInfo == null || _this.effTask.arrEfInfo.Length == 0)
+				return true;
+			if (_this.indexEffTask >= _this.effTask.arrEfInfo.Length)
+				_this.indexEffTask %= _this.effTask.arrEfInfo.Length;
 			SmallImage.drawSmallImage(g, _this.effTask.arrEfInfo[_this.indexEffTask].idImg, _this.cx + _this.effTask.arrEfInfo[_this.indexEffTask].dx, _this.cy + _this.effTask.arrEfInfo[_this.indexEffTask].dy - _this.dyEff, 0, mGraphics.VCENTER | mGraphics.HCENTER);
 			if (GameCanvas.gameTick % 2 == 0)
 			{
@@ -154,6 +158,10 @@ namespace Mod.Graphics
 			catch { }
 			if (_this.indexEffTask < 0 || _this.effTask == null || _this.cTypePk != 0)
 				return true;
+			if (_this.effTask.arrEfInfo == null || _this.effTask.arrEfInfo.Length == 0)
+				return true;
+			if (_this.indexEffTask >= _this.effTask.arrEfInfo.Length)
+				_this.indexEffTask %= _this.effTask.arrEfInfo.Length;
 			SmallImage.drawSmallImage(g, _this.effTask.arrEfInfo[_this.indexEffTask].idImg, _this.cx + _this.effTask.arrEfInfo[_this.indexEffTask].dx, _this.cy - 15 + _this.effTask.arrEfInfo[_this.indexEffTask].dy, 0, mGraphics.VCENTER | mGraphics.HCENTER);
 			if (GameCanvas.gameTick % 2 == 0)
 			{
@@ -166,7 +174,7 @@ namespace Mod.Graphics
 
 		internal static bool OnItemMapPaint(ItemMap _this, mGraphics g)
 		{
-			if (_this.template.type != ItemTemplateType.Satellite) //!isAuraItem()
+			if (Level <= ReduceGraphicsLevel.Level1 || _this?.template == null || _this.template.type != ItemTemplateType.Satellite) //!isAuraItem()
 				return false;
 			if (Level > ReduceGraphicsLevel.Level2)
 				return true;
@@ -539,30 +547,38 @@ namespace Mod.Graphics
 
 		static void PaintTileMap(mGraphics g)
 		{
+			if (Char.isLoadingMap || TileMap.maps == null || TileMap.tmw <= 0 || TileMap.tmh <= 0)
+				return;
 			InitializeTileMap(Level == ReduceGraphicsLevel.Level1);
+			int gssx = Math.max(0, Math.min(GameScr.gssx, TileMap.tmw));
+			int gssxe = Math.max(0, Math.min(GameScr.gssxe, TileMap.tmw));
+			int gssy = Math.max(0, Math.min(GameScr.gssy, TileMap.tmh));
+			int gssye = Math.max(0, Math.min(GameScr.gssye, TileMap.tmh));
 			//vertical
-			int startX = Math.max(2, GameScr.gssx);
-			int endX = Math.min(TileMap.tmw - 2, GameScr.gssxe + 1);
+			int startX = Math.max(2, gssx);
+			int endX = Math.min(TileMap.tmw - 2, gssxe + 1);
 			for (int x = startX; x < endX; x++)
 			{
 				for (int y = 0; y < TileMap.tmh - 1; y++)
 				{
-					if (TileMap.maps[y * TileMap.tmw + x] == 0)
+					int idx = y * TileMap.tmw + x;
+					if (idx < 0 || idx >= TileMap.maps.Length || TileMap.maps[idx] == 0)
 						continue;
 					if (!TileMap.tileTypeAt(x * TileMap.size, y * TileMap.size, 2) && (Level >= ReduceGraphicsLevel.Level2 || !IsTileMapICantEnter(x * TileMap.size, y * TileMap.size)))
 						continue;
 					int maxy2 = 0;
 					for (int y2 = y + 1; y2 < TileMap.tmh - 1; y2++)
 					{
-						if (TileMap.maps[y2 * TileMap.tmw + x] == 0)
+						int idx2 = y2 * TileMap.tmw + x;
+						if (idx2 < 0 || idx2 >= TileMap.maps.Length || TileMap.maps[idx2] == 0)
 							break;
 						if (x + 1 < TileMap.tmw && (TileMap.tileTypeAt((x + 1) * TileMap.size, y2 * TileMap.size, 2) || Level < ReduceGraphicsLevel.Level2 && IsTileMapICantEnter((x + 1) * TileMap.size, y2 * TileMap.size)))
 							maxy2 = Math.max(maxy2, y2);
 						if (x > 0 && (TileMap.tileTypeAt((x - 1) * TileMap.size, y2 * TileMap.size, 2) || Level < ReduceGraphicsLevel.Level2 && IsTileMapICantEnter((x - 1) * TileMap.size, y2 * TileMap.size)))
 							maxy2 = Math.max(maxy2, y2);
 					}
-					int startI = Math.max(y, GameScr.gssy);
-					int endI = Math.min(maxy2, GameScr.gssye);
+					int startI = Math.max(y, gssy);
+					int endI = Math.min(maxy2, gssye);
 					for (int i = startI; i <= endI; i++)
 					{
 						g.drawImage(mapTile, x * TileMap.size, i * TileMap.size + 8);
@@ -572,11 +588,12 @@ namespace Mod.Graphics
 				}
 			}
 			//horizontal
-			for (int x = GameScr.gssx + 1; x < GameScr.gssxe; x++)
+			for (int x = gssx + 1; x < gssxe; x++)
 			{
-				for (int y = GameScr.gssy; y < GameScr.gssye; y++)
+				for (int y = gssy; y < gssye; y++)
 				{
-					if (TileMap.maps[y * TileMap.tmw + x] == 0)
+					int idx = y * TileMap.tmw + x;
+					if (idx < 0 || idx >= TileMap.maps.Length || TileMap.maps[idx] == 0)
 						continue;
 					if (TileMap.tileTypeAt(x * TileMap.size, y * TileMap.size, 2) || Level < ReduceGraphicsLevel.Level2 && IsTileMapICantEnter(x * TileMap.size, y * TileMap.size))
 						g.drawImage(mapTile, x * TileMap.size, y * TileMap.size + 8);

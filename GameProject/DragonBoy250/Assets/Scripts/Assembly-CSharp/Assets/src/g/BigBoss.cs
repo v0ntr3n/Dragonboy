@@ -452,11 +452,16 @@ namespace Assets.src.g
 				flyUp = true;
 				status = 4;
 			}
-			if (type == 4)
+			if (type == 4 && charAttack != null)
 			{
 				for (int i = 0; i < charAttack.Length; i++)
 				{
-					charAttack[i].doInjure(dameHP[i], 0L, false, false);
+					if (charAttack[i] == null)
+					{
+						continue;
+					}
+					long dmg = (dameHP != null && i < dameHP.Length) ? dameHP[i] : 0L;
+					charAttack[i].doInjure(dmg, 0L, false, false);
 				}
 			}
 			if (type == 7)
@@ -479,19 +484,32 @@ namespace Assets.src.g
 					ServerEffect.addServerEffect(70, x + ((dir != 1) ? (-15) : 15), y - 40, 1);
 				}
 			}
+			if ((type == 0 || type == 1 || type == 2) && (charAttack == null || charAttack.Length == 0))
+			{
+				status = 2;
+				return;
+			}
 			if (type == 0)
 			{
 				if (tick == attack1.Length - 1)
 				{
 					status = 2;
 				}
-				dir = ((x < charAttack[0].cx) ? 1 : (-1));
+				if (charAttack[0] != null)
+				{
+					dir = ((x < charAttack[0].cx) ? 1 : (-1));
+				}
 				checkFrameTick(attack1);
 				if (tick == 8)
 				{
 					for (int i = 0; i < charAttack.Length; i++)
 					{
-						MonsterDart.addMonsterDart(x + ((dir != 1) ? (-45) : 45), y - 30, true, dameHP[i], 0L, charAttack[i], 24);
+						if (charAttack[i] == null)
+						{
+							continue;
+						}
+						long dmg = (dameHP != null && i < dameHP.Length) ? dameHP[i] : 0L;
+						MonsterDart.addMonsterDart(x + ((dir != 1) ? (-45) : 45), y - 30, true, dmg, 0L, charAttack[i], 24);
 					}
 				}
 			}
@@ -501,15 +519,26 @@ namespace Assets.src.g
 				{
 					status = 2;
 				}
-				dir = ((x < charAttack[0].cx) ? 1 : (-1));
+				if (charAttack[0] != null)
+				{
+					dir = ((x < charAttack[0].cx) ? 1 : (-1));
+				}
 				checkFrameTick((!haftBody) ? attack2 : attack2_1);
-				x += (charAttack[0].cx - x) / 4;
-				y += (charAttack[0].cy - y) / 4;
+				if (charAttack[0] != null)
+				{
+					x += (charAttack[0].cx - x) / 4;
+					y += (charAttack[0].cy - y) / 4;
+				}
 				if (tick == 18)
 				{
 					for (int j = 0; j < charAttack.Length; j++)
 					{
-						charAttack[j].doInjure(dameHP[j], 0L, false, false);
+						if (charAttack[j] == null)
+						{
+							continue;
+						}
+						long dmg = (dameHP != null && j < dameHP.Length) ? dameHP[j] : 0L;
+						charAttack[j].doInjure(dmg, 0L, false, false);
 						ServerEffect.addServerEffect(102, charAttack[j].cx, charAttack[j].cy, 1);
 					}
 				}
@@ -525,7 +554,10 @@ namespace Assets.src.g
 			{
 				status = 2;
 			}
-			dir = ((x < charAttack[0].cx) ? 1 : (-1));
+			if (charAttack[0] != null)
+			{
+				dir = ((x < charAttack[0].cx) ? 1 : (-1));
+			}
 			checkFrameTick((!haftBody) ? attack3 : attack3_1);
 			if (tick == 13)
 			{
@@ -533,7 +565,12 @@ namespace Assets.src.g
 				shock = true;
 				for (int k = 0; k < charAttack.Length; k++)
 				{
-					charAttack[k].doInjure(dameHP[k], 0L, false, false);
+					if (charAttack[k] == null)
+					{
+						continue;
+					}
+					long dmg = (dameHP != null && k < dameHP.Length) ? dameHP[k] : 0L;
+					charAttack[k].doInjure(dmg, 0L, false, false);
 				}
 			}
 		}

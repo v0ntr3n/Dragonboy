@@ -22,9 +22,13 @@ public class EffectData
 
 	public ImageInfo getImageInfo(sbyte id)
 	{
+		if (imgInfo == null)
+		{
+			return null;
+		}
 		for (int i = 0; i < imgInfo.Length; i++)
 		{
-			if (imgInfo[i].ID == id)
+			if (imgInfo[i] != null && imgInfo[i].ID == id)
 			{
 				return imgInfo[i];
 			}
@@ -39,7 +43,7 @@ public class EffectData
 
 	public short[] get(int index)
 	{
-		if (index >= anim_data.Length)
+		if (index < 0 || index >= anim_data.Length)
 		{
 			index = 0;
 		}
@@ -61,6 +65,10 @@ public class EffectData
 		{
 			return;
 		}
+		if (dataInputStream == null)
+		{
+			return;
+		}
 		readData(dataInputStream.r);
 	}
 
@@ -72,6 +80,10 @@ public class EffectData
 			dataInputStream = MyStream.readFile(patch);
 		}
 		catch (Exception)
+		{
+			return;
+		}
+		if (dataInputStream == null)
 		{
 			return;
 		}
@@ -122,13 +134,17 @@ public class EffectData
 						{
 							num2 = frame[j].dy[k];
 						}
-						if (num3 < frame[j].dx[k] + imgInfo[frame[j].idImg[k]].w)
+						ImageInfo info = getImageInfo(frame[j].idImg[k]);
+						if (info != null)
 						{
-							num3 = frame[j].dx[k] + imgInfo[frame[j].idImg[k]].w;
-						}
-						if (num4 < frame[j].dy[k] + imgInfo[frame[j].idImg[k]].h)
-						{
-							num4 = frame[j].dy[k] + imgInfo[frame[j].idImg[k]].h;
+							if (num3 < frame[j].dx[k] + info.w)
+							{
+								num3 = frame[j].dx[k] + info.w;
+							}
+							if (num4 < frame[j].dy[k] + info.h)
+							{
+								num4 = frame[j].dy[k] + info.h;
+							}
 						}
 						width = num3 - num;
 						height = num4 - num2;
@@ -191,13 +207,17 @@ public class EffectData
 						{
 							num2 = frame[j].dy[k];
 						}
-						if (num3 < frame[j].dx[k] + imgInfo[frame[j].idImg[k]].w)
+						ImageInfo info = getImageInfo(frame[j].idImg[k]);
+						if (info != null)
 						{
-							num3 = frame[j].dx[k] + imgInfo[frame[j].idImg[k]].w;
-						}
-						if (num4 < frame[j].dy[k] + imgInfo[frame[j].idImg[k]].h)
-						{
-							num4 = frame[j].dy[k] + imgInfo[frame[j].idImg[k]].h;
+							if (num3 < frame[j].dx[k] + info.w)
+							{
+								num3 = frame[j].dx[k] + info.w;
+							}
+							if (num4 < frame[j].dy[k] + info.h)
+							{
+								num4 = frame[j].dy[k] + info.h;
+							}
 						}
 						width = num3 - num;
 						height = num4 - num2;
@@ -226,8 +246,11 @@ public class EffectData
 						continue;
 					}
 					num7 = (short)Res.abs(num9 + 500);
-					anim_data[num7] = new short[num8];
-					Array.Copy(array, 0, anim_data[num7], 0, num8);
+					if (num7 >= 0 && num7 < anim_data.Length)
+					{
+						anim_data[num7] = new short[num8];
+						Array.Copy(array, 0, anim_data[num7], 0, num8);
+					}
 					num8 = 0;
 				}
 				if (!flag)
@@ -272,14 +295,22 @@ public class EffectData
 
 	public void paintFrame(mGraphics g, int f, int x, int y, int trans, int layer)
 	{
-		if (this.frame == null || this.frame.Length == 0)
+		if (this.frame == null || f < 0 || f >= this.frame.Length || img == null)
 		{
 			return;
 		}
 		Frame frame = this.frame[f];
+		if (frame == null || frame.dx == null || frame.dy == null || frame.idImg == null)
+		{
+			return;
+		}
 		for (int i = 0; i < frame.dx.Length; i++)
 		{
 			ImageInfo imageInfo = getImageInfo(frame.idImg[i]);
+			if (imageInfo == null)
+			{
+				continue;
+			}
 			try
 			{
 				switch (trans)
@@ -355,13 +386,17 @@ public class EffectData
 						{
 							num2 = frame[j].dy[k];
 						}
-						if (num3 < frame[j].dx[k] + imgInfo[frame[j].idImg[k]].w)
+						ImageInfo info = getImageInfo(frame[j].idImg[k]);
+						if (info != null)
 						{
-							num3 = frame[j].dx[k] + imgInfo[frame[j].idImg[k]].w;
-						}
-						if (num4 < frame[j].dy[k] + imgInfo[frame[j].idImg[k]].h)
-						{
-							num4 = frame[j].dy[k] + imgInfo[frame[j].idImg[k]].h;
+							if (num3 < frame[j].dx[k] + info.w)
+							{
+								num3 = frame[j].dx[k] + info.w;
+							}
+							if (num4 < frame[j].dy[k] + info.h)
+							{
+								num4 = frame[j].dy[k] + info.h;
+							}
 						}
 						width = num3 - num;
 						height = num4 - num2;

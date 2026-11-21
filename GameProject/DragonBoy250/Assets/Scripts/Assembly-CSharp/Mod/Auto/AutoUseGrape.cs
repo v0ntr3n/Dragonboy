@@ -11,7 +11,7 @@ namespace Mod.Auto
 		{
 			if (string.IsNullOrEmpty(text)) return;
 
-			if (LocalizedString.outOfStamina.Contains(text) && Char.myChar.cStamina <= 0)
+			if (LocalizedString.outOfStamina.Contains(text) && Char.myChar != null && Char.myChar.cStamina <= 0)
 			{
 				doUseGrape();
 			}

@@ -1,4 +1,4 @@
-using Mod.Constants;
+﻿using Mod.Constants;
 using Mod.CustomPanel;
 using Mod.R;
 using UnityEngine;
@@ -334,9 +334,13 @@ namespace Mod
 
 		internal static int GetTimeBlind(this Char ch)
 		{
+			if (ch == null)
+				return 0;
 			if (ch.me && ch.cgender == 0)
 			{
-				int result = ch.getSkill(ch.nClass.skillTemplates[2]).point;
+				if (!TryGetMySkill(2, out Skill skill))
+					return ch.freezSeconds - 1;
+				int result = skill.point;
 				if (Utils.isMeWearingTXHSet())
 					result *= 2;
 				return result - 1;
@@ -498,6 +502,8 @@ namespace Mod
 
 		internal static bool CanUse(this Skill skill)
 		{
+			if (skill == null)
+				return false;
 			long now = mSystem.currentTimeMillis();
 			bool isOutOfCooldown = now - skill.lastTimeUseThisSkill > skill.coolDown;
 			return isOutOfCooldown && skill.HasManaToUseSkill();
@@ -612,12 +618,16 @@ namespace Mod
 
 		internal static bool IsWearableAndVip(this Item item)
 		{
+			if (item?.template == null || item.itemOption == null)
+				return false;
 			if (item.template.type <= ItemTemplateType.Radar || item.template.type == ItemTemplateType.TrainingSuite)
 			{
 				for (int i = 0; i < item.itemOption.Length; i++)
 				{
 					ItemOption itemOption = item.itemOption[i];
-					if (itemOption.optionTemplate.id >= 127 && itemOption.optionTemplate.id <= 135 || itemOption.optionTemplate.id <= 36 && itemOption.optionTemplate.id >= 34 || itemOption.optionTemplate.name.StartsWith("$") || itemOption.optionTemplate.id == 107)
+					if (itemOption?.optionTemplate == null)
+						continue;
+					if (itemOption.optionTemplate.id >= 127 && itemOption.optionTemplate.id <= 135 || itemOption.optionTemplate.id <= 36 && itemOption.optionTemplate.id >= 34 || itemOption.optionTemplate.name?.StartsWith("$") == true || itemOption.optionTemplate.id == 107)
 						return true;
 				}
 			}

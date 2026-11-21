@@ -102,23 +102,35 @@ namespace Assets.src.f
 							break;
 						}
 						Char obj3 = GameScr.findCharInMap(num17);
-						obj3.petFollow = new PetFollow();
-						obj3.petFollow.smallID = smallID;
-						if (b18 > 0)
+						if (obj3 != null)
 						{
-							obj3.petFollow.SetImg(b18, array, wimg, himg);
+							obj3.petFollow = new PetFollow();
+							obj3.petFollow.smallID = smallID;
+							if (b18 > 0)
+							{
+								obj3.petFollow.SetImg(b18, array, wimg, himg);
+							}
 						}
 					}
 					else if (num17 == Char.myCharz().charID)
 					{
-						Char.myCharz().petFollow.remove();
+						if (Char.myCharz().petFollow != null)
+						{
+							Char.myCharz().petFollow.remove();
+						}
 						Char.myCharz().petFollow = null;
 					}
 					else
 					{
 						Char obj4 = GameScr.findCharInMap(num17);
-						obj4.petFollow.remove();
-						obj4.petFollow = null;
+						if (obj4 != null)
+						{
+							if (obj4.petFollow != null)
+							{
+								obj4.petFollow.remove();
+							}
+							obj4.petFollow = null;
+						}
 					}
 					break;
 				}
@@ -181,8 +193,11 @@ namespace Assets.src.f
 					{
 						int charId2 = msg.reader().readInt();
 						int id3 = msg.reader().readInt();
-						Mabu mabu2 = (Mabu)GameScr.findCharInMap(charId2);
-						mabu2.eat(id3);
+						Mabu mabu2 = GameScr.findCharInMap(charId2) as Mabu;
+						if (mabu2 != null)
+						{
+							mabu2.eat(id3);
+						}
 					}
 					if (b23 == 3)
 					{
@@ -193,7 +208,7 @@ namespace Assets.src.f
 				case 51:
 				{
 					int charId = msg.reader().readInt();
-					Mabu mabu = (Mabu)GameScr.findCharInMap(charId);
+					Mabu mabu = GameScr.findCharInMap(charId) as Mabu;
 					sbyte id2 = msg.reader().readByte();
 					short x2 = msg.reader().readShort();
 					short y2 = msg.reader().readShort();
@@ -215,7 +230,10 @@ namespace Assets.src.f
 						}
 						array3[num19] = msg.reader().readLong();
 					}
-					mabu.setSkill(id2, x2, y2, array2, array3);
+					if (mabu != null)
+					{
+						mabu.setSkill(id2, x2, y2, array2, array3);
+					}
 					break;
 				}
 				case -127:
@@ -243,6 +261,10 @@ namespace Assets.src.f
 					short id4 = msg.reader().readShort();
 					Npc npc2 = GameScr.findNPCInMap(id4);
 					sbyte b28 = msg.reader().readByte();
+					if (npc2 == null || b28 < 0)
+					{
+						break;
+					}
 					npc2.duahau = new int[b28];
 					Res.outz("N DUA HAU= " + b28);
 					for (int num39 = 0; num39 < b28; num39++)
@@ -418,16 +440,16 @@ namespace Assets.src.f
 					sbyte b31 = msg.reader().readByte();
 					sbyte b32 = msg.reader().readByte();
 					Item item2 = null;
-					if (b31 == 0)
+					if (b31 == 0 && Char.myCharz().arrItemBody != null && b32 >= 0 && b32 < Char.myCharz().arrItemBody.Length)
 					{
 						item2 = Char.myCharz().arrItemBody[b32];
 					}
-					if (b31 == 1)
+					if (b31 == 1 && Char.myCharz().arrItemBag != null && b32 >= 0 && b32 < Char.myCharz().arrItemBag.Length)
 					{
 						item2 = Char.myCharz().arrItemBag[b32];
 					}
 					short num41 = msg.reader().readShort();
-					if (num41 == -1)
+					if (num41 == -1 || item2 == null)
 					{
 						break;
 					}
@@ -436,7 +458,7 @@ namespace Assets.src.f
 					item2.info = msg.reader().readUTF();
 					item2.content = msg.reader().readUTF();
 					sbyte b33 = msg.reader().readByte();
-					if (b33 != 0)
+					if (b33 > 0)
 					{
 						item2.itemOption = new ItemOption[b33];
 						for (int num42 = 0; num42 < item2.itemOption.Length; num42++)
@@ -603,12 +625,21 @@ namespace Assets.src.f
 								if (num6 == Char.myCharz().charID)
 								{
 									Char.myCharz().holdEffID = num5;
-									GameScr.findCharInMap(num7).setHoldChar(Char.myCharz());
+									Char charHold = GameScr.findCharInMap(num7);
+									if (charHold != null)
+									{
+										charHold.setHoldChar(Char.myCharz());
+									}
 								}
 								else if (GameScr.findCharInMap(num6) != null && num7 != Char.myCharz().charID)
 								{
-									GameScr.findCharInMap(num6).holdEffID = num5;
-									GameScr.findCharInMap(num7).setHoldChar(GameScr.findCharInMap(num6));
+									Char charTarget = GameScr.findCharInMap(num6);
+									charTarget.holdEffID = num5;
+									Char charHold = GameScr.findCharInMap(num7);
+									if (charHold != null)
+									{
+										charHold.setHoldChar(charTarget);
+									}
 								}
 								else if (GameScr.findCharInMap(num6) != null && num7 == Char.myCharz().charID)
 								{
@@ -735,47 +766,55 @@ namespace Assets.src.f
 					int num8 = msg.reader().readUnsignedByte();
 					sbyte b9 = msg.reader().readByte();
 					Res.outz("modbHoldID= " + b9 + " skillID= " + num8 + "eff ID= " + b7);
+					Mob mob = GameScr.findMobInMap(b9);
 					if (num8 == 32)
 					{
 						if (b7 == 1)
 						{
 							int num9 = msg.reader().readInt();
-							if (num9 == Char.myCharz().charID)
+							if (mob != null)
 							{
-								GameScr.findMobInMap(b9).holdEffID = num8;
-								Char.myCharz().setHoldMob(GameScr.findMobInMap(b9));
-							}
-							else if (GameScr.findCharInMap(num9) != null)
-							{
-								GameScr.findMobInMap(b9).holdEffID = num8;
-								GameScr.findCharInMap(num9).setHoldMob(GameScr.findMobInMap(b9));
+								if (num9 == Char.myCharz().charID)
+								{
+									mob.holdEffID = num8;
+									Char.myCharz().setHoldMob(mob);
+								}
+								else
+								{
+									Char charMobHold = GameScr.findCharInMap(num9);
+									if (charMobHold != null)
+									{
+										mob.holdEffID = num8;
+										charMobHold.setHoldMob(mob);
+									}
+								}
 							}
 						}
-						else
+						else if (mob != null)
 						{
-							GameScr.findMobInMap(b9).removeHoldEff();
+							mob.removeHoldEff();
 						}
 					}
-					if (num8 == 40)
+					if (num8 == 40 && mob != null)
 					{
 						if (b7 == 1)
 						{
-							GameScr.findMobInMap(b9).blindEff = true;
+							mob.blindEff = true;
 						}
 						else
 						{
-							GameScr.findMobInMap(b9).removeBlindEff();
+							mob.removeBlindEff();
 						}
 					}
-					if (num8 == 41)
+					if (num8 == 41 && mob != null)
 					{
 						if (b7 == 1)
 						{
-							GameScr.findMobInMap(b9).sleepEff = true;
+							mob.sleepEff = true;
 						}
 						else
 						{
-							GameScr.findMobInMap(b9).removeSleepEff();
+							mob.removeSleepEff();
 						}
 					}
 					break;
@@ -944,6 +983,10 @@ namespace Assets.src.f
 					sbyte b11 = msg.reader().readByte();
 					if (b11 != 0 && b11 == 1)
 					{
+						if (GameCanvas.loginScr == null)
+						{
+							GameCanvas.loginScr = new LoginScr();
+						}
 						GameCanvas.loginScr.isLogin2 = false;
 						Service.gI().login(Rms.loadRMSString(Rms.RMS_acc), Rms.loadRMSString(Rms.RMS_pass), GameMidlet.VERSION, 0);
 						LoginScr.isLoggingIn = true;
@@ -952,6 +995,10 @@ namespace Assets.src.f
 				}
 				case -101:
 				{
+					if (GameCanvas.loginScr == null)
+					{
+						GameCanvas.loginScr = new LoginScr();
+					}
 					GameCanvas.loginScr.isLogin2 = true;
 					GameCanvas.connect();
 					string text2 = msg.reader().readUTF();
@@ -969,7 +1016,7 @@ namespace Assets.src.f
 						flag = true;
 					}
 					sbyte b = msg.reader().readByte();
-					if (b < 0)
+					if (b < 0 || GameCanvas.panel == null || GameCanvas.panel.maxPageShop == null || GameCanvas.panel.currPageShop == null || Char.myCharz() == null || Char.myCharz().arrItemShop == null || b >= GameCanvas.panel.maxPageShop.Length || b >= GameCanvas.panel.currPageShop.Length || b >= Char.myCharz().arrItemShop.Length)
 					{
 						break;
 					}
@@ -997,7 +1044,7 @@ namespace Assets.src.f
 						Char.myCharz().arrItemShop[b][i].isMe = msg.reader().readByte();
 						Panel.strWantToBuy = mResources.say_wat_do_u_want_to_buy;
 						sbyte b2 = msg.reader().readByte();
-						if (b2 != -1)
+						if (b2 > 0)
 						{
 							Char.myCharz().arrItemShop[b][i].itemOption = new ItemOption[b2];
 							for (int j = 0; j < Char.myCharz().arrItemShop[b][i].itemOption.Length; j++)
@@ -1025,7 +1072,7 @@ namespace Assets.src.f
 							Res.err("nguoi ki gui  " + Char.myCharz().arrItemShop[b][i].nameNguoiKyGui);
 						}
 					}
-					if (flag)
+					if (flag && GameCanvas.panel2 != null)
 					{
 						GameCanvas.panel2.setTabKiGui();
 					}
@@ -1116,7 +1163,7 @@ namespace Assets.src.f
 						sbyte use = msg.reader().readByte();
 						sbyte b4 = msg.reader().readByte();
 						ItemOption[] array = null;
-						if (b4 != 0)
+						if (b4 > 0)
 						{
 							array = new ItemOption[b4];
 							for (int j = 0; j < array.Length; j++)
@@ -1158,22 +1205,25 @@ namespace Assets.src.f
 					int num3 = msg.reader().readShort();
 					sbyte level = msg.reader().readByte();
 					int num4 = 0;
-					for (int k = 0; k < RadarScr.list.size(); k++)
+					if (RadarScr.list != null)
 					{
-						Info_RadaScr info_RadaScr2 = (Info_RadaScr)RadarScr.list.elementAt(k);
-						if (info_RadaScr2 != null)
+						for (int k = 0; k < RadarScr.list.size(); k++)
 						{
-							if (info_RadaScr2.id == num3)
+							Info_RadaScr info_RadaScr2 = (Info_RadaScr)RadarScr.list.elementAt(k);
+							if (info_RadaScr2 != null)
 							{
-								info_RadaScr2.SetLevel(level);
-							}
-							if (info_RadaScr2.level > 0)
-							{
-								num4++;
+								if (info_RadaScr2.id == num3)
+								{
+									info_RadaScr2.SetLevel(level);
+								}
+								if (info_RadaScr2.level > 0)
+								{
+									num4++;
+								}
 							}
 						}
+						RadarScr.SetNum(num4, RadarScr.list.size());
 					}
-					RadarScr.SetNum(num4, RadarScr.list.size());
 					if (Info_RadaScr.GetInfo(RadarScr.listUse, num3) != null)
 					{
 						Info_RadaScr.GetInfo(RadarScr.listUse, num3).SetLevel(level);

@@ -106,6 +106,7 @@ namespace Mod.Xmap
 				return false;
 			default:
 				way = initResult.Route;
+				progressMonitor.MarkProgress(TileMap.mapID, indexWay);
 				return true;
 			}
 		}
@@ -119,7 +120,9 @@ namespace Mod.Xmap
 			routeInitializer.Begin(TileMap.mapID, mapEnd, XmapData.links, forceNotUseCapsuleLinks);
 			progressMonitor.Reset(TileMap.mapID, indexWay);
 
-			string mapName = TileMap.mapNames[mapEnd];
+			string mapName = (TileMap.mapNames != null && mapEnd >= 0 && mapEnd < TileMap.mapNames.Length)
+				? TileMap.mapNames[mapEnd]
+				: mapEnd.ToString();
 			GameScr.info1.addInfo(Strings.goTo + ": " + mapName, 0);
 			base.OnStart();
 		}

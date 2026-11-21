@@ -17,9 +17,15 @@ namespace Mod.Auto
 		{
 			if (shouldReviveDeadChars)
 			{
+				Char myChar = Char.myCharz();
+				SkillTemplate[] templates = myChar?.nClass?.skillTemplates;
+				if (templates == null || templates.Length <= 2)
+				{
+					yield break;
+				}
 				Char deadChar = getDeadCharInMap();
-				Skill skillRescue = Char.myCharz().getSkill(Char.myCharz().nClass.skillTemplates[2]);
-				if (deadChar == null || !skillRescue.CanUse())
+				Skill skillRescue = myChar.getSkill(templates[2]);
+				if (deadChar == null || skillRescue == null || !skillRescue.CanUse())
 				{
 					yield break;
 				}

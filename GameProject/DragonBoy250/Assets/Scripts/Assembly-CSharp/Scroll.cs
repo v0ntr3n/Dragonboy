@@ -115,15 +115,18 @@ public class Scroll
 				if (pointerDownTime > 5 && pointerDownFirstX == GameCanvas.py && !isDownWhenRunning)
 				{
 					pointerDownFirstX = -1000;
-					if (ITEM_PER_LINE > 1)
+					if (ITEM_SIZE > 0)
 					{
-						int num3 = (cmtoY + GameCanvas.py - num2) / ITEM_SIZE;
-						int num4 = (cmtoX + GameCanvas.px - num) / ITEM_SIZE;
-						selectedItem = num3 * ITEM_PER_LINE + num4;
-					}
-					else
-					{
-						selectedItem = (cmtoY + GameCanvas.py - num2) / ITEM_SIZE;
+						if (ITEM_PER_LINE > 1)
+						{
+							int num3 = (cmtoY + GameCanvas.py - num2) / ITEM_SIZE;
+							int num4 = (cmtoX + GameCanvas.px - num) / ITEM_SIZE;
+							selectedItem = num3 * ITEM_PER_LINE + num4;
+						}
+						else
+						{
+							selectedItem = (cmtoY + GameCanvas.py - num2) / ITEM_SIZE;
+						}
 					}
 				}
 				int num5 = GameCanvas.py - pointerDownLastX[0];
@@ -134,7 +137,7 @@ public class Scroll
 						selectedItem = -1;
 					}
 				}
-				else
+				else if (ITEM_SIZE > 0)
 				{
 					selectedItem = (cmtoY + GameCanvas.py - num2) / ITEM_SIZE;
 				}
@@ -169,15 +172,18 @@ public class Scroll
 				cmRun = 0;
 				cmtoY = cmy;
 				pointerDownFirstX = -1000;
-				if (ITEM_PER_LINE > 1)
+				if (ITEM_SIZE > 0)
 				{
-					int num7 = (cmtoY + GameCanvas.py - num2) / ITEM_SIZE;
-					int num8 = (cmtoX + GameCanvas.px - num) / ITEM_SIZE;
-					selectedItem = num7 * ITEM_PER_LINE + num8;
-				}
-				else
-				{
-					selectedItem = (cmtoY + GameCanvas.py - num2) / ITEM_SIZE;
+					if (ITEM_PER_LINE > 1)
+					{
+						int num7 = (cmtoY + GameCanvas.py - num2) / ITEM_SIZE;
+						int num8 = (cmtoX + GameCanvas.px - num) / ITEM_SIZE;
+						selectedItem = num7 * ITEM_PER_LINE + num8;
+					}
+					else
+					{
+						selectedItem = (cmtoY + GameCanvas.py - num2) / ITEM_SIZE;
+					}
 				}
 				pointerDownTime = 0;
 				isFinish = true;
@@ -241,7 +247,10 @@ public class Scroll
 				if (pointerDownTime > 5 && pointerDownFirstX == GameCanvas.px && !isDownWhenRunning)
 				{
 					pointerDownFirstX = -1000;
-					selectedItem = (cmtoX + GameCanvas.px - num) / ITEM_SIZE;
+					if (ITEM_SIZE > 0)
+					{
+						selectedItem = (cmtoX + GameCanvas.px - num) / ITEM_SIZE;
+					}
 				}
 				int num2 = GameCanvas.px - pointerDownLastX[0];
 				if (num2 != 0 && selectedItem != -1)
@@ -279,7 +288,10 @@ public class Scroll
 				cmRun = 0;
 				cmtoX = cmx;
 				pointerDownFirstX = -1000;
-				selectedItem = (cmtoX + GameCanvas.px - num) / ITEM_SIZE;
+				if (ITEM_SIZE > 0)
+				{
+					selectedItem = (cmtoX + GameCanvas.px - num) / ITEM_SIZE;
+				}
 				pointerDownTime = 0;
 				isFinish = true;
 			}
@@ -378,25 +390,25 @@ public class Scroll
 	{
 		this.xPos = xPos;
 		this.yPos = yPos;
-		this.ITEM_SIZE = ITEM_SIZE;
+		this.ITEM_SIZE = (ITEM_SIZE > 0) ? ITEM_SIZE : 1;
 		nITEM = nItem;
 		this.width = width;
 		this.height = height;
 		this.styleUPDOWN = styleUPDOWN;
-		this.ITEM_PER_LINE = ITEM_PER_LINE;
-		Res.outz("nItem= " + nItem + " ITEMSIZE= " + ITEM_SIZE + " heghit= " + height);
+		this.ITEM_PER_LINE = (ITEM_PER_LINE > 0) ? ITEM_PER_LINE : 1;
+		Res.outz("nItem= " + nItem + " ITEMSIZE= " + this.ITEM_SIZE + " heghit= " + height);
 		if (styleUPDOWN)
 		{
-			int num = nItem / ITEM_PER_LINE;
-			if (nItem % ITEM_PER_LINE != 0)
+			int num = nItem / this.ITEM_PER_LINE;
+			if (nItem % this.ITEM_PER_LINE != 0)
 			{
 				num++;
 			}
-			cmyLim = num * ITEM_SIZE - height;
+			cmyLim = num * this.ITEM_SIZE - height;
 		}
 		else
 		{
-			cmxLim = ITEM_PER_LINE * ITEM_SIZE - width;
+			cmxLim = this.ITEM_PER_LINE * this.ITEM_SIZE - width;
 		}
 		if (cmyLim < 0)
 		{

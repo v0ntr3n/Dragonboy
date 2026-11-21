@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Mod.Constants;
 using Mod.PickMob;
 using Mod.Xmap;
@@ -98,7 +98,10 @@ namespace Mod.Auto
 				{
 					if (GameCanvas.menu.showMenu)
 						GameCanvas.menu.doCloseMenu();
-					if (GameScr.gI().magicTree.currPeas > 0)
+					MagicTree magicTree = GameScr.gI().magicTree;
+					if (magicTree == null)
+						return;
+					if (magicTree.currPeas > 0)
 					{
 						Service.gI().openMenu(4);
 						Service.gI().confirmMenu(4, 0);
@@ -106,14 +109,14 @@ namespace Mod.Auto
 					}
 
 					isMagicTreeOutOfPean = true;
-					if (GameScr.gI().magicTree.isUpdateTree)
+					if (magicTree.isUpdateTree)
 					{
 						lastTimeCheckMagicTree = mSystem.currentTimeMillis();
 						isMagicTreeUpgrading = true;
 					}
 
-					if ((GameScr.gI().magicTree.isPeasEffect || GameScr.gI().magicTree.isUpdateTree ||
-					     GameScr.gI().magicTree.currPeas == 0) && !XmapController.gI.IsActing)
+					if ((magicTree.isPeasEffect || magicTree.isUpdateTree ||
+					     magicTree.currPeas == 0) && !XmapController.gI.IsActing)
 						XmapController.start(mapZoneGoBack.Key);
 				}
 
@@ -228,37 +231,48 @@ namespace Mod.Auto
 
 		static void AutoSkill()
 		{
-			Skill skill3 = Char.myCharz().getSkill(Char.myCharz().nClass.skillTemplates[2]);
-			Skill skill1 = Char.myCharz().getSkill(Char.myCharz().nClass.skillTemplates[0]);
+			Char myChar = Char.myCharz();
+			SkillTemplate[] skillTemplates = myChar?.nClass?.skillTemplates;
+			if (skillTemplates == null || skillTemplates.Length <= 2)
+				return;
+			Skill skill3 = myChar.getSkill(skillTemplates[2]);
+			Skill skill1 = myChar.getSkill(skillTemplates[0]);
+			Char myPet = Char.myPetz();
 			if (skill3 != null)
 			{
 				if (skill3.point > 0 && mSystem.currentTimeMillis() - skill3.lastTimeUseThisSkill > skill3.coolDown)
 				{
-					if ((Char.myPetz().cHP * 100 / Char.myPetz().cHPFull < 10 ||
-					     Char.myPetz().cMP * 100 / Char.myPetz().cMPFull < 10 ||
-					     Char.myCharz().cHP * 100 / Char.myCharz().cHPFull < 10 ||
-					     Char.myCharz().cMP * 100 / Char.myCharz().cMPFull < 10) && Char.myCharz().cgender == 1 &&
-					    skill3.manaUse < Char.myCharz().cMP)
+					bool petLowHp = myPet != null && myPet.cHPFull > 0 && myPet.cHP * 100 / myPet.cHPFull < 10;
+					bool petLowMp = myPet != null && myPet.cMPFull > 0 && myPet.cMP * 100 / myPet.cMPFull < 10;
+					bool myLowHp = myChar.cHPFull > 0 && myChar.cHP * 100 / myChar.cHPFull < 10;
+					bool myLowMp = myChar.cMPFull > 0 && myChar.cMP * 100 / myChar.cMPFull < 10;
+					if ((petLowHp || petLowMp || myLowHp || myLowMp) && myChar.cgender == 1 &&
+					    skill3.manaUse < myChar.cMP)
 					{
 						if (skill3.point > 1)
 						{
 							Utils.buffMe();
+							skill3.lastTimeUseThisSkill = mSystem.currentTimeMillis();
 						}
 						else
 						{
-							MyVector vecPet = new MyVector();
-							vecPet.addElement(GameScr.findCharInMap(-Char.myCharz().charID));
-							Service.gI().selectSkill(skill3.template.id);
-							Service.gI().sendPlayerAttack(new MyVector(), vecPet, 2);
-							Service.gI().selectSkill(skill1.template.id);
+							Char petTarget = GameScr.findCharInMap(-myChar.charID);
+							if (petTarget != null)
+							{
+								MyVector vecPet = new MyVector();
+								vecPet.addElement(petTarget);
+								Service.gI().selectSkill(skill3.template.id);
+								Service.gI().sendPlayerAttack(new MyVector(), vecPet, 2);
+								if (skill1 != null && skill1.template != null)
+									Service.gI().selectSkill(skill1.template.id);
+								skill3.lastTimeUseThisSkill = mSystem.currentTimeMillis();
+							}
 						}
 
-						skill3.lastTimeUseThisSkill = mSystem.currentTimeMillis();
 						return;
 					}
 
-					if ((Char.myCharz().cHP * 100 / Char.myCharz().cHPFull < 10 ||
-					     Char.myCharz().cMP * 100 / Char.myCharz().cMPFull < 10) && Char.myCharz().cgender == 2)
+					if ((myLowHp || myLowMp) && myChar.cgender == 2)
 					{
 						GameScr.gI().doUseSkillNotFocus(skill3);
 						isTTNL = true;
@@ -267,10 +281,11 @@ namespace Mod.Auto
 					}
 				}
 
-				if (Char.myCharz().cgender == 2 && isTTNL &&
+				if (myChar.cgender == 2 && isTTNL &&
 				    mSystem.currentTimeMillis() - skill3.lastTimeUseThisSkill > 10000)
 				{
-					Char.myCharz().myskill = skill1;
+					if (skill1 != null)
+						myChar.myskill = skill1;
 					isTTNL = false;
 				}
 			}
@@ -279,23 +294,33 @@ namespace Mod.Auto
 			if (saoMayLuoiThe)
 			{
 				saoMayLuoiThe = false;
+				if (skill1 == null || skill1.template == null)
+					return;
 				Service.gI().selectSkill(skill1.template.id);
 				switch (ModeAttackWhenNeeded)
 				{
 				case AutoTrainPetAttackMode.AttackClosestMob:
-					MyVector vecMob = new MyVector();
-					vecMob.addElement(ClosestMob());
-					Service.gI().sendPlayerAttack(vecMob, new MyVector(), 1);
+					Mob closestMob = ClosestMob();
+					if (closestMob != null)
+					{
+						MyVector vecMob = new MyVector();
+						vecMob.addElement(closestMob);
+						Service.gI().sendPlayerAttack(vecMob, new MyVector(), 1);
+					}
 					break;
 				case AutoTrainPetAttackMode.AttackMyPet:
-					if (Char.myCharz().cFlag != 8)
-						Service.gI().getFlag(1, 8);
-					MyVector vecPet = new MyVector();
-					vecPet.addElement(GameScr.findCharInMap(-Char.myCharz().charID));
-					Service.gI().sendPlayerAttack(new MyVector(), vecPet, 2);
+					Char petInMap = GameScr.findCharInMap(-myChar.charID);
+					if (petInMap != null)
+					{
+						if (myChar.cFlag != 8)
+							Service.gI().getFlag(1, 8);
+						MyVector vecPet = new MyVector();
+						vecPet.addElement(petInMap);
+						Service.gI().sendPlayerAttack(new MyVector(), vecPet, 2);
+					}
 					break;
 				case AutoTrainPetAttackMode.AttackMyself:
-					if (Char.myCharz().cFlag != 8)
+					if (myChar.cFlag != 8)
 						Service.gI().getFlag(1, 8);
 					Service.gI().sendPlayerAttack(new MyVector(), Utils.getMyVectorMe(), 2);
 					break;

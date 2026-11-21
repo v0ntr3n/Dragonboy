@@ -256,31 +256,37 @@ public class BackgroudEffect
 		{
 			if (typeEff == 1)
 			{
+				imgLacay?.DestroyTexture();
 				imgLacay = GameCanvas.loadImageRMS("/bg/lacay.png");
 				PIXEL = 10;
 			}
 			if (typeEff == 2)
 			{
+				imgLacay?.DestroyTexture();
 				imgLacay = GameCanvas.loadImageRMS("/bg/lacay2.png");
 				PIXEL = 18;
 			}
 			if (typeEff == 5)
 			{
+				imgLacay?.DestroyTexture();
 				imgLacay = GameCanvas.loadImageRMS("/bg/lacay3.png");
 				PIXEL = 14;
 			}
 			if (typeEff == 6)
 			{
+				imgLacay?.DestroyTexture();
 				imgLacay = GameCanvas.loadImageRMS("/bg/lacay4.png");
 				PIXEL = 14;
 			}
 			if (typeEff == 7)
 			{
+				imgLacay?.DestroyTexture();
 				imgLacay = GameCanvas.loadImageRMS("/bg/lacay5.png");
 				PIXEL = 12;
 			}
 			if (typeEff == 11)
 			{
+				imgLacay?.DestroyTexture();
 				imgLacay = GameCanvas.loadImageRMS("/bg/tuyet.png");
 			}
 			if (typeEff == 15)
@@ -437,13 +443,17 @@ public class BackgroudEffect
 		}
 		if (mSystem.clientType == 1)
 		{
+			imgCloud1?.DestroyTexture();
 			imgCloud1 = null;
+			imgFog?.DestroyTexture();
 			imgFog = null;
 			return;
 		}
 		if (GameCanvas.lowGraphic)
 		{
+			imgCloud1?.DestroyTexture();
 			imgCloud1 = null;
+			imgFog?.DestroyTexture();
 			imgFog = null;
 			return;
 		}
@@ -452,15 +462,20 @@ public class BackgroudEffect
 			if (imgCloud1 == null)
 			{
 				imgCloud1 = GameCanvas.loadImage("/bg/fog1.png");
-				cloudw = imgCloud1.getWidth();
+				if (imgCloud1 != null)
+				{
+					cloudw = imgCloud1.getWidth();
+				}
 			}
 		}
 		else
 		{
+			imgCloud1?.DestroyTexture();
 			imgCloud1 = null;
 		}
 		if (!isFog)
 		{
+			imgFog?.DestroyTexture();
 			imgFog = null;
 			return;
 		}
@@ -896,8 +911,11 @@ public class BackgroudEffect
 			case 7:
 			case 11:
 			case 15:
+			{
+				Image lacayImg = imgLacay;
 				if (typeEff == 15)
 				{
+					lacayImg = null;
 					if (SmallImage.imgNew != null && 11120 < SmallImage.imgNew.Length)
 					{
 						Assets.src.e.Small small = SmallImage.imgNew[11120];
@@ -912,17 +930,18 @@ public class BackgroudEffect
 							small.lastPaintTick = GameCanvas.gameTick;
 							if (small.img != null)
 							{
-								imgLacay = small.img;
+								lacayImg = small.img;
 							}
 						}
 					}
-					if (imgLacay == null || imgLacay.texture == null)
+					if (lacayImg == null || lacayImg.texture == null)
 					{
 						break;
 					}
 				}
-				paintLacay1(g, imgLacay);
+				paintLacay1(g, lacayImg);
 				break;
+			}
 			case 13:
 				if (!isPaintFar)
 				{
@@ -981,13 +1000,20 @@ public class BackgroudEffect
 		switch (typeEff)
 		{
 		case 8:
+			if (imgShip == null)
+			{
+				break;
+			}
 			g.drawRegion(imgShip, 0, 0, imgShip.getWidth(), imgShip.getHeight(), trans, xShip, yShip, 3);
 			if (way == 1 || way == 2)
 			{
-				int num = ((trans != 0) ? 25 : (-25));
-				g.drawRegion(imgFire1, 0, frameFire * 8, 20, 8, trans, xShip + num, yShip + 5, 3);
+				if (imgFire1 != null)
+				{
+					int num = ((trans != 0) ? 25 : (-25));
+					g.drawRegion(imgFire1, 0, frameFire * 8, 20, 8, trans, xShip + num, yShip + 5, 3);
+				}
 			}
-			else
+			else if (imgFire2 != null)
 			{
 				int num2 = ((trans != 0) ? (-11) : 11);
 				g.drawRegion(imgFire2, 0, frameFire * 18, 8, 18, trans, xShip + num2, yShip + 22, 3);
@@ -1029,8 +1055,11 @@ public class BackgroudEffect
 		case 7:
 		case 11:
 		case 15:
+		{
+			Image lacayImg = imgLacay;
 			if (typeEff == 15)
 			{
+				lacayImg = null;
 				if (SmallImage.imgNew != null && 11120 < SmallImage.imgNew.Length)
 				{
 					Assets.src.e.Small small = SmallImage.imgNew[11120];
@@ -1045,17 +1074,18 @@ public class BackgroudEffect
 						small.lastPaintTick = GameCanvas.gameTick;
 						if (small.img != null)
 						{
-							imgLacay = small.img;
+							lacayImg = small.img;
 						}
 					}
 				}
-				if (imgLacay == null || imgLacay.texture == null)
+				if (lacayImg == null || lacayImg.texture == null)
 				{
 					break;
 				}
 			}
-			paintLacay2(g, imgLacay);
+			paintLacay2(g, lacayImg);
 			break;
+		}
 		case 4:
 		case 8:
 		case 9:

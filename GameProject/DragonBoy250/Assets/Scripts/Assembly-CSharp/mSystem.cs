@@ -486,9 +486,10 @@ public class mSystem
 		{
 			mainImage = ImgByName.getImagePath(nameImg, ImgByName.hashImagePath);
 		}
-		if (mainImage.img != null)
+		if (mainImage != null && mainImage.img != null)
 		{
-			int num = mainImage.img.getHeight() / mainImage.nFrame;
+			int nFrame = (mainImage.nFrame > 0) ? mainImage.nFrame : 1;
+			int num = mainImage.img.getHeight() / nFrame;
 			if (num < 1)
 			{
 				num = 1;

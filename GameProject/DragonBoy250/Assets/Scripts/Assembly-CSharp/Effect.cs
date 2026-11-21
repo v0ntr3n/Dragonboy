@@ -178,14 +178,7 @@ public class Effect
 		this.loop = loop;
 		tLoop = loopCount;
 		initCommon(id);
-		if (id == 78)
-		{
-			typeEff = 5;
-		}
-		else
-		{
-			typeEff = 1;
-		}
+		typeEff = 1;
 		if (!isExistNewEff(effId + string.Empty))
 		{
 			newEff.addElement(effId + string.Empty);
@@ -320,10 +313,16 @@ public class Effect
 
 	public void paintUnderBackground(mGraphics g, int xLayer, int yLayer)
 	{
-		if (isPaintz() && getEffDataById(effId).img != null)
+		if (!isPaintz())
 		{
-			getEffDataById(effId).paintFrame(g, currFrame, x + xLayer, y + yLayer, trans, layer);
+			return;
 		}
+		EffectData ed = getEffDataById(effId);
+		if (ed == null || ed.img == null)
+		{
+			return;
+		}
+		ed.paintFrame(g, currFrame, x + xLayer, y + yLayer, trans, layer);
 	}
 
 	public void getFrameKhangia()
@@ -388,7 +387,7 @@ public class Effect
 				{
 					return;
 				}
-				if (typeEff == 5)
+				if (typeEff == 5 && c != null)
 				{
 					data = getEffDataById(effId).get(c.statusMe);
 				}
@@ -414,30 +413,36 @@ public class Effect
 					switch (typeEff)
 					{
 					case 4:
-						x = c.cx;
-						y = c.cy;
+						if (c != null)
+						{
+							x = c.cx;
+							y = c.cy;
+						}
 						if (t < data.Length)
 						{
 							t++;
 						}
 						break;
 					case 5:
-						trans = ((c.cdir != 1) ? 1 : 0);
-						if (c.cdir == 1)
+						if (c != null)
 						{
-							x = c.cx - 15;
-						}
-						else
-						{
-							x = c.cx + 15;
-						}
-						if (c.isMonkey == 0)
-						{
-							y = c.cy - 25;
-						}
-						else
-						{
-							y = c.cy - 35;
+							trans = ((c.cdir != 1) ? 1 : 0);
+							if (c.cdir == 1)
+							{
+								x = c.cx - 15;
+							}
+							else
+							{
+								x = c.cx + 15;
+							}
+							if (c.isMonkey == 0)
+							{
+								y = c.cy - 25;
+							}
+							else
+							{
+								y = c.cy - 35;
+							}
 						}
 						if (t < data.Length)
 						{
@@ -495,6 +500,10 @@ public class Effect
 						currFrame = data[t];
 					}
 				}
+				if (data == null)
+				{
+					return;
+				}
 				if (t >= data.Length - 1)
 				{
 					if (typeEff == 0 || typeEff == 3)
@@ -527,7 +536,7 @@ public class Effect
 							tLoopCount = 0;
 							loop--;
 							t = 0;
-							if (loop == 0)
+							if (loop == 0 && c != null)
 							{
 								c.removeEffChar(0, effId);
 							}
@@ -575,6 +584,6 @@ public class Effect
 
 	public int getnFrame()
 	{
-		return data.Length;
+		return data != null ? data.Length : 0;
 	}
 }

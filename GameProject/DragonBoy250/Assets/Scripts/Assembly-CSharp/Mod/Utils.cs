@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -144,14 +144,16 @@ namespace Mod
 		/// <returns>true nếu có vật phẩm được sử dụng.</returns>
 		internal static sbyte getIndexItemBag(params short[] templatesId)
 		{
-			Char myChar = Char.myCharz();
-			int length = myChar.arrItemBag.Length;
-			for (sbyte i = 0; i < length; i++)
+			Item[] arr = Char.myCharz()?.arrItemBag;
+			if (arr == null || templatesId == null)
+				return -1;
+			int length = System.Math.Min(arr.Length, sbyte.MaxValue + 1);
+			for (int i = 0; i < length; i++)
 			{
-				Item item = myChar.arrItemBag[i];
-				if (item != null && templatesId.Contains(item.template.id))
+				Item item = arr[i];
+				if (item?.template != null && templatesId.Contains(item.template.id))
 				{
-					return i;
+					return (sbyte)i;
 				}
 			}
 
@@ -342,12 +344,13 @@ namespace Mod
 		[CanBeNull]
 		internal static Item getItemInBag(short itemTemplateId)
 		{
-			Char myChar = Char.myCharz();
-			int length = myChar.arrItemBag.Length;
-			for (sbyte i = 0; i < length; i++)
+			Item[] arr = Char.myCharz()?.arrItemBag;
+			if (arr == null)
+				return null;
+			for (int i = 0; i < arr.Length; i++)
 			{
-				Item item = myChar.arrItemBag[i];
-				if (item != null && item.template.id == itemTemplateId)
+				Item item = arr[i];
+				if (item?.template != null && item.template.id == itemTemplateId)
 				{
 					return item;
 				}
@@ -359,12 +362,13 @@ namespace Mod
 		[CanBeNull]
 		internal static Item getItemInBox(short itemTemplateId)
 		{
-			Char myChar = Char.myCharz();
-			int length = myChar.arrItemBox.Length;
-			for (sbyte i = 0; i < length; i++)
+			Item[] arr = Char.myCharz()?.arrItemBox;
+			if (arr == null)
+				return null;
+			for (int i = 0; i < arr.Length; i++)
 			{
-				Item item = myChar.arrItemBox[i];
-				if (item != null && item.template.id == itemTemplateId)
+				Item item = arr[i];
+				if (item?.template != null && item.template.id == itemTemplateId)
 				{
 					return item;
 				}
@@ -375,6 +379,7 @@ namespace Mod
 
 		internal static void menuZone()
 		{
+			GameEvents.MarkExplicitZoneOpen();
 			Service.gI().openUIZone();
 			GameCanvas.panel.setTypeZone();
 			GameCanvas.panel.show();
@@ -458,15 +463,16 @@ namespace Mod
 
 		internal static bool isMeWearingActivationSet(int idSet)
 		{
+			Item[] body = Char.myCharz()?.arrItemBody;
+			if (body == null || body.Length < 5) return false;
 			int activateCount = 0;
 			for (int i = 0; i < 5; i++)
 			{
-				Item item = Char.myCharz().arrItemBody[i];
-				if (item == null) return false;
-				if (item.itemOption == null) return false;
+				Item item = body[i];
+				if (item?.itemOption == null) return false;
 				for (int j = 0; j < item.itemOption.Length; j++)
 				{
-					if (item.itemOption[j].optionTemplate.id == idSet)
+					if (item.itemOption[j]?.optionTemplate?.id == idSet)
 					{
 						activateCount++;
 						break;
