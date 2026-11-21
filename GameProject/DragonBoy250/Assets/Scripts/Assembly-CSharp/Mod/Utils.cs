@@ -512,12 +512,14 @@ namespace Mod
 			star = 0;
 			starE = 0;
 			bool result = false;
-			if (item.itemOption == null)
+			if (item == null || item.template == null || item.itemOption == null)
 				return result;
 			if ((item.template.type < ItemTemplateType.Shirt || item.template.type > ItemTemplateType.Radar) && item.template.type != ItemTemplateType.TrainingSuite)
 				return result;
 			for (int i = 0; i < item.itemOption.Length; i++)
 			{
+				if (item.itemOption[i] == null || item.itemOption[i].optionTemplate == null)
+					continue;
 				if (item.itemOption[i].optionTemplate.id == 102)
 					star = starE = (uint)item.itemOption[i].param;
 				if (item.itemOption[i].optionTemplate.id == 107)
@@ -574,10 +576,12 @@ namespace Mod
 
 		internal static bool HasActivateOption(Item item)
 		{
-			if (item.itemOption == null)
+			if (item == null || item.itemOption == null)
 				return false;
 			for (int i = 0; i < item.itemOption.Length; i++)
 			{
+				if (item.itemOption[i] == null || item.itemOption[i].optionTemplate == null)
+					continue;
 				if (item.itemOption[i].optionTemplate.id >= 127 && item.itemOption[i].optionTemplate.id <= 144)
 					return true;
 			}

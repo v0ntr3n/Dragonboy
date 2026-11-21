@@ -339,7 +339,7 @@ public class Session_ME2 : ISession
 
 	public static void onRecieveMsg(Message msg)
 	{
-		if (Thread.CurrentThread.Name == Main.mainThreadName)
+		if (Main.IsMainThread())
 		{
 			messageHandler.onMessage(msg);
 		}
@@ -394,10 +394,25 @@ public class Session_ME2 : ISession
 		{
 			try { if (sc != null) sc.Close(); } catch (Exception) { }
 			try { if (dataStream != null) dataStream.Close(); } catch (Exception) { }
-			lock (_writeLock)
+			bool lockTaken = false;
+			try
 			{
-				try { if (dos != null) dos.Close(); } catch (Exception) { }
-				dos = null;
+				Monitor.TryEnter(_writeLock, 50, ref lockTaken);
+				if (lockTaken)
+				{
+					try { if (dos != null) dos.Close(); } catch (Exception) { }
+					dos = null;
+					getKeyComplete = false;
+					key = null;
+					curW = 0;
+				}
+			}
+			finally
+			{
+				if (lockTaken)
+				{
+					Monitor.Exit(_writeLock);
+				}
 			}
 			try { if (dis != null) dis.Close(); } catch (Exception) { }
 		}
@@ -414,9 +429,24 @@ public class Session_ME2 : ISession
 			curW = 0;
 			sc = null;
 			dataStream = null;
-			lock (_writeLock)
+			bool finallyLockTaken = false;
+			try
 			{
-				dos = null;
+				Monitor.TryEnter(_writeLock, 50, ref finallyLockTaken);
+				if (finallyLockTaken)
+				{
+					dos = null;
+					getKeyComplete = false;
+					key = null;
+					curW = 0;
+				}
+			}
+			finally
+			{
+				if (finallyLockTaken)
+				{
+					Monitor.Exit(_writeLock);
+				}
 			}
 			dis = null;
 			sendThread = null;

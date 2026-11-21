@@ -1984,6 +1984,14 @@ public class Controller : IMessageHandler
 									Char.myCharz().arrItemBag[j].itemOption[k] = itemOption;
 								}
 							}
+						}
+						if (Char.myCharz().arrItemBag[j].template == null)
+						{
+							Char.myCharz().arrItemBag[j] = null;
+							continue;
+						}
+						if (num12 != 0)
+						{
 							Char.myCharz().arrItemBag[j].compare = GameCanvas.panel.getCompare(Char.myCharz().arrItemBag[j]);
 						}
 						if (Char.myCharz().arrItemBag[j].template.type == 11)
@@ -2005,12 +2013,16 @@ public class Controller : IMessageHandler
 				}
 				if (b8 == 2)
 				{
-					sbyte b9 = msg.reader().readByte();
+					int b9 = msg.reader().readUnsignedByte();
 					int num13 = msg.reader().readInt();
+					if (Char.myCharz().arrItemBag == null || b9 < 0 || b9 >= Char.myCharz().arrItemBag.Length || Char.myCharz().arrItemBag[b9] == null)
+					{
+						break;
+					}
 					int quantity = Char.myCharz().arrItemBag[b9].quantity;
-					int id = Char.myCharz().arrItemBag[b9].template.id;
+					int id = Char.myCharz().arrItemBag[b9].template != null ? Char.myCharz().arrItemBag[b9].template.id : -1;
 					Char.myCharz().arrItemBag[b9].quantity = num13;
-					if (Char.myCharz().arrItemBag[b9].quantity < quantity && Char.myCharz().arrItemBag[b9].template.type == 6)
+					if (Char.myCharz().arrItemBag[b9].quantity < quantity && Char.myCharz().arrItemBag[b9].template != null && Char.myCharz().arrItemBag[b9].template.type == 6)
 					{
 						GameScr.hpPotion -= quantity - Char.myCharz().arrItemBag[b9].quantity;
 					}

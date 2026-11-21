@@ -76,7 +76,7 @@ public class Rms
 
 	public static void saveRMS(string filename, sbyte[] data)
 	{
-		if (Thread.CurrentThread.Name == Main.mainThreadName)
+		if (Main.IsMainThread())
 		{
 			__saveRMS(filename, data);
 		}
@@ -88,7 +88,7 @@ public class Rms
 
 	public static sbyte[] loadRMS(string filename)
 	{
-		if (Thread.CurrentThread.Name == Main.mainThreadName)
+		if (Main.IsMainThread())
 		{
 			return __loadRMS(filename);
 		}
@@ -267,7 +267,7 @@ public class Rms
 				using (FileStream fileStream = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
 				{
 					fileStream.Write(bytes, 0, bytes.Length);
-					fileStream.Flush(true);
+					fileStream.Flush(false);
 				}
 				if (File.Exists(text))
 				{

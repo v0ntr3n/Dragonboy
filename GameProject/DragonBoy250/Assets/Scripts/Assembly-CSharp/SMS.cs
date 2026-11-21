@@ -26,7 +26,7 @@ public class SMS
 
 	public static int send(string content, string to)
 	{
-		if (Thread.CurrentThread.Name == Main.mainThreadName)
+		if (Main.IsMainThread())
 		{
 			return __send(content, to);
 		}

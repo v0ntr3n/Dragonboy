@@ -160,6 +160,10 @@ public class mFont
 
 	private GUIStyle cachedStyle;
 
+	private GUIStyle cachedMeasureStyle;
+
+	private GUIContent cachedMeasureContent;
+
 	private static readonly Color[] bigColors = new Color[7]
 	{
 		Color.red,
@@ -280,6 +284,10 @@ public class mFont
 			color2 = bigColor(id);
 		}
 		wO = getWidthExactOf("o");
+		if (wO <= 0)
+		{
+			wO = 6 * mGraphics.zoomLevel;
+		}
 	}
 
 	public static void init()
@@ -588,6 +596,10 @@ public class mFont
 	public MyVector splitFontVector(string src, int lineWidth)
 	{
 		MyVector myVector = new MyVector();
+		if (string.IsNullOrEmpty(src))
+		{
+			return myVector;
+		}
 		string text = string.Empty;
 		for (int i = 0; i < src.Length; i++)
 		{
@@ -600,18 +612,26 @@ public class mFont
 			text += src[i];
 			if (getWidth(text) > lineWidth)
 			{
-				int num = 0;
-				num = text.Length - 1;
+				int num = text.Length - 1;
 				while (num >= 0 && text[num] != ' ')
 				{
 					num--;
 				}
-				if (num <= 0)
+				if (num > 0)
+				{
+					myVector.addElement(text.Substring(0, num));
+					i = i - (text.Length - 1 - num);
+				}
+				else if (text.Length > 1)
 				{
 					num = text.Length - 1;
+					myVector.addElement(text.Substring(0, num));
+					i--;
 				}
-				myVector.addElement(text.Substring(0, num));
-				i = i - (text.Length - num) + 1;
+				else
+				{
+					myVector.addElement(text);
+				}
 				text = string.Empty;
 			}
 			if (i == src.Length - 1 && !text.Trim().Equals(string.Empty))
@@ -771,11 +791,58 @@ public class mFont
 
 	public int getWidthExactOf(string s)
 	{
+		if (string.IsNullOrEmpty(s))
+		{
+			return 0;
+		}
+		int zoom = mGraphics.zoomLevel > 0 ? mGraphics.zoomLevel : 1;
 		try
 		{
-			GUIStyle gUIStyle = new GUIStyle();
-			gUIStyle.font = myFont;
-			return (int)gUIStyle.CalcSize(new GUIContent(s)).x / mGraphics.zoomLevel;
+			if (UnityEngine.Event.current != null)
+			{
+				if (cachedMeasureStyle == null)
+				{
+					cachedMeasureStyle = new GUIStyle();
+				}
+				if (cachedMeasureContent == null)
+				{
+					cachedMeasureContent = new GUIContent();
+				}
+				cachedMeasureStyle.font = myFont;
+				cachedMeasureContent.text = s;
+				return (int)cachedMeasureStyle.CalcSize(cachedMeasureContent).x / zoom;
+			}
+			if (myFont != null)
+			{
+				bool missing = false;
+				for (int i = 0; i < s.Length; i++)
+				{
+					if (!myFont.GetCharacterInfo(s[i], out CharacterInfo _))
+					{
+						missing = true;
+						break;
+					}
+				}
+				if (missing)
+				{
+					myFont.RequestCharactersInTexture(s);
+				}
+				int totalAdvance = 0;
+				int fallbackCharWidth = wO > 0 ? wO : 6 * zoom;
+				for (int i = 0; i < s.Length; i++)
+				{
+					if (myFont.GetCharacterInfo(s[i], out CharacterInfo ci))
+					{
+						totalAdvance += ci.advance;
+					}
+					else
+					{
+						totalAdvance += fallbackCharWidth;
+					}
+				}
+				return totalAdvance / zoom;
+			}
+			return getWidthNotExactOf(s);
 		}
 		catch (Exception ex)
 		{
@@ -786,7 +853,13 @@ public class mFont
 
 	public int getWidthNotExactOf(string s)
 	{
-		return s.Length * wO / mGraphics.zoomLevel;
+		if (string.IsNullOrEmpty(s))
+		{
+			return 0;
+		}
+		int zoom = mGraphics.zoomLevel > 0 ? mGraphics.zoomLevel : 1;
+		int charWidth = wO > 0 ? wO : 6 * zoom;
+		return s.Length * charWidth / zoom;
 	}
 
 	public int getHeight()
@@ -795,22 +868,40 @@ public class mFont
 		{
 			return height;
 		}
+		int zoom = mGraphics.zoomLevel > 0 ? mGraphics.zoomLevel : 1;
 		if (height > 0)
 		{
-			return height / mGraphics.zoomLevel;
+			return height / zoom;
 		}
-		GUIStyle gUIStyle = new GUIStyle();
-		gUIStyle.font = myFont;
+		if (UnityEngine.Event.current == null)
+		{
+			if (myFont != null && myFont.lineHeight > 0)
+			{
+				height = myFont.lineHeight + 2;
+				return height / zoom;
+			}
+			return 20 / zoom;
+		}
+		if (cachedMeasureStyle == null)
+		{
+			cachedMeasureStyle = new GUIStyle();
+		}
+		if (cachedMeasureContent == null)
+		{
+			cachedMeasureContent = new GUIContent();
+		}
+		cachedMeasureStyle.font = myFont;
+		cachedMeasureContent.text = "Adg";
 		try
 		{
-			height = (int)gUIStyle.CalcSize(new GUIContent("Adg")).y + 2;
+			height = (int)cachedMeasureStyle.CalcSize(cachedMeasureContent).y + 2;
 		}
 		catch (Exception ex)
 		{
 			Cout.LogError("FAIL GET HEIGHT " + ex.StackTrace);
 			height = 20;
 		}
-		return height / mGraphics.zoomLevel;
+		return height / zoom;
 	}
 
 	public void _drawString(mGraphics g, string st, int x0, int y0, int align)
@@ -849,6 +940,14 @@ public class mFont
 
 	public static string[] splitStringSv(string _text, string _searchStr)
 	{
+		if (string.IsNullOrEmpty(_text))
+		{
+			return new string[0];
+		}
+		if (string.IsNullOrEmpty(_searchStr))
+		{
+			return new string[] { _text };
+		}
 		int num = 0;
 		int startIndex = 0;
 		int length = _searchStr.Length;

@@ -62,9 +62,14 @@ namespace Mod
 		static int _splashTicksObserved;
 		static bool _splashLoadIpTriggered;
 		static bool _splashCompleted;
+		static long _lastHasRequiredResourcesCheckMs;
 
 		internal static void EnsureMainThreadRegistered()
 		{
+			if (Main.mainThreadId == 0)
+			{
+				Main.mainThreadId = Thread.CurrentThread.ManagedThreadId;
+			}
 			if (Thread.CurrentThread.Name != "Main")
 			{
 				try
@@ -225,11 +230,11 @@ namespace Mod
 			try
 			{
 				int zoom = mGraphics.zoomLevel > 0 ? mGraphics.zoomLevel : 2;
+				string basePath = Rms.GetiPhoneDocumentsPath();
 				for (int i = 0; i <= 5; i++)
 				{
-					string filename = "x" + zoom + "Big" + i;
-					sbyte[] data = Rms.loadRMS(filename);
-					if (data == null || data.Length == 0)
+					string path = Path.Combine(basePath, "x" + zoom + "Big" + i);
+					if (!File.Exists(path) || new FileInfo(path).Length <= 0)
 						return false;
 				}
 				return true;
@@ -720,14 +725,19 @@ namespace Mod
 			}
 			if (GameCanvas.currentScreen is ServerListScreen && !ServerListScreen.loadScreen && !ServerListScreen.isGetData)
 			{
-				if (HasRequiredResources())
+				long nowMs = mSystem.currentTimeMillis();
+				if (nowMs - _lastHasRequiredResourcesCheckMs >= 500)
 				{
-					EnsureResVersionReady();
-					ServerListScreen.loadScreen = true;
-					GameCanvas.loadBG(0);
-					if (GameCanvas.serverScreen != null && (GameCanvas.serverScreen.cmd == null || GameCanvas.serverScreen.cmd.Length == 0))
+					_lastHasRequiredResourcesCheckMs = nowMs;
+					if (HasRequiredResources())
 					{
-						GameCanvas.serverScreen.initCommand();
+						EnsureResVersionReady();
+						ServerListScreen.loadScreen = true;
+						GameCanvas.loadBG(0);
+						if (GameCanvas.serverScreen != null && (GameCanvas.serverScreen.cmd == null || GameCanvas.serverScreen.cmd.Length == 0))
+						{
+							GameCanvas.serverScreen.initCommand();
+						}
 					}
 				}
 			}

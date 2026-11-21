@@ -538,11 +538,13 @@ namespace Mod
 
 		internal static ItemOption GetBestItemOption(this Item item)
 		{
+			if (item == null || item.itemOption == null)
+				return null;
 			ItemOption itemOption = null;
 			for (int i = 0; i < item.itemOption.Length; i++)
 			{
 				ItemOption iOption = item.itemOption[i];
-				if (iOption.optionTemplate == null)
+				if (iOption == null || iOption.optionTemplate == null)
 					continue;
 				if (iOption.optionTemplate.id >= 127 && iOption.optionTemplate.id <= 135) //Set kích hoạt
 				{

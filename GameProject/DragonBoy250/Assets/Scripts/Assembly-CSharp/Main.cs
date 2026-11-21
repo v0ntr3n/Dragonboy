@@ -15,6 +15,14 @@ public class Main : MonoBehaviour
 
 	public static string mainThreadName;
 
+	public static volatile int mainThreadId;
+
+	public static bool IsMainThread()
+	{
+		int id = mainThreadId;
+		return id != 0 ? Thread.CurrentThread.ManagedThreadId == id : Thread.CurrentThread.Name == mainThreadName;
+	}
+
 	public static bool started;
 
 	public static bool isIpod;
@@ -73,15 +81,27 @@ public class Main : MonoBehaviour
 
 	public static bool isCompactDevice = true;
 
+	private void Awake()
+	{
+		mainThreadId = Thread.CurrentThread.ManagedThreadId;
+	}
+
 	private void Start()
 	{
+		mainThreadId = Thread.CurrentThread.ManagedThreadId;
 		if (started)
 		{
 			return;
 		}
 		if (Thread.CurrentThread.Name != "Main")
 		{
-			Thread.CurrentThread.Name = "Main";
+			try
+			{
+				Thread.CurrentThread.Name = "Main";
+			}
+			catch
+			{
+			}
 		}
 		mainThreadName = Thread.CurrentThread.Name;
 		isPC = true;

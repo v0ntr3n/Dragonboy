@@ -10,11 +10,29 @@ namespace Mod
 	{
 		static Mutex windowsSharedDataMutex;
 		static readonly object windowsSharedDataMutexInit = new object();
+		static volatile bool _crossProcessLockConfigCached;
+		static bool _useWindowsCrossProcessFileLock;
+		static string _windowsSharedDataMutexName;
 
 		internal static string PersistentDataPath => Application.persistentDataPath;
 
-		static bool UseWindowsCrossProcessFileLock =>
-			Application.platform == RuntimePlatform.WindowsPlayer;
+		static void CacheCrossProcessLockConfig()
+		{
+			if (_crossProcessLockConfigCached || !Main.IsMainThread())
+				return;
+			bool isWin = Application.platform == RuntimePlatform.WindowsPlayer;
+			string mutexName = null;
+			if (isWin)
+			{
+				string id = Application.identifier;
+				if (string.IsNullOrEmpty(id))
+					id = Application.companyName + "." + Application.productName;
+				mutexName = @"Local\" + SanitizeMutexSegment(id) + "_ModAndRmsData";
+			}
+			_windowsSharedDataMutexName = mutexName;
+			_useWindowsCrossProcessFileLock = isWin;
+			_crossProcessLockConfigCached = true;
+		}
 
 		internal static string RootDataPath
 		{
@@ -52,7 +70,8 @@ namespace Mod
 
 		internal static void ExecuteWithCrossProcessDataLock(Action action)
 		{
-			if (!UseWindowsCrossProcessFileLock)
+			CacheCrossProcessLockConfig();
+			if (!_crossProcessLockConfigCached || !_useWindowsCrossProcessFileLock || string.IsNullOrEmpty(_windowsSharedDataMutexName))
 			{
 				action();
 				return;
@@ -63,10 +82,7 @@ namespace Mod
 				{
 					if (windowsSharedDataMutex == null)
 					{
-						string id = Application.identifier;
-						if (string.IsNullOrEmpty(id))
-							id = Application.companyName + "." + Application.productName;
-						windowsSharedDataMutex = new Mutex(false, @"Local\" + SanitizeMutexSegment(id) + "_ModAndRmsData");
+						windowsSharedDataMutex = new Mutex(false, _windowsSharedDataMutexName);
 					}
 				}
 			}
@@ -75,7 +91,7 @@ namespace Mod
 			{
 				try
 				{
-					int timeoutMs = Thread.CurrentThread.Name == Main.mainThreadName ? 100 : 5000;
+					int timeoutMs = Main.IsMainThread() ? 100 : 5000;
 					lockTaken = windowsSharedDataMutex.WaitOne(timeoutMs);
 				}
 				catch (AbandonedMutexException)
@@ -119,6 +135,7 @@ namespace Mod
 
 		internal static void EnsureCommonDataDirectory()
 		{
+			CacheCrossProcessLockConfig();
 			Directory.CreateDirectory(CommonDataPath);
 		}
 
