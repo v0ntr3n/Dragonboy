@@ -258,11 +258,13 @@ namespace Mod.ModMenu
 					GetValueFunc = () => Application.targetFrameRate,
 					SetValueAction = value =>
 					{
-						if (value >= 5 && value <= Screen.currentResolution.refreshRateRatio.value)
+						if (value >= 5 && value <= 60)
 							Application.targetFrameRate = (int)value;
+						else if (value > 60)
+							Application.targetFrameRate = 60;
 					},
 					MinValue = 5,
-					MaxValue = Screen.currentResolution.refreshRateRatio.value,
+					MaxValue = 60,
 					RMSName = "target_fps",
 					GetIsDisabled = () => QualitySettings.vSyncCount == 1,
 					GetDisabledReason = () => string.Format(Strings.functionShouldBeDisabled, "VSync"),

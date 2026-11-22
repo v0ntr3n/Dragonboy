@@ -11,7 +11,7 @@ namespace Mod
 		static void Bootstrap()
 		{
 			QualitySettings.vSyncCount = 0;
-			Application.targetFrameRate = 180;
+			Application.targetFrameRate = 60;
 			GameEvents.EnsureMainThreadRegistered();
 			GameEvents.ApplyStaticServerDefaultsOnly();
 			UnlockMainPaintGate();

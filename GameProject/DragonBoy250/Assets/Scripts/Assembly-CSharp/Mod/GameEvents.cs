@@ -609,7 +609,7 @@ namespace Mod
 		{
 			EnsureMainThreadRegistered();
 			QualitySettings.vSyncCount = 0;
-			Application.targetFrameRate = 180;
+			Application.targetFrameRate = 60;
 			Application.runInBackground = true;
 			Time.timeScale = 2f;
 			Time.fixedDeltaTime = 0.02f;
@@ -620,7 +620,7 @@ namespace Mod
 		{
 			EnsureMainThreadRegistered();
 			QualitySettings.vSyncCount = 0;
-			Application.targetFrameRate = 180;
+			Application.targetFrameRate = 60;
 			if (Utils.IsMobile())
 			{
 				QualitySettings.vSyncCount = 1;
