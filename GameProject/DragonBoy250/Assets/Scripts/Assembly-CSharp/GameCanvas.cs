@@ -1316,8 +1316,9 @@ public class GameCanvas : IActionListener
 		else
 		{
 			endDlg();
+			ServerListScreen.countDieConnect++;
+			ServerListScreen.count_reConnect = mSystem.currentTimeMillis() + System.Math.Min(30000, 5000 * System.Math.Max(1, ServerListScreen.countDieConnect));
 			ServerListScreen.loadScreen = true;
-			serverScreen.switchToMe();
 		}
 		Char.isLoadingMap = false;
 		isLoading = false;
@@ -1900,9 +1901,13 @@ public class GameCanvas : IActionListener
 			g.fillRect(0, 0, w, h);
 			if (tam != null)
 			{
-				for (int j = -((GameScr.cmx >> 2) % mGraphics.getImageWidth(tam)); j < GameScr.gW; j += mGraphics.getImageWidth(tam))
+				int tamW = mGraphics.getImageWidth(tam);
+				if (tamW > 0)
 				{
-					g.drawImage(tam, j, (GameScr.cmy >> 3) + h / 2 - 50, 0);
+					for (int j = -((GameScr.cmx >> 2) % tamW); j < GameScr.gW; j += tamW)
+					{
+						g.drawImage(tam, j, (GameScr.cmy >> 3) + h / 2 - 50, 0);
+					}
 				}
 			}
 			g.setColor(5084791);

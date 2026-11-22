@@ -129,7 +129,6 @@ public class Session_ME2 : ISession
 		}
 		isCancel = false;
 		connecting = true;
-		Thread.CurrentThread.Priority = ThreadPriority.Highest;
 		try
 		{
 			doConnect(host, port, connId);
@@ -356,6 +355,8 @@ public class Session_ME2 : ISession
 	{
 		const int maxMessagesPerUpdate = 64;
 		int processed = 0;
+		int resourceMsgs = 0;
+		long startMs = currentTimeMillis();
 		while (processed < maxMessagesPerUpdate)
 		{
 			if (Controller.isStopReadMessage)
@@ -378,6 +379,10 @@ public class Session_ME2 : ISession
 			}
 			messageHandler.onMessage(message);
 			processed++;
+			if (currentTimeMillis() - startMs >= 12 || (message.command == -74 && ++resourceMsgs >= 4))
+			{
+				break;
+			}
 		}
 	}
 
@@ -390,14 +395,14 @@ public class Session_ME2 : ISession
 		key = null;
 		curR = 0;
 		curW = 0;
+		bool lockTaken = false;
 		try
 		{
 			try { if (sc != null) sc.Close(); } catch (Exception) { }
 			try { if (dataStream != null) dataStream.Close(); } catch (Exception) { }
-			bool lockTaken = false;
 			try
 			{
-				Monitor.TryEnter(_writeLock, 50, ref lockTaken);
+				Monitor.TryEnter(_writeLock, 15, ref lockTaken);
 				if (lockTaken)
 				{
 					try { if (dos != null) dos.Close(); } catch (Exception) { }
@@ -429,24 +434,12 @@ public class Session_ME2 : ISession
 			curW = 0;
 			sc = null;
 			dataStream = null;
-			bool finallyLockTaken = false;
-			try
+			if (lockTaken)
 			{
-				Monitor.TryEnter(_writeLock, 50, ref finallyLockTaken);
-				if (finallyLockTaken)
-				{
-					dos = null;
-					getKeyComplete = false;
-					key = null;
-					curW = 0;
-				}
-			}
-			finally
-			{
-				if (finallyLockTaken)
-				{
-					Monitor.Exit(_writeLock);
-				}
+				dos = null;
+				getKeyComplete = false;
+				key = null;
+				curW = 0;
 			}
 			dis = null;
 			sendThread = null;
@@ -628,9 +621,11 @@ public class Session_ME2 : ISession
 			{
 				return;
 			}
+			bool wasEstablished = currentTimeMillis() - timeConnected > 500;
+			cleanNetwork();
 			if (messageHandler != null)
 			{
-				if (currentTimeMillis() - timeConnected > 500)
+				if (wasEstablished)
 				{
 					messageHandler.onDisconnected(isMainSession);
 				}
@@ -638,14 +633,6 @@ public class Session_ME2 : ISession
 				{
 					messageHandler.onConnectionFail(isMainSession);
 				}
-			}
-			if (connId != Volatile.Read(ref _connectionId))
-			{
-				return;
-			}
-			if (sc != null)
-			{
-				cleanNetwork();
 			}
 		}
 

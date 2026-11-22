@@ -17,10 +17,16 @@ public class Main : MonoBehaviour
 
 	public static volatile int mainThreadId;
 
+	[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+	private static void CaptureMainThreadId()
+	{
+		mainThreadId = Thread.CurrentThread.ManagedThreadId;
+	}
+
 	public static bool IsMainThread()
 	{
 		int id = mainThreadId;
-		return id != 0 ? Thread.CurrentThread.ManagedThreadId == id : Thread.CurrentThread.Name == mainThreadName;
+		return id != 0 && Thread.CurrentThread.ManagedThreadId == id;
 	}
 
 	public static bool started;

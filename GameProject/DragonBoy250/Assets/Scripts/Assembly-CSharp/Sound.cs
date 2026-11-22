@@ -374,7 +374,7 @@ public class Sound
 
 	public static void load(string filename, int pos)
 	{
-		if (Thread.CurrentThread.Name == Main.mainThreadName)
+		if (Main.IsMainThread())
 		{
 			__load(filename, pos);
 		}
@@ -412,7 +412,7 @@ public class Sound
 
 	public static void start(float volume, int pos)
 	{
-		if (Thread.CurrentThread.Name == Main.mainThreadName)
+		if (Main.IsMainThread())
 		{
 			__start(volume, pos);
 		}
@@ -441,7 +441,7 @@ public class Sound
 
 	public static void stop(int pos)
 	{
-		if (Thread.CurrentThread.Name == Main.mainThreadName)
+		if (Main.IsMainThread())
 		{
 			__stop(pos);
 		}

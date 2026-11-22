@@ -264,9 +264,20 @@ namespace Mod
 			EnsureMainThreadRegistered();
 			ApplyStaticServerDefaultsOnly();
 			EnsureResVersionReady();
-			ServerListScreen.getServerList(TEAMOBI2026_SERVER_LIST);
-			ServerListScreen.ipSelect = 0;
-			Rms.saveRMSInt("svselect", 0);
+			bool alreadyConfigured = ServerListScreen.address != null
+				&& ServerListScreen.address.Length > 0
+				&& ServerListScreen.ipSelect >= 0
+				&& ServerListScreen.ipSelect < ServerListScreen.address.Length
+				&& ServerListScreen.address[ServerListScreen.ipSelect] == TEAMOBI2026_HOST
+				&& ServerListScreen.port != null
+				&& ServerListScreen.ipSelect < ServerListScreen.port.Length
+				&& ServerListScreen.port[ServerListScreen.ipSelect] == TEAMOBI2026_PORT;
+			if (!alreadyConfigured)
+			{
+				ServerListScreen.getServerList(TEAMOBI2026_SERVER_LIST);
+				ServerListScreen.ipSelect = 0;
+				Rms.saveRMSInt("svselect", 0);
+			}
 			LoginScr.serverName = TEAMOBI2026_SERVER_NAME;
 			SyncGameMidletEndpoints(TEAMOBI2026_HOST, TEAMOBI2026_PORT);
 		}
@@ -296,6 +307,7 @@ namespace Mod
 				}
 				else
 				{
+					GameCanvas.endDlg();
 					GameCanvas.serverScreen.show2();
 				}
 			}
@@ -321,6 +333,7 @@ namespace Mod
 					}
 					else
 					{
+						GameCanvas.endDlg();
 						GameCanvas.serverScreen.show2();
 					}
 				}
@@ -1156,7 +1169,18 @@ namespace Mod
 
 		internal static void OnScreenDownloadDataShow()
 		{
-			ApplyTeamobi2026ServerConfig();
+			bool alreadyConfigured = ServerListScreen.address != null
+				&& ServerListScreen.address.Length > 0
+				&& ServerListScreen.ipSelect >= 0
+				&& ServerListScreen.ipSelect < ServerListScreen.address.Length
+				&& ServerListScreen.address[ServerListScreen.ipSelect] == TEAMOBI2026_HOST
+				&& ServerListScreen.port != null
+				&& ServerListScreen.ipSelect < ServerListScreen.port.Length
+				&& ServerListScreen.port[ServerListScreen.ipSelect] == TEAMOBI2026_PORT;
+			if (!alreadyConfigured)
+			{
+				ApplyTeamobi2026ServerConfig();
+			}
 			if (HasRequiredResources())
 			{
 				ServerListScreen.isGetData = false;
@@ -1168,10 +1192,18 @@ namespace Mod
 			{
 				ServerListScreen.stopDownload = false;
 				ServerListScreen.loadScreen = false;
-				ServerListScreen.isGetData = true;
 				Rms.DeleteStorage(Rms.RMS_ResVersion);
-				Service.gI().setClientType();
-				Service.gI().getResource(1, null);
+				if (Session_ME.gI().isConnected())
+				{
+					ServerListScreen.isGetData = true;
+					Service.gI().setClientType();
+					Service.gI().getResource(1, null);
+				}
+				else
+				{
+					ServerListScreen.isGetData = false;
+					ServerListScreen.loadScreen = false;
+				}
 			}
 		}
 
