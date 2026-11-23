@@ -164,6 +164,8 @@ public class mFont
 
 	private GUIContent cachedMeasureContent;
 
+	private short[] charAdvancePx;
+
 	private static readonly Color[] bigColors = new Color[7]
 	{
 		Color.red,
@@ -286,7 +288,7 @@ public class mFont
 		wO = getWidthExactOf("o");
 		if (wO <= 0)
 		{
-			wO = 6 * mGraphics.zoomLevel;
+			wO = 6;
 		}
 	}
 
@@ -600,43 +602,70 @@ public class mFont
 		{
 			return myVector;
 		}
-		string text = string.Empty;
+		int safeLimit = lineWidth > 16 ? lineWidth : 16;
+		int zoom = mGraphics.zoomLevel > 0 ? mGraphics.zoomLevel : 1;
+		int pxLimit = mGraphics.zoomLevel == 1 ? safeLimit : safeLimit * zoom;
+		int lineStart = 0;
+		int lastSpaceIdx = -1;
+		int currentPx = 0;
+		int pxAtLastSpace = 0;
 		for (int i = 0; i < src.Length; i++)
 		{
-			if (src[i] == '\n' || src[i] == '\b')
+			char ch = src[i];
+			if (ch == '\r')
 			{
-				myVector.addElement(text);
-				text = string.Empty;
 				continue;
 			}
-			text += src[i];
-			if (getWidth(text) > lineWidth)
+			if (ch == '\n' || ch == '\b')
 			{
-				int num = text.Length - 1;
-				while (num >= 0 && text[num] != ' ')
+				myVector.addElement(src.Substring(lineStart, i - lineStart));
+				lineStart = i + 1;
+				lastSpaceIdx = -1;
+				currentPx = 0;
+				pxAtLastSpace = 0;
+				continue;
+			}
+			int chPx = getCharAdvanceRaw(ch, zoom);
+			if (ch == ' ')
+			{
+				lastSpaceIdx = i;
+				pxAtLastSpace = currentPx + chPx;
+			}
+			currentPx += chPx;
+			if (currentPx > pxLimit)
+			{
+				if (lastSpaceIdx > lineStart)
 				{
-					num--;
+					myVector.addElement(src.Substring(lineStart, lastSpaceIdx - lineStart));
+					lineStart = lastSpaceIdx + 1;
+					currentPx -= pxAtLastSpace;
+					lastSpaceIdx = -1;
+					pxAtLastSpace = 0;
 				}
-				if (num > 0)
+				else if (i > lineStart)
 				{
-					myVector.addElement(text.Substring(0, num));
-					i = i - (text.Length - 1 - num);
-				}
-				else if (text.Length > 1)
-				{
-					num = text.Length - 1;
-					myVector.addElement(text.Substring(0, num));
-					i--;
+					myVector.addElement(src.Substring(lineStart, i - lineStart));
+					lineStart = i;
+					currentPx = chPx;
+					lastSpaceIdx = -1;
+					pxAtLastSpace = 0;
 				}
 				else
 				{
-					myVector.addElement(text);
+					myVector.addElement(src.Substring(lineStart, 1));
+					lineStart = i + 1;
+					currentPx = 0;
+					lastSpaceIdx = -1;
+					pxAtLastSpace = 0;
 				}
-				text = string.Empty;
 			}
-			if (i == src.Length - 1 && !text.Trim().Equals(string.Empty))
+		}
+		if (lineStart < src.Length)
+		{
+			string rem = src.Substring(lineStart);
+			if (!rem.Trim().Equals(string.Empty))
 			{
-				myVector.addElement(text);
+				myVector.addElement(rem);
 			}
 		}
 		return myVector;
@@ -789,6 +818,50 @@ public class mFont
 		return getWidthExactOf(s);
 	}
 
+	private int getCharAdvanceRaw(char ch, int zoom)
+	{
+		if (mGraphics.zoomLevel == 1 && strFont != null && fImages != null)
+		{
+			int idx = strFont.IndexOf(ch);
+			if (idx == -1)
+			{
+				idx = 0;
+			}
+			return fImages[idx][2] + space;
+		}
+		if (charAdvancePx == null)
+		{
+			charAdvancePx = new short[8192];
+		}
+		int code = ch;
+		if (code < 8192)
+		{
+			short cached = charAdvancePx[code];
+			if (cached > 0)
+			{
+				return cached;
+			}
+		}
+		if (myFont != null && myFont.GetCharacterInfo(ch, out CharacterInfo ci) && ci.advance > 0)
+		{
+			if (code < 8192)
+			{
+				charAdvancePx[code] = (short)ci.advance;
+			}
+			return ci.advance;
+		}
+		if (ch == ' ' || ch == '.' || ch == ',' || ch == ':' || ch == ';' || ch == '!' || ch == '|' || ch == '\'' || ch == 'i' || ch == 'l' || ch == 'I')
+		{
+			return 3 * zoom;
+		}
+		if (char.IsUpper(ch) || ch == 'm' || ch == 'w' || ch == 'M' || ch == 'W')
+		{
+			return 7 * zoom;
+		}
+		int baseLogical = wO > 0 ? wO : 6;
+		return baseLogical * zoom;
+	}
+
 	public int getWidthExactOf(string s)
 	{
 		if (string.IsNullOrEmpty(s))
@@ -796,59 +869,12 @@ public class mFont
 			return 0;
 		}
 		int zoom = mGraphics.zoomLevel > 0 ? mGraphics.zoomLevel : 1;
-		try
+		int totalPx = 0;
+		for (int i = 0; i < s.Length; i++)
 		{
-			if (UnityEngine.Event.current != null)
-			{
-				if (cachedMeasureStyle == null)
-				{
-					cachedMeasureStyle = new GUIStyle();
-				}
-				if (cachedMeasureContent == null)
-				{
-					cachedMeasureContent = new GUIContent();
-				}
-				cachedMeasureStyle.font = myFont;
-				cachedMeasureContent.text = s;
-				return (int)cachedMeasureStyle.CalcSize(cachedMeasureContent).x / zoom;
-			}
-			if (myFont != null)
-			{
-				bool missing = false;
-				for (int i = 0; i < s.Length; i++)
-				{
-					if (!myFont.GetCharacterInfo(s[i], out CharacterInfo _))
-					{
-						missing = true;
-						break;
-					}
-				}
-				if (missing)
-				{
-					myFont.RequestCharactersInTexture(s);
-				}
-				int totalAdvance = 0;
-				int fallbackCharWidth = wO > 0 ? wO : 6 * zoom;
-				for (int i = 0; i < s.Length; i++)
-				{
-					if (myFont.GetCharacterInfo(s[i], out CharacterInfo ci))
-					{
-						totalAdvance += ci.advance;
-					}
-					else
-					{
-						totalAdvance += fallbackCharWidth;
-					}
-				}
-				return totalAdvance / zoom;
-			}
-			return getWidthNotExactOf(s);
+			totalPx += getCharAdvanceRaw(s[i], zoom);
 		}
-		catch (Exception ex)
-		{
-			Cout.LogError("GET WIDTH OF " + s + " FAIL.\n" + ex.Message + "\n" + ex.StackTrace);
-			return getWidthNotExactOf(s);
-		}
+		return totalPx / zoom;
 	}
 
 	public int getWidthNotExactOf(string s)
@@ -857,9 +883,8 @@ public class mFont
 		{
 			return 0;
 		}
-		int zoom = mGraphics.zoomLevel > 0 ? mGraphics.zoomLevel : 1;
-		int charWidth = wO > 0 ? wO : 6 * zoom;
-		return s.Length * charWidth / zoom;
+		int logicalW = wO > 0 ? wO : 6;
+		return s.Length * logicalW;
 	}
 
 	public int getHeight()

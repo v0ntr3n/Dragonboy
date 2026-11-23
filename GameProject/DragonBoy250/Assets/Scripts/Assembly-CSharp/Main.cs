@@ -17,6 +17,46 @@ public class Main : MonoBehaviour
 
 	public static volatile int mainThreadId;
 
+	public static volatile int WatchdogTickMs;
+
+	public static volatile int WatchdogLastCmd;
+
+	public static volatile string WatchdogPhase = "Boot";
+
+	private static bool watchdogStarted;
+
+	private static void StartStallWatchdog()
+	{
+		if (watchdogStarted)
+		{
+			return;
+		}
+		watchdogStarted = true;
+		WatchdogTickMs = System.Environment.TickCount;
+		Thread wd = new Thread(() =>
+		{
+			int reportedTick = 0;
+			while (!isQuitApp)
+			{
+				Thread.Sleep(500);
+				if (!started)
+				{
+					continue;
+				}
+				int last = WatchdogTickMs;
+				int elapsed = unchecked(System.Environment.TickCount - last);
+				if (elapsed >= 1500 && reportedTick != last)
+				{
+					reportedTick = last;
+					Debug.LogError("[WATCHDOG] Main thread stalled for " + elapsed + "ms | phase=" + WatchdogPhase + " | lastCmd=" + WatchdogLastCmd);
+				}
+			}
+		});
+		wd.IsBackground = true;
+		wd.Name = "MainStallWatchdog";
+		wd.Start();
+	}
+
 	[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
 	private static void CaptureMainThreadId()
 	{
@@ -115,6 +155,7 @@ public class Main : MonoBehaviour
 		isIPhone = true;
 		#endif
 		started = true;
+		StartStallWatchdog();
 		GameEvents.OnMainStart();
 	}
 
@@ -136,6 +177,8 @@ public class Main : MonoBehaviour
 			checkInput();
 			if (Event.current != null && Event.current.type.Equals(EventType.Repaint) && paintCount <= updateCount)
 			{
+				WatchdogTickMs = System.Environment.TickCount;
+				WatchdogPhase = "OnGUI.Paint";
 				GameMidlet.gameCanvas.paint(g);
 				paintCount++;
 				g.reset();
@@ -244,6 +287,8 @@ public class Main : MonoBehaviour
 
 	private void FixedUpdate()
 	{
+		WatchdogTickMs = System.Environment.TickCount;
+		WatchdogPhase = "FixedUpdate";
 		Rms.update();
 		Sound.update();
 		count++;
@@ -289,9 +334,13 @@ public class Main : MonoBehaviour
 			{
 				checkPointerInput();
 			}
+			WatchdogTickMs = System.Environment.TickCount;
+			WatchdogPhase = "Update.PreProcessQueue";
 			GameEvents.PreProcessIncomingNetworkQueue();
+			WatchdogPhase = "Update.SessionME";
 			Session_ME.update();
 			Session_ME2.update();
+			WatchdogPhase = "Update.Done";
 		}
 		GameEvents.OnUpdateMain();
 	}

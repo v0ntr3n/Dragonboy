@@ -145,6 +145,12 @@ public class Controller : IMessageHandler
 
 	public void onMessage(Message msg)
 	{
+		if (msg != null)
+		{
+			Main.WatchdogTickMs = System.Environment.TickCount;
+			Main.WatchdogLastCmd = msg.command;
+			Main.WatchdogPhase = "Controller.onMessage";
+		}
 		GameCanvas.debugSession.removeAllElements();
 		GameCanvas.debug("SA1", 2);
 		try
