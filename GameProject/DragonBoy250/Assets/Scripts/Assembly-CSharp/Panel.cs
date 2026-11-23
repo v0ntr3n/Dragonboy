@@ -16,6 +16,7 @@ public class Panel : IActionListener, IChatable
 	public const int TYPE_FRIEND = 11, TYPE_COMBINE = 12, TYPE_GIAODICH = 13, TYPE_MAPTRANS = 14, TYPE_TOP = 15;
 	public const int TYPE_ENEMY = 16, TYPE_KIGUI = 17, TYPE_FLAG = 18, TYPE_OPTION = 19, TYPE_ACCOUNT = 20;
 	public const int TYPE_PET_MAIN = 21, TYPE_AUTO = 22, TYPE_GAMEINFO = 23, TYPE_GAMEINFOSUB = 24, TYPE_SPEACIALSKILL = 25;
+	public static bool pendingUserPetInfoRequest;
 
 	// Color constants
 	public const sbyte COLOR_WHITE = 0, COLOR_GREEN = 1, COLOR_PURPLE = 2, COLOR_ORANGE = 3;
@@ -796,14 +797,30 @@ public class Panel : IActionListener, IChatable
 		}
 		if (idAction == 2005)
 		{
-			sbyte id3 = (sbyte)GetInventorySelect_bag(selected, newSelected, Char.myCharz().arrItemBody);
-			Service.gI().getItem(BAG_PET, id3);
+			Item[] petEquipBody = Char.myCharz()?.arrItemBody;
+			Item[] petEquipBag = Char.myCharz()?.arrItemBag;
+			if (petEquipBody == null || petEquipBag == null)
+				return;
+			Item petEquipItem = (p as Item) ?? currItem;
+			int bagIdxForPet = GetInventorySelect_bag(selected, newSelected, petEquipBody);
+			if (isnewInventory && petEquipItem != null)
+				bagIdxForPet = petEquipItem.indexUI;
+			else if ((bagIdxForPet < 0 || bagIdxForPet >= petEquipBag.Length) && petEquipItem != null)
+				bagIdxForPet = petEquipItem.indexUI;
+			if (bagIdxForPet >= 0 && bagIdxForPet < petEquipBag.Length)
+				Service.gI().getItem(BAG_PET, (sbyte)bagIdxForPet);
 		}
 		if (idAction == 2006)
 		{
-			Item[] arrItemBody2 = Char.myPetz().arrItemBody;
-			sbyte id4 = (sbyte)selected;
-			Service.gI().getItem(PET_BAG, id4);
+			Item[] arrItemBody2 = Char.myPetz()?.arrItemBody;
+			if (arrItemBody2 == null)
+				return;
+			Item petUnequipItem = (p as Item) ?? currItem;
+			int petBodyIdx = selected;
+			if ((petBodyIdx < 0 || petBodyIdx >= arrItemBody2.Length) && petUnequipItem != null)
+				petBodyIdx = petUnequipItem.indexUI;
+			if (petBodyIdx >= 0 && petBodyIdx < arrItemBody2.Length)
+				Service.gI().getItem(PET_BAG, (sbyte)petBodyIdx);
 		}
 		if (idAction == 30001)
 		{
@@ -1405,6 +1422,8 @@ public class Panel : IActionListener, IChatable
 		X = 0;
 		Y = 0;
 		ITEM_HEIGHT = 24;
+		if (position == 2)
+			position = 0;
 		this.position = position;
 		if (position == 0)
 		{
@@ -1782,7 +1801,7 @@ public class Panel : IActionListener, IChatable
 	public void setTypePetMain()
 	{
 		type = 21;
-		if (GameCanvas.panel2 != null)
+		if (GameCanvas.panel2 != null && GameCanvas.panel2.isShow)
 			boxPet = mResources.petMainTab2;
 		else
 			boxPet = mResources.petMainTab;
@@ -1797,7 +1816,7 @@ public class Panel : IActionListener, IChatable
 			{
 				mResources.follow, mResources.defend, mResources.attack, mResources.gohome, mResources.fusion
 			};
-		setType(2);
+		setType(0);
 		if (currentTabIndex == 0)
 			setTabPetInventory();
 		if (currentTabIndex == 1)
@@ -3263,7 +3282,7 @@ public class Panel : IActionListener, IChatable
 
 	internal void setTabPetStatus()
 	{
-		currentListLength = strStatus.Length;
+		currentListLength = (strStatus != null) ? strStatus.Length : 0;
 		ITEM_HEIGHT = 24;
 		selected = GameCanvas.isTouch ? -1 : 0;
 		cmyLim = currentListLength * ITEM_HEIGHT - hScroll;
@@ -3510,7 +3529,7 @@ public class Panel : IActionListener, IChatable
 		if (cmy < 0)
 			cmy = cmtoY = 0;
 		if (cmy > cmyLim)
-			cmy = cmtoY = 0;
+			cmy = cmtoY = cmyLim;
 		selected = GameCanvas.isTouch ? -1 : 0;
 	}
 
@@ -4174,6 +4193,8 @@ public class Panel : IActionListener, IChatable
 
 	internal void paintPetStatus(mGraphics g)
 	{
+		if (strStatus == null)
+			return;
 		g.setClip(xScroll, yScroll, wScroll, hScroll);
 		g.translate(0, -cmy);
 		for (int i = 0; i < strStatus.Length; i++)
@@ -4186,7 +4207,7 @@ public class Panel : IActionListener, IChatable
 			{
 				g.setColor(i != selected ? 15196114 : 16383818);
 				g.fillRect(x, num, num2, h);
-				mFont.tahoma_7b_dark.drawString(g, strStatus[i], xScroll + wScroll / 2, num + 6, mFont.CENTER);
+				mFont.tahoma_7b_dark.drawString(g, strStatus[i] ?? string.Empty, xScroll + wScroll / 2, num + 6, mFont.CENTER);
 			}
 		}
 		paintScrollArrow(g);
@@ -4222,15 +4243,15 @@ public class Panel : IActionListener, IChatable
 			g.setColor(i == selected ? 16383818 : !flag ? 15723751 : 15196114);
 			g.fillRect(num3, num4, num5, h);
 			g.setColor(i == selected ? 9541120 : !flag ? 11837316 : 9993045);
-			if (item != null)
+			if (item != null && item.itemOption != null)
 			{
 				for (int j = 0; j < item.itemOption.Length; j++)
 				{
-					if (item.itemOption[j].optionTemplate.id == 72 && item.itemOption[j].param > 0)
+					if (item.itemOption[j] != null && item.itemOption[j].optionTemplate != null && item.itemOption[j].optionTemplate.id == 72 && item.itemOption[j].param > 0)
 					{
 						sbyte color_Item_Upgrade = GetColor_Item_Upgrade(item.itemOption[j].param);
 						if (GetColor_ItemBg(color_Item_Upgrade) != -1)
-							g.setColor(i != selected ? GetColor_ItemBg(color_Item_Upgrade) : GetColor_ItemBg(color_Item_Upgrade));
+							g.setColor(GetColor_ItemBg(color_Item_Upgrade));
 					}
 				}
 			}
@@ -4240,7 +4261,7 @@ public class Panel : IActionListener, IChatable
 				g.setColor(i != selected ? 6047789 : 7040779);
 				g.fillRect(num6, num7, num8, num9);
 			}
-			if (item != null)
+			if (item != null && item.template != null)
 			{
 				string text = string.Empty;
 				mFont mFont2 = mFont.tahoma_7_green2;
@@ -4248,6 +4269,8 @@ public class Panel : IActionListener, IChatable
 				{
 					for (int k = 0; k < item.itemOption.Length; k++)
 					{
+						if (item.itemOption[k] == null || item.itemOption[k].optionTemplate == null)
+							continue;
 						if (item.itemOption[k].optionTemplate.id == 72)
 							text = " [+" + item.itemOption[k].param + "]";
 						if (item.itemOption[k].optionTemplate.id == 41)
@@ -4269,11 +4292,11 @@ public class Panel : IActionListener, IChatable
 						}
 					}
 				}
-				mFont2.drawString(g, item.template.name + text, num3 + 5, num4 + 1, 0);
+				mFont2.drawString(g, (item.template.name ?? string.Empty) + text, num3 + 5, num4 + 1, 0);
 				string text2 = string.Empty;
 				if (item.itemOption != null)
 				{
-					if (item.itemOption.Length > 0 && item.itemOption[0] != null && item.itemOption[0].optionTemplate.id != 102 && item.itemOption[0].optionTemplate.id != 107)
+					if (item.itemOption.Length > 0 && item.itemOption[0] != null && item.itemOption[0].optionTemplate != null && item.itemOption[0].optionTemplate.id != 102 && item.itemOption[0].optionTemplate.id != 107)
 						text2 += item.itemOption[0].getOptionString();
 					mFont mFont3 = mFont.tahoma_7_blue;
 					if (item.compare < 0 && item.template.type != 5)
@@ -4282,7 +4305,7 @@ public class Panel : IActionListener, IChatable
 					{
 						for (int l = 1; l < 2; l++)
 						{
-							if (item.itemOption[l] != null && item.itemOption[l].optionTemplate.id != 102 && item.itemOption[l].optionTemplate.id != 107)
+							if (item.itemOption[l] != null && item.itemOption[l].optionTemplate != null && item.itemOption[l].optionTemplate.id != 102 && item.itemOption[l].optionTemplate.id != 107)
 								text2 = text2 + "," + item.itemOption[l].getOptionString();
 						}
 					}
@@ -4293,11 +4316,13 @@ public class Panel : IActionListener, IChatable
 				{
 					for (int m = 0; m < item.itemOption.Length; m++)
 					{
-						paintOptItem(g, item.itemOption[m].optionTemplate.id, item.itemOption[m].param, num6, num7, num8, num9);
+						if (item.itemOption[m] != null && item.itemOption[m].optionTemplate != null)
+							paintOptItem(g, item.itemOption[m].optionTemplate.id, item.itemOption[m].param, num6, num7, num8, num9);
 					}
 					for (int n = 0; n < item.itemOption.Length; n++)
 					{
-						paintOptSlotItem(g, item.itemOption[n].optionTemplate.id, item.itemOption[n].param, num6, num7, num8, num9);
+						if (item.itemOption[n] != null && item.itemOption[n].optionTemplate != null)
+							paintOptSlotItem(g, item.itemOption[n].optionTemplate.id, item.itemOption[n].param, num6, num7, num8, num9);
 					}
 				}
 				if (item.quantity > 1)
@@ -4305,18 +4330,22 @@ public class Panel : IActionListener, IChatable
 			}
 			else if (!flag)
 			{
-				Skill skill = arrPetSkill[num2];
+				Skill skill = (num2 >= 0 && num2 < arrPetSkill.Length) ? arrPetSkill[num2] : null;
 				g.drawImage(GameScr.imgSkill, num6 + num8 / 2, num7 + num9 / 2, 3);
-				if (skill.template != null)
+				if (skill != null)
 				{
-					mFont.tahoma_7_blue.drawString(g, skill.template.name, num3 + 5, num4 + 1, 0);
-					mFont.tahoma_7_green2.drawString(g, mResources.level + ": " + skill.point + string.Empty, num3 + 5, num4 + 11, 0);
-					SmallImage.drawSmallImage(g, skill.template.iconId, num6 + num8 / 2, num7 + num9 / 2, 0, 3);
-				}
-				else
-				{
-					mFont.tahoma_7_green2.drawString(g, skill.moreInfo, num3 + 5, num4 + 5, 0);
-					SmallImage.drawSmallImage(g, GameScr.efs[98].arrEfInfo[0].idImg, num6 + num8 / 2, num7 + num9 / 2, 0, 3);
+					if (skill.template != null)
+					{
+						mFont.tahoma_7_blue.drawString(g, skill.template.name ?? string.Empty, num3 + 5, num4 + 1, 0);
+						mFont.tahoma_7_green2.drawString(g, mResources.level + ": " + skill.point + string.Empty, num3 + 5, num4 + 11, 0);
+						SmallImage.drawSmallImage(g, skill.template.iconId, num6 + num8 / 2, num7 + num9 / 2, 0, 3);
+					}
+					else
+					{
+						mFont.tahoma_7_green2.drawString(g, skill.moreInfo ?? string.Empty, num3 + 5, num4 + 5, 0);
+						if (GameScr.efs != null && GameScr.efs.Length > 98 && GameScr.efs[98] != null && GameScr.efs[98].arrEfInfo != null && GameScr.efs[98].arrEfInfo.Length > 0 && GameScr.efs[98].arrEfInfo[0] != null)
+							SmallImage.drawSmallImage(g, GameScr.efs[98].arrEfInfo[0].idImg, num6 + num8 / 2, num7 + num9 / 2, 0, 3);
+					}
 				}
 			}
 		}
@@ -5757,17 +5786,20 @@ public class Panel : IActionListener, IChatable
 
 	internal void paintPetInfo(mGraphics g)
 	{
-		mFont.tahoma_7_yellow.drawString(g, mResources.power + ": " + NinjaUtil.getMoneys(Char.myPetz().cPower), X + 60, 4, mFont.LEFT, mFont.tahoma_7_grey);
-		if (Char.myPetz().cPower > 0)
-			mFont.tahoma_7_yellow.drawString(g, !Char.myPetz().me ? Char.myPetz().currStrLevel : Char.myPetz().getStrLevel(), X + 60, 16, mFont.LEFT, mFont.tahoma_7_grey);
-		if (Char.myPetz().cDamFull > 0)
-			mFont.tahoma_7_yellow.drawString(g, mResources.hit_point + " :" + Char.myPetz().cDamFull, X + 60, 27, mFont.LEFT, mFont.tahoma_7_grey);
-		if (Char.myPetz().cMaxStamina > 0)
+		Char pet = Char.myPetz();
+		if (pet == null)
+			return;
+		mFont.tahoma_7_yellow.drawString(g, mResources.power + ": " + NinjaUtil.getMoneys(pet.cPower), X + 60, 4, mFont.LEFT, mFont.tahoma_7_grey);
+		if (pet.cPower > 0)
+			mFont.tahoma_7_yellow.drawString(g, !pet.me ? (pet.currStrLevel ?? string.Empty) : pet.getStrLevel(), X + 60, 16, mFont.LEFT, mFont.tahoma_7_grey);
+		if (pet.cDamFull > 0)
+			mFont.tahoma_7_yellow.drawString(g, mResources.hit_point + " :" + pet.cDamFull, X + 60, 27, mFont.LEFT, mFont.tahoma_7_grey);
+		if (pet.cMaxStamina > 0 && GameScr.imgMPLost != null && GameScr.imgMP != null)
 		{
 			mFont.tahoma_7_yellow.drawString(g, mResources.vitality, X + 60, 38, mFont.LEFT, mFont.tahoma_7_grey);
 			g.drawImage(GameScr.imgMPLost, X + 100, 41, 0);
-			int num = Char.myPetz().cStamina * mGraphics.getImageWidth(GameScr.imgMP) / Char.myPetz().cMaxStamina;
-			g.setClip(100, X + 41, num, 20);
+			int num = Mathf.Clamp(pet.cStamina, 0, pet.cMaxStamina) * mGraphics.getImageWidth(GameScr.imgMP) / pet.cMaxStamina;
+			g.setClip(X + 100, 41, num, 20);
 			g.drawImage(GameScr.imgMP, X + 100, 41, 0);
 		}
 		g.setClip(0, 0, GameCanvas.w, GameCanvas.h);
@@ -6158,10 +6190,16 @@ public class Panel : IActionListener, IChatable
 
 	internal void paintPetStatusInfo(mGraphics g)
 	{
-		mFont.tahoma_7b_white.drawString(g, "HP: " + Char.myPetz().cHP + "/" + Char.myPetz().cHPFull, X + 60, 4, mFont.LEFT, mFont.tahoma_7b_dark);
-		mFont.tahoma_7b_white.drawString(g, "MP: " + Char.myPetz().cMP + "/" + Char.myPetz().cMPFull, X + 60, 16, mFont.LEFT, mFont.tahoma_7b_dark);
-		mFont.tahoma_7_yellow.drawString(g, mResources.critical + ": " + Char.myPetz().cCriticalFull + "   " + mResources.armor + ": " + Char.myPetz().cDefull, X + 60, 27, mFont.LEFT, mFont.tahoma_7_grey);
-		mFont.tahoma_7_yellow.drawString(g, mResources.status + ": " + strStatus[Char.myPetz().petStatus], X + 60, 38, mFont.LEFT, mFont.tahoma_7_grey);
+		Char pet = Char.myPetz();
+		if (pet == null)
+			return;
+		mFont.tahoma_7b_white.drawString(g, "HP: " + pet.cHP + "/" + pet.cHPFull, X + 60, 4, mFont.LEFT, mFont.tahoma_7b_dark);
+		mFont.tahoma_7b_white.drawString(g, "MP: " + pet.cMP + "/" + pet.cMPFull, X + 60, 16, mFont.LEFT, mFont.tahoma_7b_dark);
+		mFont.tahoma_7_yellow.drawString(g, mResources.critical + ": " + pet.cCriticalFull + "   " + mResources.armor + ": " + pet.cDefull, X + 60, 27, mFont.LEFT, mFont.tahoma_7_grey);
+		string statusLabel = (strStatus != null && strStatus.Length > 0)
+			? (strStatus[Mathf.Clamp(pet.petStatus, 0, strStatus.Length - 1)] ?? string.Empty)
+			: getStatus(pet.petStatus);
+		mFont.tahoma_7_yellow.drawString(g, mResources.status + ": " + statusLabel, X + 60, 38, mFont.LEFT, mFont.tahoma_7_grey);
 	}
 
 	internal void paintCombineInfo(mGraphics g)
@@ -6841,7 +6879,7 @@ public class Panel : IActionListener, IChatable
 
 	internal void doFirePetStatus()
 	{
-		if (selected == -1)
+		if (selected < 0 || strStatus == null || selected >= strStatus.Length)
 			return;
 		if (selected == 5)
 		{
@@ -7130,17 +7168,21 @@ public class Panel : IActionListener, IChatable
 		if (selected < 0)
 			return;
 
-		Item[] arrItemBody = Char.myCharz().arrItemBody;
-		Item[] arrItemBag = Char.myCharz().arrItemBag;
+		Item[] arrItemBody = Char.myCharz()?.arrItemBody;
+		Item[] arrItemBag = Char.myCharz()?.arrItemBag;
+		if (arrItemBody == null || arrItemBag == null)
+			return;
 		int itemIndex = isnewInventory ? sellectInventory : selected;
+		if (itemIndex < 0)
+			return;
 		bool isBodyItem = itemIndex < arrItemBody.Length;
 
 		// Get the selected item
 		currItem = isnewInventory ? itemInvenNew :
 			isBodyItem ? arrItemBody[itemIndex] :
-			itemIndex - arrItemBody.Length < arrItemBag.Length ? arrItemBag[itemIndex - arrItemBody.Length] : null;
+			(itemIndex - arrItemBody.Length >= 0 && itemIndex - arrItemBody.Length < arrItemBag.Length) ? arrItemBag[itemIndex - arrItemBody.Length] : null;
 
-		if (currItem == null)
+		if (currItem == null || currItem.template == null)
 		{
 			cp = null;
 			return;
@@ -7404,6 +7446,8 @@ public class Panel : IActionListener, IChatable
 
 	internal void doFirePet()
 	{
+		pendingUserPetInfoRequest = true;
+		GameEvents.IsBackgroundPetInfoPoll = false;
 		InfoDlg.showWait();
 		Service.gI().petInfo();
 		timeShow = 20;
@@ -7424,6 +7468,7 @@ public class Panel : IActionListener, IChatable
 		}
 		else
 		{
+			GameCanvas.panel2 = null;
 			GameCanvas.panel.tabName[21] = mResources.petMainTab;
 			GameCanvas.panel.setTypePetMain();
 			GameCanvas.panel.show();

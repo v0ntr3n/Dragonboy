@@ -1813,6 +1813,17 @@ public class Controller : IMessageHandler
 				if (b26 == 0)
 				{
 					Char.myCharz().havePet = false;
+					Char.myPet = null;
+					Panel.pendingUserPetInfoRequest = false;
+					GameEvents.IsBackgroundPetInfoPoll = false;
+					if (GameCanvas.panel != null && GameCanvas.panel.isShow && GameCanvas.panel.type == Panel.TYPE_PET_MAIN)
+					{
+						GameCanvas.panel.hide();
+						if (GameCanvas.panel2 != null && GameCanvas.panel2.isShow && GameCanvas.panel2.type == Panel.TYPE_BODY)
+						{
+							GameCanvas.panel2.hide();
+						}
+					}
 				}
 				if (b26 == 1)
 				{
@@ -1822,14 +1833,22 @@ public class Controller : IMessageHandler
 				{
 					break;
 				}
-				InfoDlg.hide();
-				Char.myPetz().head = msg.reader().readShort();
-				Res.outz(">>>cmd head:" + Char.myPetz().avatarz());
+				Char.myCharz().havePet = true;
+				bool petInfoShouldHideDlg = Panel.pendingUserPetInfoRequest || !GameEvents.IsBackgroundPetInfoPoll;
+				Panel.pendingUserPetInfoRequest = false;
+				GameEvents.IsBackgroundPetInfoPoll = false;
+				if (petInfoShouldHideDlg)
+				{
+					InfoDlg.hide();
+				}
+				Char petBodyObj = Char.myPetz();
+				petBodyObj.head = msg.reader().readShort();
+				Res.outz(">>>cmd head:" + petBodyObj.avatarz());
 				Res.outz("tra ve head= " + Char.myCharz().head);
-				Char.myPetz().setDefaultPart();
+				petBodyObj.setDefaultPart();
 				int num54 = msg.reader().readUnsignedByte();
 				Res.outz("num body = " + num54);
-				Char.myPetz().arrItemBody = new Item[num54];
+				petBodyObj.arrItemBody = new Item[num54];
 				for (int num55 = 0; num55 < num54; num55++)
 				{
 					short num56 = msg.reader().readShort();
@@ -1839,82 +1858,143 @@ public class Controller : IMessageHandler
 						continue;
 					}
 					Res.outz("1");
-					Char.myPetz().arrItemBody[num55] = new Item();
-					Char.myPetz().arrItemBody[num55].template = ItemTemplates.get(num56);
-					int num57 = Char.myPetz().arrItemBody[num55].template.type;
-					Char.myPetz().arrItemBody[num55].quantity = msg.reader().readInt();
+					ItemTemplate petItemTpl = ItemTemplates.get(num56);
+					int petItemQty = msg.reader().readInt();
 					Res.outz("3");
-					Char.myPetz().arrItemBody[num55].info = msg.reader().readUTF();
-					Char.myPetz().arrItemBody[num55].content = msg.reader().readUTF();
+					string petItemInfo = msg.reader().readUTF();
+					string petItemContent = msg.reader().readUTF();
 					int num58 = msg.reader().readUnsignedByte();
 					Res.outz("option size= " + num58);
-					if (num58 != 0)
+					ItemOption[] petRawOpts = (num58 > 0) ? new ItemOption[num58] : new ItemOption[0];
+					int petValidOptCount = 0;
+					for (int num59 = 0; num59 < num58; num59++)
 					{
-						Char.myPetz().arrItemBody[num55].itemOption = new ItemOption[num58];
-						for (int num59 = 0; num59 < Char.myPetz().arrItemBody[num55].itemOption.Length; num59++)
+						ItemOption itemOption2 = readItemOption(msg);
+						if (itemOption2 != null && itemOption2.optionTemplate != null)
 						{
-							ItemOption itemOption2 = readItemOption(msg);
-							if (itemOption2 != null)
-							{
-								Char.myPetz().arrItemBody[num55].itemOption[num59] = itemOption2;
-							}
+							petRawOpts[petValidOptCount++] = itemOption2;
 						}
 					}
+					if (petItemTpl == null)
+					{
+						petBodyObj.arrItemBody[num55] = null;
+						continue;
+					}
+					Item petItem = new Item();
+					petItem.template = petItemTpl;
+					petItem.quantity = petItemQty;
+					petItem.info = petItemInfo ?? string.Empty;
+					petItem.content = petItemContent ?? string.Empty;
+					petItem.indexUI = num55;
+					if (petValidOptCount == petRawOpts.Length)
+					{
+						petItem.itemOption = petRawOpts;
+					}
+					else
+					{
+						petItem.itemOption = new ItemOption[petValidOptCount];
+						for (int petOptIdx = 0; petOptIdx < petValidOptCount; petOptIdx++)
+						{
+							petItem.itemOption[petOptIdx] = petRawOpts[petOptIdx];
+						}
+					}
+					petBodyObj.arrItemBody[num55] = petItem;
+					int num57 = petItemTpl.type;
 					switch (num57)
 					{
 					case 0:
-						Char.myPetz().body = Char.myPetz().arrItemBody[num55].template.part;
+						petBodyObj.body = petItemTpl.part;
 						break;
 					case 1:
-						Char.myPetz().leg = Char.myPetz().arrItemBody[num55].template.part;
+						petBodyObj.leg = petItemTpl.part;
 						break;
 					}
 				}
-				Char.myPetz().cHP = msg.reader().readLong();
-				Char.myPetz().cHPFull = msg.reader().readLong();
-				Char.myPetz().cMP = msg.reader().readLong();
-				Char.myPetz().cMPFull = msg.reader().readLong();
-				Char.myPetz().cDamFull = msg.reader().readLong();
-				Char.myPetz().cName = msg.reader().readUTF();
-				Char.myPetz().currStrLevel = msg.reader().readUTF();
-				Char.myPetz().cPower = msg.reader().readLong();
-				Char.myPetz().cTiemNang = msg.reader().readLong();
-				Char.myPetz().petStatus = msg.reader().readByte();
-				Char.myPetz().cStamina = msg.reader().readShort();
-				Char.myPetz().cMaxStamina = msg.reader().readShort();
-				Char.myPetz().cCriticalFull = msg.reader().readByte();
-				Char.myPetz().cDefull = msg.reader().readLong();
-				Char.myPetz().arrPetSkill = new Skill[msg.reader().readByte()];
-				Res.outz("SKILLENT = " + Char.myPetz().arrPetSkill);
-				for (int num60 = 0; num60 < Char.myPetz().arrPetSkill.Length; num60++)
+				petBodyObj.cHP = msg.reader().readLong();
+				petBodyObj.cHPFull = msg.reader().readLong();
+				petBodyObj.cMP = msg.reader().readLong();
+				petBodyObj.cMPFull = msg.reader().readLong();
+				petBodyObj.cDamFull = msg.reader().readLong();
+				petBodyObj.cName = msg.reader().readUTF() ?? string.Empty;
+				petBodyObj.currStrLevel = msg.reader().readUTF() ?? string.Empty;
+				petBodyObj.cPower = msg.reader().readLong();
+				petBodyObj.cTiemNang = msg.reader().readLong();
+				petBodyObj.petStatus = msg.reader().readByte();
+				petBodyObj.cStamina = msg.reader().readShort();
+				petBodyObj.cMaxStamina = msg.reader().readShort();
+				petBodyObj.cCriticalFull = msg.reader().readByte();
+				petBodyObj.cDefull = msg.reader().readLong();
+				int petSkillLen = msg.reader().readByte();
+				if (petSkillLen < 0)
+				{
+					petSkillLen = 0;
+				}
+				petBodyObj.arrPetSkill = new Skill[petSkillLen];
+				Res.outz("SKILLENT = " + petBodyObj.arrPetSkill);
+				for (int num60 = 0; num60 < petBodyObj.arrPetSkill.Length; num60++)
 				{
 					short num61 = msg.reader().readShort();
 					if (num61 != -1)
 					{
-						Char.myPetz().arrPetSkill[num60] = Skills.get(num61);
+						Skill petSkillObj = Skills.get(num61);
+						if (petSkillObj == null)
+						{
+							petSkillObj = new Skill
+							{
+								skillId = num61,
+								template = null,
+								moreInfo = string.Empty
+							};
+						}
+						petBodyObj.arrPetSkill[num60] = petSkillObj;
 						continue;
 					}
-					Char.myPetz().arrPetSkill[num60] = new Skill();
-					Char.myPetz().arrPetSkill[num60].template = null;
-					Char.myPetz().arrPetSkill[num60].moreInfo = msg.reader().readUTF();
+					petBodyObj.arrPetSkill[num60] = new Skill
+					{
+						skillId = -1,
+						template = null,
+						moreInfo = msg.reader().readUTF() ?? string.Empty
+					};
 				}
-				Char.myPetz().cGiamST = msg.reader().readByte();
-				Char.myPetz().cCritDameFull = msg.reader().readShort();
-				// if (GameCanvas.w > 2 * Panel.WIDTH_PANEL)
-				// {
-				// 	GameCanvas.panel2 = new Panel();
-				// 	GameCanvas.panel2.tabName[7] = new string[1][] { new string[1] { string.Empty } };
-				// 	GameCanvas.panel2.setTypeBodyOnly();
-				// 	GameCanvas.panel2.show();
-				// 	GameCanvas.panel.setTypePetMain();
-				// 	GameCanvas.panel.show();
-				// }
-				// else
-				// {
-				// 	GameCanvas.panel.tabName[21] = mResources.petMainTab;
-				// 	GameCanvas.panel.setTypePetMain();
-				// 	GameCanvas.panel.show();
-				// }
+				if (msg.reader().available() >= 3)
+				{
+					petBodyObj.cGiamST = msg.reader().readByte();
+					petBodyObj.cCritDameFull = msg.reader().readShort();
+				}
+				if (GameCanvas.panel != null && GameCanvas.panel.isShow && GameCanvas.panel.type == Panel.TYPE_PET_MAIN)
+				{
+					Panel petPanel = GameCanvas.panel;
+					if (petPanel.currentTabIndex == 0)
+					{
+						int petPrevSelected = petPanel.selected;
+						int petPrevCmy = petPanel.cmy;
+						int petPrevCmtoY = petPanel.cmtoY;
+						int petPrevListLen = petPanel.currentListLength;
+						petPanel.setTabPetInventory();
+						petPanel.cmy = Mathf.Clamp(petPrevCmy, 0, petPanel.cmyLim);
+						petPanel.cmtoY = Mathf.Clamp(petPrevCmtoY, 0, petPanel.cmyLim);
+						if (petPanel.cmyLast != null && petPanel.currentTabIndex >= 0 && petPanel.currentTabIndex < petPanel.cmyLast.Length)
+						{
+							petPanel.cmyLast[petPanel.currentTabIndex] = petPanel.cmy;
+						}
+						if (petPrevListLen == petPanel.currentListLength)
+						{
+							petPanel.selected = (petPrevSelected >= -1 && petPrevSelected < petPanel.currentListLength) ? petPrevSelected : (GameCanvas.isTouch ? -1 : 0);
+						}
+						else if (petPrevSelected >= 0 && petPrevSelected < petPanel.currentListLength)
+						{
+							petPanel.selected = petPrevSelected;
+						}
+						if (petPanel.lastSelect != null && petPanel.currentTabIndex >= 0 && petPanel.currentTabIndex < petPanel.lastSelect.Length)
+						{
+							petPanel.lastSelect[petPanel.currentTabIndex] = petPanel.selected;
+						}
+					}
+					else if (petPanel.currentTabIndex == 1 && (petPanel.strStatus == null || petPanel.strStatus.Length == 0))
+					{
+						petPanel.setTabPetStatus();
+					}
+				}
 				break;
 			}
 			case -37:

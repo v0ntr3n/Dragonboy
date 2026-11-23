@@ -835,7 +835,7 @@ public class Char : IMapObject
 
 	public const int C_TRAIDAT_0 = 0;
 
-	public bool havePet = true;
+	public bool havePet;
 
 	public MovePoint currentMovePoint;
 
@@ -1484,6 +1484,9 @@ public class Char : IMapObject
 	public static void clearMyChar()
 	{
 		myChar = null;
+		myPet = null;
+		Panel.pendingUserPetInfoRequest = false;
+		GameEvents.IsBackgroundPetInfoPoll = false;
 	}
 
 	public void bagSort()

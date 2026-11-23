@@ -40,6 +40,7 @@ namespace Mod
 		static bool isFirstPause = true;
 		static bool isOpenZoneUI;
 		static bool _isBackgroundZonePoll;
+		internal static bool IsBackgroundPetInfoPoll;
 		static bool _hasSavedSelectSkill;
 		static GUIStyle _hpStyle;
 		static GUIStyle _mpStyle;
@@ -990,6 +991,8 @@ namespace Mod
 			{
 				delayRequestPetInfo = Res.random(750, 1000);
 				lastTimeRequestPetInfo = mSystem.currentTimeMillis();
+				if (!Panel.pendingUserPetInfoRequest)
+					IsBackgroundPetInfoPoll = true;
 				Service.gI().petInfo();
 			}
 
@@ -1287,6 +1290,7 @@ namespace Mod
 			_hasTickSnapshot = false;
 			_isInterpolatingPose = false;
 			_isBackgroundZonePoll = false;
+			IsBackgroundPetInfoPoll = false;
 			Utils.UpdateWaypointChangeMap();
 			GameScr.gI().pts = null;
 		}
@@ -3092,6 +3096,7 @@ namespace Mod
 		{
 			isOpenZoneUI = false;
 			_isBackgroundZonePoll = false;
+			IsBackgroundPetInfoPoll = false;
 			return false;
 		}
 
@@ -3099,6 +3104,7 @@ namespace Mod
 		{
 			isOpenZoneUI = false;
 			_isBackgroundZonePoll = false;
+			IsBackgroundPetInfoPoll = false;
 			return false;
 		}
 
