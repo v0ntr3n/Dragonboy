@@ -196,6 +196,62 @@ namespace Mod.AccountManager
 			GameScr.info1.addInfo(Strings.inGameAccountManagerAccountAdded + '!', 0);
 		}
 
+		internal static void UpsertAndSelectRegisteredAccount(string username, string password, string upgradedGuest, int serverIndex)
+		{
+			if (string.IsNullOrEmpty(username))
+			{
+				return;
+			}
+			RefreshAccountsFromDiskPreserveSelection();
+			int targetIdx = -1;
+			if (!string.IsNullOrEmpty(upgradedGuest))
+			{
+				for (int i = 0; i < Accounts.Count; i++)
+				{
+					if (Accounts[i] != null && string.Equals(Accounts[i].Username, upgradedGuest, StringComparison.OrdinalIgnoreCase))
+					{
+						targetIdx = i;
+						break;
+					}
+				}
+			}
+			if (targetIdx < 0)
+			{
+				for (int i = 0; i < Accounts.Count; i++)
+				{
+					if (Accounts[i] != null && string.Equals(Accounts[i].Username, username, StringComparison.OrdinalIgnoreCase))
+					{
+						targetIdx = i;
+						break;
+					}
+				}
+			}
+			if (targetIdx >= 0)
+			{
+				Accounts[targetIdx].Username = username;
+				Accounts[targetIdx].Password = password;
+				if (Accounts[targetIdx].Server == null)
+				{
+					Accounts[targetIdx].Server = new Server(serverIndex);
+				}
+				Accounts[targetIdx].LastTimeLogin = DateTime.Now;
+				SelectedAccountIndex = targetIdx;
+			}
+			else
+			{
+				Account acc = new Account
+				{
+					Username = username,
+					Password = password,
+					Server = new Server(serverIndex),
+					LastTimeLogin = DateTime.Now
+				};
+				Accounts.Add(acc);
+				SelectedAccountIndex = Accounts.Count - 1;
+			}
+			Save();
+		}
+
 		internal static void ResetSelectedAccountIndex()
 		{
 			SelectedAccountIndex = -1;

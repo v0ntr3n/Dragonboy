@@ -1774,8 +1774,23 @@ public class Controller : IMessageHandler
 					GameCanvas.startOKDlg(msg.reader().readUTF());
 					break;
 				}
-				GameCanvas.loginScr.isLogin2 = false;
+				if (GameCanvas.loginScr == null)
+				{
+					GameCanvas.loginScr = new LoginScr();
+				}
+				string regUser = !string.IsNullOrEmpty(GameCanvas.loginScr.lastRegisterUser)
+					? GameCanvas.loginScr.lastRegisterUser
+					: GameCanvas.loginScr.tfUser.getText().Trim();
+				string regPass = !string.IsNullOrEmpty(GameCanvas.loginScr.lastRegisterPass)
+					? GameCanvas.loginScr.lastRegisterPass
+					: GameCanvas.loginScr.passRe;
+				Rms.saveRMSString(Rms.RMS_acc, regUser);
+				Rms.saveRMSString(Rms.RMS_pass, regPass);
+				Rms.saveRMSInt(Rms.RMS_check, 1);
 				Rms.saveRMSString(Rms.RMS_userAo + ServerListScreen.ipSelect, string.Empty);
+				Mod.GameEvents.OnRegisterSuccess(regUser, regPass, GameCanvas.loginScr.lastRegisterGuest);
+				GameCanvas.loginScr.isRes = false;
+				GameCanvas.loginScr.isLogin2 = false;
 				GameCanvas.endDlg();
 				GameCanvas.loginScr.doLogin();
 				break;

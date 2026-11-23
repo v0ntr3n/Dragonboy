@@ -258,6 +258,18 @@ public class ServerListScreen : mScreen, IActionListener
 			}
 			GameCanvas.loginScr.switchToMe();
 		}
+		if (idAction == 10101)
+		{
+			if (GameCanvas.loginScr == null)
+			{
+				GameCanvas.loginScr = new LoginScr();
+			}
+			GameCanvas.loginScr.isLogin2 = false;
+			GameCanvas.loginScr.tfUser.setText(string.Empty);
+			GameCanvas.loginScr.tfPass.setText(string.Empty);
+			GameCanvas.loginScr.actRegister();
+			GameCanvas.loginScr.switchToMe();
+		}
 		if (idAction == 8)
 		{
 			bool flag = Rms.loadRMSInt("lowGraphic") == 1;
@@ -1007,7 +1019,7 @@ public class ServerListScreen : mScreen, IActionListener
 		}
 		center = new Command(string.Empty, this, cmd[selected].idAction, null);
 		cmd[1 + nCmdPlay].caption = mResources.change_account;
-		if (cmd.Length == 4 + nCmdPlay)
+		if (cmd.Length >= 4 + nCmdPlay)
 		{
 			cmd[3 + nCmdPlay].caption = mResources.option;
 		}
@@ -1046,7 +1058,7 @@ public class ServerListScreen : mScreen, IActionListener
 		}
 		center = new Command(string.Empty, this, cmd[selected].idAction, null);
 		cmd[1 + nCmdPlay].caption = mResources.change_account;
-		if (cmd.Length == 4 + nCmdPlay)
+		if (cmd.Length >= 4 + nCmdPlay)
 		{
 			cmd[3 + nCmdPlay].caption = mResources.option;
 		}

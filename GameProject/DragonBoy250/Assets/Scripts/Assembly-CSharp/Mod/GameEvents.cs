@@ -1017,6 +1017,14 @@ namespace Mod
 			RecordAuthoritativePoseAfterTick();
 		}
 
+		internal static void OnRegisterSuccess(string username, string password, string upgradedGuest)
+		{
+			if (!Utils.IsOpenedByExternalAccountManager)
+			{
+				InGameAccountDAO.UpsertAndSelectRegisteredAccount(username, password, upgradedGuest, ServerListScreen.ipSelect);
+			}
+		}
+
 		internal static void OnLogin(ref string username, ref string pass, ref sbyte type)
 		{
 			if (!Utils.IsOpenedByExternalAccountManager)
@@ -2805,7 +2813,7 @@ namespace Mod
 				screen.nCmdPlay = 1;
 			}
 
-			screen.cmd = new Command[4 + screen.nCmdPlay];
+			screen.cmd = new Command[5 + screen.nCmdPlay];
 			int num = GameCanvas.hh - 15 * screen.cmd.Length + 28;
 			for (int i = 0; i < screen.cmd.Length; i++)
 			{
@@ -2888,7 +2896,13 @@ namespace Mod
 						screen.cmd[3] = new Command(mResources.option, screen, 8, null);
 					break;
 				case 4:
-					screen.cmd[4] = new Command(mResources.option, screen, 8, null);
+					if (screen.nCmdPlay == 1)
+						screen.cmd[4] = new Command(mResources.option, screen, 8, null);
+					else
+						screen.cmd[4] = new Command(mResources.register, screen, 10101, null);
+					break;
+				case 5:
+					screen.cmd[5] = new Command(mResources.register, screen, 10101, null);
 					break;
 				}
 
@@ -2957,13 +2971,19 @@ namespace Mod
 			return false;
 		}
 
+		internal static bool CanCurrentSessionRegisterGuest()
+		{
+			bool hasRmsGuest = !string.IsNullOrEmpty(Rms.loadRMSString(Rms.RMS_userAo + ServerListScreen.ipSelect));
+			bool isLogin2Guest = (GameCanvas.loginScr != null && GameCanvas.loginScr.isLogin2) || (hasRmsGuest && string.IsNullOrEmpty(Rms.loadRMSString(Rms.RMS_acc)));
+			bool isAccMgrGuest = !Utils.IsOpenedByExternalAccountManager &&
+				InGameAccountManager.SelectedAccount != null &&
+				InGameAccountManager.SelectedAccount.Type == AccountType.Unregistered;
+			return isLogin2Guest || isAccMgrGuest;
+		}
+
 		internal static bool OnGetSoundOption()
 		{
-			bool canRegister = GameCanvas.loginScr.isLogin2 || !Utils.IsOpenedByExternalAccountManager &&
-				InGameAccountManager.SelectedAccount != null &&
-				InGameAccountManager.SelectedAccount.Type ==
-				AccountType.Unregistered;
-			if (canRegister && Char.myCharz().taskMaint != null && Char.myCharz().taskMaint.taskId >= 2)
+			if (CanCurrentSessionRegisterGuest())
 			{
 				Panel.strTool = new[]
 				{

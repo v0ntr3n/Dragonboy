@@ -1058,6 +1058,10 @@ public class Panel : IActionListener, IChatable
 			Session_ME.gI().close();
 			Rms.saveRMSString("acc", string.Empty);
 			Rms.saveRMSString("pass", string.Empty);
+			if (GameCanvas.loginScr == null)
+			{
+				GameCanvas.loginScr = new LoginScr();
+			}
 			GameCanvas.loginScr.tfPass.setText(string.Empty);
 			GameCanvas.loginScr.tfUser.setText(string.Empty);
 			GameCanvas.loginScr.isLogin2 = false;
@@ -7281,10 +7285,12 @@ public class Panel : IActionListener, IChatable
 				setTypeOption();
 				break;
 			case 8:
+				if (GameCanvas.loginScr == null)
+					GameCanvas.loginScr = new LoginScr();
 				GameCanvas.loginScr.backToRegister();
 				break;
 			case 9:
-				if (GameCanvas.loginScr.isLogin2)
+				if (Mod.GameEvents.CanCurrentSessionRegisterGuest())
 					SoundMn.gI().backToRegister();
 				break;
 			}
@@ -7351,10 +7357,12 @@ public class Panel : IActionListener, IChatable
 			setTypeOption();
 			break;
 		case 9:
+			if (GameCanvas.loginScr == null)
+				GameCanvas.loginScr = new LoginScr();
 			GameCanvas.loginScr.backToRegister();
 			break;
 		case 10:
-			if (GameCanvas.loginScr.isLogin2)
+			if (Mod.GameEvents.CanCurrentSessionRegisterGuest())
 				SoundMn.gI().backToRegister();
 			break;
 		}

@@ -112,7 +112,10 @@ public class LoginScr : mScreen, IActionListener
 
 	private bool isRegistering;
 
-	private string passRe = string.Empty;
+	public string passRe = string.Empty;
+	public string lastRegisterUser = string.Empty;
+	public string lastRegisterPass = string.Empty;
+	public string lastRegisterGuest = string.Empty;
 
 	public bool isFAQ;
 
@@ -206,6 +209,19 @@ public class LoginScr : mScreen, IActionListener
 		cmdBack = new Command(mResources.BACK, this, 101, null);
 		left = (cmdMenu = new Command(mResources.MENU, this, 2003, null));
 		freeAreaHeight = tfUser.y - 2 * tfUser.height;
+		wP = 170;
+		hP = ((!isRes) ? 100 : 110);
+		xP = GameCanvas.hw - wP / 2;
+		yP = tfUser.y - 15;
+		int num2 = 4;
+		int num3 = num2 * 32 + 23 + 33;
+		if (num3 >= GameCanvas.w)
+		{
+			num2--;
+			num3 = num2 * 32 + 23 + 33;
+		}
+		xLog = GameCanvas.w / 2 - num3 / 2;
+		yLog = GameCanvas.hh - 30;
 		if (GameCanvas.isTouch)
 		{
 			cmdLogin.x = GameCanvas.w / 2 + 8;
@@ -222,19 +238,6 @@ public class LoginScr : mScreen, IActionListener
 			cmdBack.x = 2;
 			cmdBack.y = GameCanvas.h - mScreen.cmdH;
 		}
-		wP = 170;
-		hP = ((!isRes) ? 100 : 110);
-		xP = GameCanvas.hw - wP / 2;
-		yP = tfUser.y - 15;
-		int num2 = 4;
-		int num3 = num2 * 32 + 23 + 33;
-		if (num3 >= GameCanvas.w)
-		{
-			num2--;
-			num3 = num2 * 32 + 23 + 33;
-		}
-		xLog = GameCanvas.w / 2 - num3 / 2;
-		yLog = GameCanvas.hh - 30;
 		lY = ((GameCanvas.w < 200) ? (tfUser.y - 30) : (yLog - 30));
 		tfUser.x = xLog + 10;
 		tfUser.y = yLog + 20;
@@ -368,9 +371,11 @@ public class LoginScr : mScreen, IActionListener
 		passRe = tfPass.getText();
 		string guestUser = isLogin2 ? (Rms.loadRMSString(Rms.RMS_userAo + ServerListScreen.ipSelect) ?? string.Empty) : string.Empty;
 		string guestPass = isLogin2 ? (Rms.loadRMSString("passAo" + ServerListScreen.ipSelect) ?? string.Empty) : string.Empty;
-		Service.gI().requestRegister(user, tfPass.getText(), guestUser, guestPass, GameMidlet.VERSION);
-		Rms.saveRMSString(Rms.RMS_acc, user);
-		Rms.saveRMSString(Rms.RMS_pass, tfPass.getText());
+		lastRegisterUser = user;
+		lastRegisterPass = passRe;
+		lastRegisterGuest = guestUser;
+		Service.gI().setClientType();
+		Service.gI().requestRegister(user, passRe, guestUser, guestPass, GameMidlet.VERSION);
 		t = 20;
 		isRegistering = true;
 	}
@@ -688,6 +693,10 @@ public class LoginScr : mScreen, IActionListener
 			int h = 105;
 			int w = ((GameCanvas.w < 200) ? 160 : 180);
 			PopUp.paintPopUp(g, xLog, yLog - 10, w, h, -1, true);
+			if (isRes)
+			{
+				mFont.tahoma_7b_dark.drawString(g, mResources.register, GameCanvas.w / 2, yLog - 4, mFont.CENTER);
+			}
 			if (GameCanvas.h > 160 && imgTitle != null)
 			{
 				g.drawImage(imgTitle, GameCanvas.hw, num, 3);
@@ -975,7 +984,7 @@ public class LoginScr : mScreen, IActionListener
 		isRes = false;
 		tfPass.isFocus = false;
 		tfUser.isFocus = true;
-		left = cmdMenu;
+		left = cmdOpenRegister;
 	}
 
 	public void actRegister()

@@ -651,8 +651,22 @@ public class SoundMn
 
 	public void backToRegister()
 	{
+		if (!Mod.Utils.IsOpenedByExternalAccountManager &&
+		    Mod.AccountManager.InGameAccountManager.SelectedAccount != null &&
+		    Mod.AccountManager.InGameAccountManager.SelectedAccount.Type == Mod.AccountManager.AccountType.Unregistered &&
+		    string.IsNullOrEmpty(Rms.loadRMSString(Rms.RMS_userAo + ServerListScreen.ipSelect)))
+		{
+			Rms.saveRMSString(Rms.RMS_userAo + ServerListScreen.ipSelect, Mod.AccountManager.InGameAccountManager.SelectedAccount.Username);
+		}
 		Session_ME.gI().close();
 		GameCanvas.panel.hide();
+		if (GameCanvas.loginScr == null)
+		{
+			GameCanvas.loginScr = new LoginScr();
+		}
+		GameCanvas.loginScr.isLogin2 = true;
+		GameCanvas.loginScr.tfUser.setText(string.Empty);
+		GameCanvas.loginScr.tfPass.setText(string.Empty);
 		GameCanvas.loginScr.actRegister();
 		GameCanvas.loginScr.switchToMe();
 	}
