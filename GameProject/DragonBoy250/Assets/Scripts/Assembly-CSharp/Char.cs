@@ -1921,6 +1921,10 @@ public class Char : IMapObject
 			if (isFusion)
 			{
 				tFusion++;
+				if (tFusion >= 35)
+				{
+					fusionComplete();
+				}
 			}
 			if (isNhapThe)
 			{
@@ -2704,7 +2708,7 @@ public class Char : IMapObject
 							}
 							else if (currentMovePoint.status == 3)
 							{
-								if ((TileMap.tileTypeAtPixel(cx, cy + 23) & 2) != 2)
+								if ((TileMap.tileTypeAtPixel(cx, cy + 23) & 2) != 2 || cy - currentMovePoint.yEnd > 55 || (TileMap.tileTypeAtPixel(currentMovePoint.xEnd, currentMovePoint.yEnd + 23) & 2) != 2)
 								{
 									statusMe = 10;
 									cp1 = 0;
@@ -3680,39 +3684,6 @@ public class Char : IMapObject
 			}
 		}
 		updateSuperEff();
-		if (!me || GameScr.vCharInMap.size() == 0 || TileMap.mapID != 50)
-		{
-			return;
-		}
-		Char obj = (Char)GameScr.vCharInMap.elementAt(0);
-		if (!obj.changePos)
-		{
-			if (obj.statusMe != 2)
-			{
-				obj.moveTo(cx - 45, cy, 0);
-			}
-			obj.lastUpdateTime = mSystem.currentTimeMillis();
-			if (Res.abs(cx - 45 - obj.cx) <= 10)
-			{
-				obj.changePos = true;
-			}
-		}
-		else
-		{
-			if (obj.statusMe != 2)
-			{
-				obj.moveTo(cx + 45, cy, 0);
-			}
-			obj.lastUpdateTime = mSystem.currentTimeMillis();
-			if (Res.abs(cx + 45 - obj.cx) <= 10)
-			{
-				obj.changePos = false;
-			}
-		}
-		if (GameCanvas.gameTick % 100 == 0)
-		{
-			obj.addInfo("Cắc cùm cum");
-		}
 	}
 
 	public void updateSuperEff()
@@ -5055,7 +5026,7 @@ public class Char : IMapObject
 			}
 		}
 		Res.outz("skill id= " + skillPaint.id);
-		if ((me && dart != null) || TileMap.isOfflineMap())
+		if (me && (dart != null || TileMap.isOfflineMap()))
 		{
 			return;
 		}
@@ -5463,25 +5434,33 @@ public class Char : IMapObject
 		{
 			return;
 		}
+		int efIdx = (skillPaint2 != null) ? (skillPaint2.effectHappenOnMob - 1) : -1;
+		EffectCharPaint safeEf = (GameScr.efs != null && efIdx >= 0 && efIdx < GameScr.efs.Length) ? GameScr.efs[efIdx] : ((GameScr.efs != null && GameScr.efs.Length > 0) ? GameScr.efs[0] : null);
 		if (attMobs != null)
 		{
-			effPaints = new EffectPaint[attMobs.Length];
-			for (int k = 0; k < attMobs.Length; k++)
+			if (safeEf != null)
 			{
-				effPaints[k] = new EffectPaint();
-				effPaints[k].effCharPaint = GameScr.efs[skillPaint2.effectHappenOnMob - 1];
-				effPaints[k].eMob = attMobs[k];
+				effPaints = new EffectPaint[attMobs.Length];
+				for (int k = 0; k < attMobs.Length; k++)
+				{
+					effPaints[k] = new EffectPaint();
+					effPaints[k].effCharPaint = safeEf;
+					effPaints[k].eMob = attMobs[k];
+				}
 			}
 			attMobs = null;
 		}
 		else if (attChars != null)
 		{
-			effPaints = new EffectPaint[attChars.Length];
-			for (int l = 0; l < attChars.Length; l++)
+			if (safeEf != null)
 			{
-				effPaints[l] = new EffectPaint();
-				effPaints[l].effCharPaint = GameScr.efs[skillPaint2.effectHappenOnMob - 1];
-				effPaints[l].eChar = attChars[l];
+				effPaints = new EffectPaint[attChars.Length];
+				for (int l = 0; l < attChars.Length; l++)
+				{
+					effPaints[l] = new EffectPaint();
+					effPaints[l].effCharPaint = safeEf;
+					effPaints[l].eChar = attChars[l];
+				}
 			}
 			attChars = null;
 		}
@@ -6661,7 +6640,9 @@ public class Char : IMapObject
 
 	public void moveTo(int toX, int toY, int type)
 	{
-		if (type == 1 || Res.abs(toX - cx) > 100 || Res.abs(toY - cy) > 300)
+		int maxSnapDx = (isPet || charID < 0) ? 360 : 100;
+		int maxSnapDy = (isPet || charID < 0) ? 400 : 300;
+		if (type == 1 || Res.abs(toX - cx) > maxSnapDx || Res.abs(toY - cy) > maxSnapDy)
 		{
 			createShadow(cx, cy, 10);
 			cx = toX;
@@ -6714,6 +6695,10 @@ public class Char : IMapObject
 			}
 		}
 		vMovePoints.addElement(new MovePoint(toX, toY, act, dir));
+		if (currentMovePoint != null && (statusMe == 2 || statusMe == 10))
+		{
+			return;
+		}
 		if (statusMe != 6)
 		{
 			statusBeforeNothing = statusMe;
@@ -7013,7 +6998,7 @@ public class Char : IMapObject
 			for (int num23 = 0; num23 < GameScr.vCharInMap.size(); num23++)
 			{
 				Char obj = (Char)GameScr.vCharInMap.elementAt(num23);
-				if (obj.statusMe != 15 && !obj.isInvisiblez && wdx == 0 && wdy == 0)
+				if (obj != null && obj.charID != -myCharz().charID && !obj.isMiniPet && (!obj.IsPet() || myCharz().isMeCanAttackOtherPlayer(obj)) && obj.statusMe != 15 && !obj.isInvisiblez && wdx == 0 && wdy == 0)
 				{
 					int num24 = Math.abs(myCharz().cx - obj.cx);
 					int num25 = Math.abs(myCharz().cy - obj.cy);
@@ -7168,7 +7153,7 @@ public class Char : IMapObject
 		for (int i = 0; i < GameScr.vCharInMap.size(); i++)
 		{
 			Char obj = (Char)GameScr.vCharInMap.elementAt(i);
-			if (obj.statusMe != 15 && !obj.isInvisiblez && num2 <= obj.cx && obj.cx <= num3 && num4 <= obj.cy && obj.cy <= num5 && obj.charID != -114 && (TileMap.mapID != 129 || (TileMap.mapID == 129 && myCharz().cy > 264)))
+			if (obj != null && obj.charID != -myCharz().charID && !obj.isMiniPet && (!obj.IsPet() || myCharz().isMeCanAttackOtherPlayer(obj)) && obj.statusMe != 15 && !obj.isInvisiblez && num2 <= obj.cx && obj.cx <= num3 && num4 <= obj.cy && obj.cy <= num5 && obj.charID != -114 && (TileMap.mapID != 129 || (TileMap.mapID == 129 && myCharz().cy > 264)))
 			{
 				focus.addElement(obj);
 				if (charFocus != null && obj.Equals(charFocus))
@@ -7438,6 +7423,12 @@ public class Char : IMapObject
 	{
 		isMonkey = 0;
 		isWaitMonkey = false;
+		isFusion = false;
+		tFusion = 0;
+		if (me)
+		{
+			isLockKey = false;
+		}
 		if (me && isDie)
 		{
 			return;
@@ -7498,7 +7489,7 @@ public class Char : IMapObject
 		}
 		for (int i = 0; i < arrItemBag.Length; i++)
 		{
-			if (arrItemBag[i] != null && arrItemBag[i].template.type == 6)
+			if (arrItemBag[i] != null && arrItemBag[i].template != null && arrItemBag[i].template.type == 6 && arrItemBag[i].quantity > 0)
 			{
 				Service.gI().useItem(0, 1, -1, arrItemBag[i].template.id);
 				return true;
@@ -7518,7 +7509,7 @@ public class Char : IMapObject
 
 	public bool isMeCanAttackOtherPlayer(Char cAtt)
 	{
-		if (cAtt == null || myCharz().myskill == null || myCharz().myskill.template.type == 2 || (myCharz().myskill.template.type == 4 && cAtt.statusMe != 14 && cAtt.statusMe != 5))
+		if (cAtt == null || cAtt.charID == myCharz().charID || cAtt.charID == -myCharz().charID || cAtt.isMiniPet || myCharz().myskill == null || myCharz().myskill.template.type == 2 || (myCharz().myskill.template.type == 4 && cAtt.statusMe != 14 && cAtt.statusMe != 5))
 		{
 			return false;
 		}
@@ -7752,13 +7743,28 @@ public class Char : IMapObject
 	public void fusionComplete()
 	{
 		isFusion = false;
-		isLockKey = false;
+		if (me)
+		{
+			isLockKey = false;
+		}
 		tFusion = 0;
 	}
 
 	public void setFusion(sbyte fusion)
 	{
 		tFusion = 0;
+		if (fusion == 1)
+		{
+			isNhapThe = false;
+			isFusion = false;
+			if (me)
+			{
+				GameCanvas.panel.hideNow();
+				isLockKey = false;
+			}
+			ServerEffect.addServerEffect(60, cx, cy, 1);
+			return;
+		}
 		if (fusion == 4 || fusion == 5)
 		{
 			if (me)
@@ -7777,14 +7783,7 @@ public class Char : IMapObject
 			isLockKey = true;
 		}
 		isFusion = true;
-		if (fusion == 1)
-		{
-			isNhapThe = false;
-		}
-		else
-		{
-			isNhapThe = true;
-		}
+		isNhapThe = true;
 	}
 
 	public void removeSleepEff()

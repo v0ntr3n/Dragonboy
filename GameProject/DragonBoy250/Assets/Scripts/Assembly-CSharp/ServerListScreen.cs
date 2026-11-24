@@ -216,6 +216,11 @@ public class ServerListScreen : mScreen, IActionListener
 		}
 		if (idAction == 10100)
 		{
+			Mod.AccountManager.InGameAccountManager.ResetSelectedAccountIndex();
+			Rms.DeleteStorage("acc");
+			Rms.DeleteStorage("pass");
+			Session_ME.gI().close();
+			Session_ME2.gI().close();
 			if (GameCanvas.loginScr == null)
 			{
 				GameCanvas.loginScr = new LoginScr();
@@ -264,7 +269,9 @@ public class ServerListScreen : mScreen, IActionListener
 			{
 				GameCanvas.loginScr = new LoginScr();
 			}
-			GameCanvas.loginScr.isLogin2 = false;
+			bool upgradeSelectedGuest = Mod.AccountManager.InGameAccountManager.SelectedAccount != null && Mod.AccountManager.InGameAccountManager.SelectedAccount.Type == Mod.AccountManager.AccountType.Unregistered;
+			bool upgradeRmsGuest = string.IsNullOrEmpty(Rms.loadRMSString("acc")) && !string.IsNullOrEmpty(Rms.loadRMSString("userAo" + ipSelect));
+			GameCanvas.loginScr.isLogin2 = upgradeSelectedGuest || upgradeRmsGuest;
 			GameCanvas.loginScr.tfUser.setText(string.Empty);
 			GameCanvas.loginScr.tfPass.setText(string.Empty);
 			GameCanvas.loginScr.actRegister();

@@ -13,6 +13,8 @@ public class Controller : IMessageHandler
 
 	public Message messWait;
 
+	private readonly MyVector pendingAfterMapLoad = new MyVector();
+
 	public static bool isLoadingData = false;
 
 	public static bool isConnectOK;
@@ -164,6 +166,11 @@ public class Controller : IMessageHandler
 			MyVector myVector = new MyVector();
 			int num = 0;
 			GameCanvas.timeLoading = 15;
+			if (messWait != null && (msg.command == -122 || msg.command == -34 || msg.command == -5 || msg.command == -6 || msg.command == -7 || msg.command == 68))
+			{
+				pendingAfterMapLoad.addElement(msg);
+				return;
+			}
 			Controller2.readMessage(msg);
 			switch (msg.command)
 			{
@@ -1810,12 +1817,17 @@ public class Controller : IMessageHandler
 			case -107:
 			{
 				sbyte b26 = msg.reader().readByte();
+				bool prevHavePet = Char.myCharz().havePet;
 				if (b26 == 0)
 				{
 					Char.myCharz().havePet = false;
 					Char.myPet = null;
 					Panel.pendingUserPetInfoRequest = false;
 					GameEvents.IsBackgroundPetInfoPoll = false;
+					if (!Utils.IsOpenedByExternalAccountManager && Mod.AccountManager.InGameAccountManager.SelectedAccount != null)
+					{
+						Mod.AccountManager.InGameAccountManager.SelectedAccount.PetInfo = null;
+					}
 					if (GameCanvas.panel != null && GameCanvas.panel.isShow && GameCanvas.panel.type == Panel.TYPE_PET_MAIN)
 					{
 						GameCanvas.panel.hide();
@@ -1828,12 +1840,25 @@ public class Controller : IMessageHandler
 				if (b26 == 1)
 				{
 					Char.myCharz().havePet = true;
+					if (Char.myPet == null || string.IsNullOrEmpty(Char.myPet.cName))
+					{
+						GameEvents.IsBackgroundPetInfoPoll = true;
+						Service.gI().petInfo();
+					}
+				}
+				if (prevHavePet != Char.myCharz().havePet && GameCanvas.panel != null && GameCanvas.panel.isShow && GameCanvas.panel.type == Panel.TYPE_MAIN)
+				{
+					SoundMn.gI().getSoundOption();
 				}
 				if (b26 != 2)
 				{
 					break;
 				}
 				Char.myCharz().havePet = true;
+				if (!prevHavePet && GameCanvas.panel != null && GameCanvas.panel.isShow && GameCanvas.panel.type == Panel.TYPE_MAIN)
+				{
+					SoundMn.gI().getSoundOption();
+				}
 				bool petInfoShouldHideDlg = Panel.pendingUserPetInfoRequest || !GameEvents.IsBackgroundPetInfoPoll;
 				Panel.pendingUserPetInfoRequest = false;
 				GameEvents.IsBackgroundPetInfoPoll = false;
@@ -2017,9 +2042,10 @@ public class Controller : IMessageHandler
 					{
 						continue;
 					}
+					ItemTemplate bodyTpl = ItemTemplates.get(num82);
 					Char.myCharz().arrItemBody[num81] = new Item();
-					Char.myCharz().arrItemBody[num81].template = ItemTemplates.get(num82);
-					int num83 = Char.myCharz().arrItemBody[num81].template.type;
+					Char.myCharz().arrItemBody[num81].template = bodyTpl;
+					int num83 = (bodyTpl != null) ? bodyTpl.type : -1;
 					Char.myCharz().arrItemBody[num81].quantity = msg.reader().readInt();
 					Char.myCharz().arrItemBody[num81].info = msg.reader().readUTF();
 					Char.myCharz().arrItemBody[num81].content = msg.reader().readUTF();
@@ -3742,6 +3768,7 @@ public class Controller : IMessageHandler
 				GameScr.isPickNgocRong = false;
 				Char.isLoadingMap = true;
 				Cout.println("GET MAP INFO");
+				pendingAfterMapLoad.removeAllElements();
 				GameScr.gI().magicTree = null;
 				GameCanvas.isLoading = true;
 				GameCanvas.debug("SA75", 2);
@@ -3894,13 +3921,16 @@ public class Controller : IMessageHandler
 					return;
 				}
 				int num16 = msg.reader().readUnsignedByte();
-				if ((TileMap.tileTypeAtPixel(obj.cx, obj.cy) & 2) == 2)
+				if (GameScr.sks != null && num16 >= 0 && num16 < GameScr.sks.Length && GameScr.sks[num16] != null)
 				{
-					obj.setSkillPaint(GameScr.sks[num16], 0);
-				}
-				else
-				{
-					obj.setSkillPaint(GameScr.sks[num16], 1);
+					if ((TileMap.tileTypeAtPixel(obj.cx, obj.cy) & 2) == 2)
+					{
+						obj.setSkillPaint(GameScr.sks[num16], 0);
+					}
+					else
+					{
+						obj.setSkillPaint(GameScr.sks[num16], 1);
+					}
 				}
 				Mob[] array3 = new Mob[10];
 				num = 0;
@@ -3908,7 +3938,12 @@ public class Controller : IMessageHandler
 				{
 					for (num = 0; num < array3.Length; num++)
 					{
-						Mob mob2 = (array3[num] = (Mob)GameScr.vMob.elementAt(msg.reader().readByte()));
+						int mobIdx = msg.reader().readUnsignedByte();
+						if (mobIdx < 0 || mobIdx >= GameScr.vMob.size())
+						{
+							break;
+						}
+						Mob mob2 = (array3[num] = (Mob)GameScr.vMob.elementAt(mobIdx));
 						if (num == 0)
 						{
 							if (obj.cx <= mob2.x)
@@ -4620,9 +4655,6 @@ public class Controller : IMessageHandler
 					Cout.println("Loi tai ME_DIE " + msg.command);
 				}
 				Char.myCharz().countKill = 0;
-				break;
-			case 66:
-				Res.outz("ME DIE XP DOWN NOT IMPLEMENT YET!!!!!!!!!!!!!!!!!!!!!!!!!!");
 				break;
 			case -8:
 				GameCanvas.debug("SA89", 2);
@@ -5675,6 +5707,15 @@ public class Controller : IMessageHandler
 					{
 						Res.err(" 1 LOI TAI CASE REQUEST_MAPTEMPLATE " + ex.ToString());
 					}
+					while (pendingAfterMapLoad.size() > 0)
+					{
+						Message deferred = (Message)pendingAfterMapLoad.elementAt(0);
+						pendingAfterMapLoad.removeElementAt(0);
+						if (deferred != null)
+						{
+							onMessage(deferred);
+						}
+					}
 				}
 				catch (Exception ex2)
 				{
@@ -6206,7 +6247,8 @@ public class Controller : IMessageHandler
 			case 14:
 			{
 				GameCanvas.debug("SA32", 2);
-				Char obj = GameScr.findCharInMap(msg.reader().readInt());
+				int cid14 = msg.reader().readInt();
+				Char obj = ((cid14 != Char.myCharz().charID) ? GameScr.findCharInMap(cid14) : Char.myCharz());
 				if (obj == null)
 				{
 					break;
@@ -6236,13 +6278,16 @@ public class Controller : IMessageHandler
 			case 15:
 			{
 				GameCanvas.debug("SA33", 2);
-				Char obj = GameScr.findCharInMap(msg.reader().readInt());
+				int cid15 = msg.reader().readInt();
+				Char obj = ((cid15 != Char.myCharz().charID) ? GameScr.findCharInMap(cid15) : Char.myCharz());
 				if (obj != null)
 				{
 					obj.cHP = msg.reader().readLong();
 					obj.cHPFull = msg.reader().readLong();
 					obj.cx = msg.reader().readShort();
 					obj.cy = msg.reader().readShort();
+					obj.wdx = 0;
+					obj.wdy = 0;
 					obj.statusMe = 1;
 					obj.cp3 = 3;
 					ServerEffect.addServerEffect(109, obj, 2);
@@ -6288,10 +6333,10 @@ public class Controller : IMessageHandler
 				}
 				for (int i = 0; i < GameScr.vCharInMap.size(); i++)
 				{
-					Char obj2 = GameScr.findCharInMap(i);
+					Char obj2 = (Char)GameScr.vCharInMap.elementAt(i);
 					if (obj2 != null && obj2.cTypePk != 0 && obj2.cTypePk == Char.myCharz().cTypePk)
 					{
-						if (!Char.myCharz().mobFocus.isMobMe)
+						if (Char.myCharz().mobFocus != null && !Char.myCharz().mobFocus.isMobMe)
 						{
 							Char.myCharz().mobFocus = null;
 						}
@@ -6393,6 +6438,19 @@ public class Controller : IMessageHandler
 			c.cgender = msg.reader().readByte();
 			c.head = msg.reader().readShort();
 			c.cName = msg.reader().readUTF();
+			if (!string.IsNullOrEmpty(c.cName))
+			{
+				if (c.cName.StartsWith("$", StringComparison.Ordinal))
+				{
+					c.cName = c.cName.Substring(1);
+					c.isPet = true;
+				}
+				else if (c.cName.StartsWith("#", StringComparison.Ordinal))
+				{
+					c.cName = c.cName.Substring(1);
+					c.isMiniPet = true;
+				}
+			}
 			c.cHP = msg.reader().readLong();
 			c.dHP = c.cHP;
 			if (c.cHP == 0)

@@ -497,6 +497,7 @@ namespace Assets.src.f
 					}
 					if (GameScr.gI().percentMabu == 101)
 					{
+						Npc.tMabuEff = 0;
 						Npc.mabuEff = true;
 					}
 					break;

@@ -178,7 +178,7 @@ namespace Mod.AccountManager
 			{
 				return;
 			}
-			if (Accounts.Any(acc => acc.Username == userAo))
+			if (Accounts.Any(acc => acc != null && acc.Username == userAo && (acc.Server == null || (!acc.Server.IsCustomIP() && acc.Server.index == ServerListScreen.ipSelect))))
 			{
 				GameCanvas.startOKDlg(Strings.inGameAccountManagerUnregisteredAccountAlreadyAdded + '!');
 				return;
@@ -208,7 +208,7 @@ namespace Mod.AccountManager
 			{
 				for (int i = 0; i < Accounts.Count; i++)
 				{
-					if (Accounts[i] != null && string.Equals(Accounts[i].Username, upgradedGuest, StringComparison.OrdinalIgnoreCase))
+					if (Accounts[i] != null && string.Equals(Accounts[i].Username, upgradedGuest, StringComparison.OrdinalIgnoreCase) && (Accounts[i].Server == null || (!Accounts[i].Server.IsCustomIP() && Accounts[i].Server.index == serverIndex)))
 					{
 						targetIdx = i;
 						break;
@@ -219,7 +219,7 @@ namespace Mod.AccountManager
 			{
 				for (int i = 0; i < Accounts.Count; i++)
 				{
-					if (Accounts[i] != null && string.Equals(Accounts[i].Username, username, StringComparison.OrdinalIgnoreCase))
+					if (Accounts[i] != null && string.Equals(Accounts[i].Username, username, StringComparison.OrdinalIgnoreCase) && (Accounts[i].Server == null || (!Accounts[i].Server.IsCustomIP() && Accounts[i].Server.index == serverIndex)))
 					{
 						targetIdx = i;
 						break;

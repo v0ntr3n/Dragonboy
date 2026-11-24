@@ -869,7 +869,10 @@ namespace Mod
 
 		internal static void OnGameScrPressHotkeysUnassigned()
 		{
-			HotkeyCommandHandler.handleHotkey(GameCanvas.keyAsciiPress);
+			if (HotkeyCommandHandler.handleHotkey(GameCanvas.keyAsciiPress))
+			{
+				GameCanvas.keyAsciiPress = 0;
+			}
 		}
 
 		internal static void OnGameScrPressHotkeys()
@@ -962,27 +965,20 @@ namespace Mod
 					account.Info.MaxHP = myChar.cHPFull;
 					account.Info.MaxMP = myChar.cMPFull;
 					account.Info.Icon = myChar.avatarz();
-					if (myChar.havePet)
+					if (myChar.havePet && Char.myPet != null && !string.IsNullOrEmpty(Char.myPet.cName) && Char.myPet.cHPFull > 0)
 					{
-						Char myPet = Char.myPetz();
-						if (myPet != null)
+						Char myPet = Char.myPet;
+						if (account.PetInfo == null)
 						{
-							if (account.PetInfo == null)
-							{
-								account.PetInfo = new CharacterInfo();
-							}
-							account.PetInfo.Name = myPet.cName;
-							account.PetInfo.CharID = myPet.charID;
-							account.PetInfo.Gender = (sbyte)Utils.GetPetGender();
-							account.PetInfo.EXP = myPet.cPower;
-							account.PetInfo.MaxHP = myPet.cHPFull;
-							account.PetInfo.MaxMP = myPet.cMPFull;
-							account.PetInfo.Icon = myPet.avatarz();
+							account.PetInfo = new CharacterInfo();
 						}
-					}
-					else
-					{
-						account.PetInfo = null;
+						account.PetInfo.Name = myPet.cName;
+						account.PetInfo.CharID = myPet.charID;
+						account.PetInfo.Gender = (sbyte)Utils.GetPetGender();
+						account.PetInfo.EXP = myPet.cPower;
+						account.PetInfo.MaxHP = myPet.cHPFull;
+						account.PetInfo.MaxMP = myPet.cMPFull;
+						account.PetInfo.Icon = myPet.avatarz();
 					}
 				}
 			}
@@ -2925,7 +2921,8 @@ namespace Mod
 				return false;
 			if (SoundMn.IsDelAcc && panel.selected == Panel.strTool.Length - 1)
 				return false;
-			if (!Char.myCharz().havePet)
+			bool menuHasPet = Panel.strTool != null && Panel.strTool.Length > 3 && Panel.strTool[3] == mResources.pet;
+			if (!menuHasPet)
 				switch (panel.selected)
 				{
 				case 4:

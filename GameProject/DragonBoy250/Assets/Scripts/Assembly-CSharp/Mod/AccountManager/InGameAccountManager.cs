@@ -1145,6 +1145,8 @@ namespace Mod.AccountManager
 					if (accounts.Count == 0)
 					{
 						selectedAccountIndex = scrollableMenuAccounts.CurrentItemIndex = -1;
+						Rms.DeleteStorage("acc");
+						Rms.DeleteStorage("pass");
 					}
 					else
 					{
@@ -1241,12 +1243,21 @@ namespace Mod.AccountManager
 							if (acc.Server.IsCustomIP() && isCustomServer && customServer != null && acc.Server == customServer)
 								goto closeAndSaveData;
 						}
-						accounts[editIndex] = new Account
+						if (acc != null)
 						{
-							Username = userName,
-							Password = password,
-							Server = isCustomServer ? customServer : defaultServers[selectedServerIndex]
-						};
+							acc.Username = userName;
+							acc.Password = password;
+							acc.Server = isCustomServer ? customServer : defaultServers[selectedServerIndex];
+						}
+						else
+						{
+							accounts[editIndex] = new Account
+							{
+								Username = userName,
+								Password = password,
+								Server = isCustomServer ? customServer : defaultServers[selectedServerIndex]
+							};
+						}
 					}
 					closeAndSaveData: ;
 					isAddingAccount = isEditingAccount = false;

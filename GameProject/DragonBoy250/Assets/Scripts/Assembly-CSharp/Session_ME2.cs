@@ -20,7 +20,7 @@ public class Session_ME2 : ISession
 
 	public static IMessageHandler messageHandler;
 
-	public static bool isMainSession = true;
+	public static bool isMainSession = false;
 
 	static TcpClient sc;
 
@@ -128,7 +128,6 @@ public class Session_ME2 : ISession
 			return;
 		}
 		isCancel = false;
-		connecting = true;
 		try
 		{
 			doConnect(host, port, connId);
@@ -153,6 +152,13 @@ public class Session_ME2 : ISession
 				messageHandler.onConnectionFail(isMainSession);
 			}
 		}
+		finally
+		{
+			if (connId == Volatile.Read(ref _connectionId) && !connected)
+			{
+				connecting = false;
+			}
+		}
 	}
 
 	public void doConnect(string host, int port)
@@ -172,19 +178,25 @@ public class Session_ME2 : ISession
 			localSc.Close();
 			throw new SocketException((int)SocketError.TimedOut);
 		}
-		if (connId != Volatile.Read(ref _connectionId))
+		lock (_writeLock)
 		{
-			try { localSc.Close(); } catch (Exception) { }
-			return;
+			if (connId != Volatile.Read(ref _connectionId))
+			{
+				try { localSc.Close(); } catch (Exception) { }
+				return;
+			}
+			sc = localSc;
+			dataStream = sc.GetStream();
+			dis = new BinaryReader(dataStream, new UTF8Encoding());
+			dos = new BinaryWriter(dataStream, new UTF8Encoding());
+			key = null;
+			getKeyComplete = false;
+			curR = 0;
+			curW = 0;
+			connected = true;
+			timeConnected = currentTimeMillis();
+			connecting = false;
 		}
-		sc = localSc;
-		dataStream = sc.GetStream();
-		dis = new BinaryReader(dataStream, new UTF8Encoding());
-		dos = new BinaryWriter(dataStream, new UTF8Encoding());
-		key = null;
-		connected = true;
-		timeConnected = currentTimeMillis();
-		connecting = false;
 		doSendMessage(new Message(-27), connId);
 		if (connId != Volatile.Read(ref _connectionId))
 		{
@@ -338,9 +350,20 @@ public class Session_ME2 : ISession
 
 	public static void onRecieveMsg(Message msg)
 	{
-		if (Main.IsMainThread())
+		bool dispatchDirect = false;
+		if (Main.IsMainThread() && !Controller.isStopReadMessage)
 		{
-			messageHandler.onMessage(msg);
+			lock (RecieveLock)
+			{
+				if (recieveMsg.size() == 0)
+				{
+					dispatchDirect = true;
+				}
+				else
+				{
+					recieveMsg.addElement(msg);
+				}
+			}
 		}
 		else
 		{
@@ -349,6 +372,10 @@ public class Session_ME2 : ISession
 				recieveMsg.addElement(msg);
 			}
 		}
+		if (dispatchDirect)
+		{
+			messageHandler.onMessage(msg);
+		}
 	}
 
 	public static void update()
@@ -356,7 +383,7 @@ public class Session_ME2 : ISession
 		const int maxMessagesPerUpdate = 64;
 		int processed = 0;
 		int resourceMsgs = 0;
-		long startMs = currentTimeMillis();
+		int startMs = currentTimeMillis();
 		while (processed < maxMessagesPerUpdate)
 		{
 			if (Controller.isStopReadMessage)
@@ -379,7 +406,7 @@ public class Session_ME2 : ISession
 			}
 			messageHandler.onMessage(message);
 			processed++;
-			if (currentTimeMillis() - startMs >= 12 || (message.command == -74 && ++resourceMsgs >= 4))
+			if (unchecked((uint)(currentTimeMillis() - startMs)) >= 12u || (message.command == -74 && ++resourceMsgs >= 4))
 			{
 				break;
 			}
@@ -654,8 +681,13 @@ public class Session_ME2 : ISession
 				{
 					newKey[j + 1] ^= newKey[j];
 				}
-				key = newKey;
-				getKeyComplete = true;
+				lock (_writeLock)
+				{
+					curR = 0;
+					curW = 0;
+					key = newKey;
+					getKeyComplete = true;
+				}
 				GameMidlet.IP2 = message.reader().readUTF();
 				GameMidlet.PORT2 = message.reader().readInt();
 				GameMidlet.isConnect2 = message.reader().readByte() != 0 ? true : false;
@@ -673,9 +705,9 @@ public class Session_ME2 : ISession
 
 		Message readMessage2(sbyte cmd)
 		{
-			int num = readKey(dis.ReadSByte()) + 128;
-			int num2 = readKey(dis.ReadSByte()) + 128;
-			int num3 = readKey(dis.ReadSByte()) + 128;
+			int num = (getKeyComplete ? readKey(dis.ReadSByte()) : dis.ReadSByte()) + 128;
+			int num2 = (getKeyComplete ? readKey(dis.ReadSByte()) : dis.ReadSByte()) + 128;
+			int num3 = (getKeyComplete ? readKey(dis.ReadSByte()) : dis.ReadSByte()) + 128;
 			int num4 = (num3 * 256 + num2) * 256 + num;
 			if (num4 < 0 || num4 > MAX_PACKET_SIZE)
 			{

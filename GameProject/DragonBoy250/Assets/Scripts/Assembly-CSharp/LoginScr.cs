@@ -370,6 +370,10 @@ public class LoginScr : mScreen, IActionListener
 		GameCanvas.startWaitDlg(mResources.REGISTERING);
 		passRe = tfPass.getText();
 		string guestUser = isLogin2 ? (Rms.loadRMSString(Rms.RMS_userAo + ServerListScreen.ipSelect) ?? string.Empty) : string.Empty;
+		if (isLogin2 && string.IsNullOrEmpty(guestUser) && Mod.AccountManager.InGameAccountManager.SelectedAccount != null && Mod.AccountManager.InGameAccountManager.SelectedAccount.Type == Mod.AccountManager.AccountType.Unregistered)
+		{
+			guestUser = Mod.AccountManager.InGameAccountManager.SelectedAccount.Username ?? string.Empty;
+		}
 		string guestPass = isLogin2 ? (Rms.loadRMSString("passAo" + ServerListScreen.ipSelect) ?? string.Empty) : string.Empty;
 		lastRegisterUser = user;
 		lastRegisterPass = passRe;
@@ -952,6 +956,7 @@ public class LoginScr : mScreen, IActionListener
 			actRegister();
 			break;
 		case 2008:
+			Mod.AccountManager.InGameAccountManager.ResetSelectedAccountIndex();
 			Rms.saveRMSString(Rms.RMS_acc, tfUser.getText().Trim());
 			Rms.saveRMSString(Rms.RMS_pass, tfPass.getText().Trim());
 			if (ServerListScreen.isNewUI)

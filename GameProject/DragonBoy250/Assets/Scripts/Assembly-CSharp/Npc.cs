@@ -62,9 +62,21 @@ public class Npc : Char
 		xSd = cx;
 		ySd = cy;
 		statusMe = status;
-		if (npcId != -1 && arrNpcTemplate != null && templateId >= 0 && templateId < arrNpcTemplate.Length)
+		if (npcId != -1 && arrNpcTemplate != null && templateId >= 0 && templateId < arrNpcTemplate.Length && arrNpcTemplate[templateId] != null)
 		{
 			template = arrNpcTemplate[templateId];
+		}
+		else if (templateId >= 0)
+		{
+			template = new NpcTemplate
+			{
+				npcTemplateId = templateId,
+				name = string.Empty,
+				headId = -1,
+				bodyId = -1,
+				legId = -1,
+				menu = new string[0][]
+			};
 		}
 		if (templateId == 23 || templateId == 42)
 		{
@@ -108,7 +120,7 @@ public class Npc : Char
 		{
 			return;
 		}
-		if (template.npcTemplateId == 51)
+		if (template != null && (template.npcTemplateId == 50 || template.npcTemplateId == 51))
 		{
 			cur = mSystem.currentTimeMillis();
 			if (cur - last >= 1000)
@@ -118,6 +130,28 @@ public class Npc : Char
 				if (seconds < 0)
 				{
 					seconds = 0;
+				}
+			}
+			if (template.npcTemplateId == 50 && mabuEff)
+			{
+				tMabuEff++;
+				if (GameCanvas.gameTick % 3 == 0)
+				{
+					EffecMn.addEff(new Effect(19, cx + Res.random(-50, 50), cy, 2, 1, -1));
+				}
+				if (GameCanvas.gameTick % 15 == 0)
+				{
+					EffecMn.addEff(new Effect(18, cx + Res.random(-5, 5), cy + Res.random(-90, 0), 2, 1, -1));
+				}
+				if (tMabuEff == 100)
+				{
+					GameScr.gI().activeSuperPower(cx, cy);
+				}
+				if (tMabuEff >= 110)
+				{
+					mabuEff = false;
+					tMabuEff = 0;
+					duahau = null;
 				}
 			}
 		}
@@ -190,7 +224,7 @@ public class Npc : Char
 
 	public void paintHead(mGraphics g, int xStart, int yStart)
 	{
-		if (template == null)
+		if (template == null || GameScr.parts == null || template.headId < 0 || template.headId >= GameScr.parts.Length || GameScr.parts[template.headId] == null)
 		{
 			return;
 		}
@@ -248,29 +282,7 @@ public class Npc : Char
 				{
 					if (duahau != null && duaHauIndex >= 0 && duaHauIndex < duahau.Length)
 					{
-						if (template.npcTemplateId == 50 && mabuEff)
-						{
-							tMabuEff++;
-							if (GameCanvas.gameTick % 3 == 0)
-							{
-								Effect effect = new Effect(19, cx + Res.random(-50, 50), cy, 2, 1, -1);
-								EffecMn.addEff(effect);
-							}
-							if (GameCanvas.gameTick % 15 == 0)
-							{
-								Effect effect2 = new Effect(18, cx + Res.random(-5, 5), cy + Res.random(-90, 0), 2, 1, -1);
-								EffecMn.addEff(effect2);
-							}
-							if (tMabuEff == 100)
-							{
-								GameScr.gI().activeSuperPower(cx, cy);
-							}
-							if (tMabuEff == 110)
-							{
-								mabuEff = false;
-								template.npcTemplateId = 4;
-							}
-						}
+
 						int num = 0;
 						int imgId = duahau[duaHauIndex];
 						if (SmallImage.imgNew != null && imgId >= 0 && imgId < SmallImage.imgNew.Length && SmallImage.imgNew[imgId]?.img != null)

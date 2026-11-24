@@ -7267,7 +7267,8 @@ public class Panel : IActionListener, IChatable
 			Service.gI().sendDelAcc();
 			return;
 		}
-		if (!Char.myCharz().havePet)
+		bool menuHasPet = strTool != null && strTool.Length > 3 && strTool[3] == mResources.pet;
+		if (!menuHasPet)
 		{
 			switch (selected)
 			{

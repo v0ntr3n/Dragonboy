@@ -3568,6 +3568,14 @@ public class GameScr : mScreen, IChatable
 						continue;
 					}
 				}
+				if (mapObject2 is Char)
+				{
+					Char clickChar = (Char)mapObject2;
+					if (clickChar.charID == -Char.myCharz().charID || clickChar.isMiniPet || (clickChar.IsPet() && !Char.myCharz().isMeCanAttackOtherPlayer(clickChar)))
+					{
+						continue;
+					}
+				}
 				int x = mapObject2.getX();
 				int y = mapObject2.getY();
 				int w = mapObject2.getW();
@@ -3954,7 +3962,7 @@ public class GameScr : mScreen, IChatable
 
 	public void doUseHP()
 	{
-		if (Char.myCharz().stone || Char.myCharz().blindEff || Char.myCharz().holdEffID > 0)
+		if (Char.myCharz().isDie || Char.myCharz().statusMe == 14 || Char.myCharz().cHP <= 0 || Char.myCharz().stone || Char.myCharz().blindEff || Char.myCharz().holdEffID > 0)
 		{
 			return;
 		}
@@ -5508,18 +5516,10 @@ public class GameScr : mScreen, IChatable
 				g.setClip(0, 0, 3000, 3000);
 				mFont.tahoma_7b_white.drawString(g, "Mabu", num5, num6 - 112 + 10, 2, mFont.tahoma_7b_dark);
 			}
-			if (Char.myCharz().isFusion)
+			if (Char.myCharz().isFusion && GameCanvas.gameTick % 3 == 0)
 			{
-				Char.myCharz().tFusion++;
-				if (GameCanvas.gameTick % 3 == 0)
-				{
-					g.setColor(16777215);
-					g.fillRect(0, 0, GameCanvas.w, GameCanvas.h);
-				}
-				if (Char.myCharz().tFusion >= 100)
-				{
-					Char.myCharz().fusionComplete();
-				}
+				g.setColor(16777215);
+				g.fillRect(0, 0, GameCanvas.w, GameCanvas.h);
 			}
 			for (int i = 0; i < vCharInMap.size(); i++)
 			{
@@ -5531,18 +5531,10 @@ public class GameScr : mScreen, IChatable
 				catch (Exception)
 				{
 				}
-				if (obj6 != null && obj6.isFusion && Char.isCharInScreen(obj6))
+				if (obj6 != null && obj6.isFusion && Char.isCharInScreen(obj6) && GameCanvas.gameTick % 3 == 0)
 				{
-					obj6.tFusion++;
-					if (GameCanvas.gameTick % 3 == 0)
-					{
-						g.setColor(16777215);
-						g.fillRect(0, 0, GameCanvas.w, GameCanvas.h);
-					}
-					if (obj6.tFusion >= 100)
-					{
-						obj6.fusionComplete();
-					}
+					g.setColor(16777215);
+					g.fillRect(0, 0, GameCanvas.w, GameCanvas.h);
 				}
 			}
 			GameCanvas.paintz.paintTabSoft(g);
@@ -5807,7 +5799,7 @@ public class GameScr : mScreen, IChatable
 		for (int i = 0; i < vNpc.size(); i++)
 		{
 			Npc npc = (Npc)vNpc.elementAt(i);
-			if (npc.template.npcTemplateId == id)
+			if (npc != null && npc.template != null && npc.template.npcTemplateId == id)
 			{
 				return npc;
 			}

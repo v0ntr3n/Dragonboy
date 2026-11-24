@@ -59,7 +59,7 @@ namespace Mod.Auto
 
 		internal static void Update()
 		{
-			if (Mode == AutoTrainPetMode.Disabled)
+			if (Mode == AutoTrainPetMode.Disabled || Char.myCharz() == null || !Char.myCharz().havePet)
 				return;
 			if (isFirstTimeCheckPet)
 			{
@@ -69,7 +69,10 @@ namespace Mod.Auto
 
 			if (mSystem.currentTimeMillis() - delayCheckPet < 3000)
 				return;
-			if (GameCanvas.gameTick % (30 * Time.timeScale) != 0 || XmapController.gI.IsActing)
+			int tick30 = System.Math.Max(1, Mathf.RoundToInt(30f * Time.timeScale));
+			int tick60 = System.Math.Max(2, Mathf.RoundToInt(60f * Time.timeScale));
+			int tick120 = System.Math.Max(4, Mathf.RoundToInt(120f * Time.timeScale));
+			if (GameCanvas.gameTick % tick30 != 0 || XmapController.gI.IsActing)
 				return;
 			// AutoPick();
 			if (Char.myPetz().cStamina < 5 && GameScr.hpPotion > 0 && !(Char.myPetz().cHP <= 0 || Char.myPetz().isDie))
@@ -84,10 +87,11 @@ namespace Mod.Auto
 				if (GameScr.hpPotion == 0 && !isGoHomeGetMorePean && !isMagicTreeOutOfPean)
 				{
 					isGoHomeGetMorePean = true;
+					lastX = Char.myCharz().cx;
 					mapZoneGoBack = new KeyValuePair<int, int>(TileMap.mapID, TileMap.zoneID);
 				}
 
-			if (isGoHomeGetMorePean && !isMagicTreeOutOfPean && GameCanvas.gameTick % (60 * Time.timeScale) == 0)
+			if (isGoHomeGetMorePean && !isMagicTreeOutOfPean && GameCanvas.gameTick % tick60 == 0)
 			{
 				if (TileMap.mapID != Char.myCharz().cgender + 21)
 				{
@@ -124,10 +128,10 @@ namespace Mod.Auto
 				{
 					if (TileMap.zoneID == mapZoneGoBack.Value)
 					{
-						if (Char.myCharz().cx == lastX)
+						if (lastX == 0 || Res.abs(Char.myCharz().cx - lastX) <= 24)
 							isGoHomeGetMorePean = false;
 					}
-					else if (GameCanvas.gameTick % (120 * Time.timeScale) == 0)
+					else if (GameCanvas.gameTick % tick120 == 0)
 					{
 						Service.gI().requestChangeZone(mapZoneGoBack.Value, 0);
 					}
@@ -178,13 +182,13 @@ namespace Mod.Auto
 					//up đệ kaioken
 					if (Char.myPetz().petStatus != 2)
 						Service.gI().petStatus(2); //tấn công
-					if (GameCanvas.gameTick % (60 * Time.timeScale) == 0)
+					if (GameCanvas.gameTick % tick60 == 0)
 					{
 						Char.myCharz().cy--;
 						Service.gI().charMove();
 					}
 
-					if (Mathf.Approximately(GameCanvas.gameTick % (60 * Time.timeScale), 30 * Time.timeScale))
+					if (GameCanvas.gameTick % tick60 == tick30)
 					{
 						Char.myCharz().cy++;
 						Service.gI().charMove();
