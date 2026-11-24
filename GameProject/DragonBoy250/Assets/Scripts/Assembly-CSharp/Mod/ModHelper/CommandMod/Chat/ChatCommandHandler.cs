@@ -13,6 +13,7 @@ namespace Mod.ModHelper.CommandMod.Chat
 
 		public static void loadDefault()
 		{
+			chatCommands.Clear();
 			MethodInfo[] methods = CommandUtils.GetMethods();
 
 			int length = methods.Length;

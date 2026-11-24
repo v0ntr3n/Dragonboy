@@ -599,9 +599,11 @@ namespace Mod
 
 		internal static int GetX(this Waypoint waypoint)
 		{
-			return waypoint.maxX < 60 ? 15 :
-				waypoint.minX > TileMap.pxw - 60 ? TileMap.pxw - 15 :
-				waypoint.minX + (waypoint.maxX - waypoint.minX) / 2;
+			if (waypoint.maxX <= 60 || (waypoint.minX <= 36 && waypoint.maxX <= 120))
+				return System.Math.Max(15, (int)waypoint.minX);
+			if (TileMap.pxw > 0 && (waypoint.minX >= TileMap.pxw - 60 || (waypoint.maxX >= TileMap.pxw - 36 && waypoint.minX >= TileMap.pxw - 120)))
+				return System.Math.Min(TileMap.pxw - 15, (int)waypoint.maxX);
+			return waypoint.minX + (waypoint.maxX - waypoint.minX) / 2;
 		}
 
 		internal static int GetXInsideMap(this Waypoint waypoint)
@@ -615,7 +617,7 @@ namespace Mod
 
 		internal static int GetY(this Waypoint waypoint)
 		{
-			return waypoint.maxY;
+			return waypoint.maxY > 0 ? waypoint.maxY : System.Math.Max(12, (int)waypoint.minY);
 		}
 
 		internal static bool IsWearableAndVip(this Item item)

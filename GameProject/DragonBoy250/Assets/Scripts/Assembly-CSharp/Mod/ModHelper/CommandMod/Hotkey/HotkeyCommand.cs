@@ -12,7 +12,14 @@ namespace Mod.ModHelper.CommandMod.Hotkey
 
         public void execute()
         {
-            method.Invoke(null, parameters);
+            try
+            {
+                method.Invoke(null, parameters);
+            }
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogError($"[HotkeyCommand] Error invoking {fullCommand}: {ex}");
+            }
         }
     }
 }

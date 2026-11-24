@@ -606,8 +606,21 @@ namespace Mod
 			"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"
 		};
 
+		private static bool _awakeInitialized;
+		private static bool _gameStartInitialized;
+
+		internal static void SyncTeleportPose(int x, int y)
+		{
+			_prevCx = _authCx = _interpCx = x;
+			_prevCy = _authCy = _interpCy = y;
+			_isInterpolatingPose = false;
+		}
+
 		internal static void OnAwake()
 		{
+			if (_awakeInitialized)
+				return;
+			_awakeInitialized = true;
 			EnsureMainThreadRegistered();
 			QualitySettings.vSyncCount = 0;
 			Application.targetFrameRate = 60;
@@ -619,6 +632,9 @@ namespace Mod
 
 		internal static void OnGameStart()
 		{
+			if (_gameStartInitialized)
+				return;
+			_gameStartInitialized = true;
 			EnsureMainThreadRegistered();
 			QualitySettings.vSyncCount = 0;
 			Application.targetFrameRate = 60;

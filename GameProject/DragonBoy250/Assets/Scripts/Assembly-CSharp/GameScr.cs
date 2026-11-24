@@ -2744,7 +2744,7 @@ public class GameScr : mScreen, IChatable
 						return;
 				}
 			}
-			if ((!ChatTextField.gI().isShow || GameCanvas.keyAsciiPress == 0) && !isLockKey && !GameCanvas.menu.showMenu && !isOpenUI() && !Char.isLockKey && Char.myCharz().skillPaint == null && GameCanvas.keyAsciiPress != 0 && mobCapcha == null && TField.isQwerty)
+			if ((!ChatTextField.gI().isShow || GameCanvas.keyAsciiPress == 0) && !isLockKey && !GameCanvas.menu.showMenu && !isOpenUI() && !Char.isLockKey && GameCanvas.keyAsciiPress != 0 && mobCapcha == null && TField.isQwerty)
 			{
 				GameEvents.OnGameScrPressHotkeys();
 				if (!GameCanvas.keyPressed[1] && !GameCanvas.keyPressed[2] && !GameCanvas.keyPressed[3] && !GameCanvas.keyPressed[4] && !GameCanvas.keyPressed[5] && !GameCanvas.keyPressed[6] && !GameCanvas.keyPressed[7] && !GameCanvas.keyPressed[8] && !GameCanvas.keyPressed[9] && !GameCanvas.keyPressed[0] && GameCanvas.keyAsciiPress != 114 && GameCanvas.keyAsciiPress != 47)

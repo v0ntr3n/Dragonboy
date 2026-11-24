@@ -41,11 +41,27 @@ namespace Mod.ModHelper.CommandMod
         /// </list>
         /// </remarks>
         /// <returns>Danh sách các hàm của Assembly hiện tại.</returns>
+        private static Type[] GetAssemblyTypesSafe(Assembly asm)
+        {
+            try
+            {
+                return asm.GetTypes();
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                return ex.Types.Where(t => t != null).ToArray();
+            }
+        }
+
         public static MethodInfo[] GetMethods()
         {
-            return typeof(CommandUtils).Assembly
-                .GetTypes().Where(x => x.IsClass)
-                .SelectMany(x => x.GetMethods(STATIC_VOID))
+            return GetAssemblyTypesSafe(typeof(CommandUtils).Assembly)
+                .Where(x => x != null && x.IsClass)
+                .SelectMany(x =>
+                {
+                    try { return x.GetMethods(STATIC_VOID); }
+                    catch { return Array.Empty<MethodInfo>(); }
+                })
                 .ToArray();
         }
     }

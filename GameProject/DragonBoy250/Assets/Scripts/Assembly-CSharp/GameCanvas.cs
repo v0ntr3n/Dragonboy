@@ -1070,6 +1070,7 @@ public class GameCanvas : IActionListener
 				{
 					currentScreen.updateKey();
 				}
+				keyAsciiPress = 0;
 				Hint.update();
 				SoundMn.gI().update();
 			}
@@ -2723,7 +2724,6 @@ public class GameCanvas : IActionListener
 		{
 			return;
 		}
-		keyAsciiPress = 0;
 		mapKeyRelease(keyCode);
 	}
 

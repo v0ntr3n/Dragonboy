@@ -31,6 +31,9 @@ namespace Mod
 		[HotkeyCommand('j')]
 		internal static void ChangeMapLeft()
 		{
+			if (!Utils.CanNextMap())
+				return;
+			Utils.EnsureWaypointsLoaded();
 			if (Utils.IsMeInNRDMap() || Utils.waypointLeft == null)
 				Utils.TeleportMyChar(60);
 			else
@@ -40,6 +43,9 @@ namespace Mod
 		[HotkeyCommand('k')]
 		internal static void ChangeMapMiddle()
 		{
+			if (!Utils.CanNextMap())
+				return;
+			Utils.EnsureWaypointsLoaded();
 			if (Utils.IsMeInNRDMap())
 			{
 				if (Char.myCharz().bag >= 0 && ClanImage.idImages.containsKey(Char.myCharz().bag.ToString()))
@@ -85,6 +91,9 @@ namespace Mod
 		[HotkeyCommand('l')]
 		internal static void ChangeMapRight()
 		{
+			if (!Utils.CanNextMap())
+				return;
+			Utils.EnsureWaypointsLoaded();
 			if (Utils.IsMeInNRDMap() || Utils.waypointRight == null)
 				Utils.TeleportMyChar(TileMap.pxw - 60);
 			else

@@ -119,6 +119,8 @@ namespace Mod
 
 		internal static string getTextPopup(PopUp popUp)
 		{
+			if (popUp == null || popUp.says == null)
+				return string.Empty;
 			StringBuilder stringBuilder = new StringBuilder();
 			for (int i = 0; i < popUp.says.Length; i++)
 			{
@@ -126,6 +128,13 @@ namespace Mod
 				stringBuilder.Append(" ");
 			}
 			return stringBuilder.ToString().Trim();
+		}
+
+		private static string GetMapNameSafe(int mapId)
+		{
+			if (TileMap.mapNames == null || mapId < 0 || mapId >= TileMap.mapNames.Length)
+				return null;
+			return TileMap.mapNames[mapId];
 		}
 
 		/// <summary>
@@ -204,41 +213,45 @@ namespace Mod
 
 		static void setWaypointChangeMap(Waypoint waypoint)
 		{
+			if (waypoint == null)
+				return;
 			int cMapID = TileMap.mapID;
 			string textPopup = getTextPopup(waypoint.popup);
 
-			if (cMapID == 27 && textPopup == TileMap.mapNames[53])
+			if (cMapID == 27 && !string.IsNullOrEmpty(textPopup) && textPopup == GetMapNameSafe(53))
 				return;
 
-			if (cMapID == 70 && textPopup == TileMap.mapNames[69] ||
-			    cMapID == 73 && textPopup == TileMap.mapNames[67] ||
-			    cMapID == 110 && textPopup == TileMap.mapNames[106])
+			if (!string.IsNullOrEmpty(textPopup) && (
+			    cMapID == 70 && textPopup == GetMapNameSafe(69) ||
+			    cMapID == 73 && textPopup == GetMapNameSafe(67) ||
+			    cMapID == 110 && textPopup == GetMapNameSafe(106)))
 			{
 				waypointLeft = waypoint;
 				return;
 			}
 
-			if ((cMapID == 106 || cMapID == 107) && textPopup == TileMap.mapNames[110] ||
-			    (cMapID == 105 || cMapID == 108) && textPopup == TileMap.mapNames[109] ||
-			    cMapID == 109 && textPopup == TileMap.mapNames[105])
+			if (!string.IsNullOrEmpty(textPopup) && (
+			    (cMapID == 106 || cMapID == 107) && textPopup == GetMapNameSafe(110) ||
+			    (cMapID == 105 || cMapID == 108) && textPopup == GetMapNameSafe(109) ||
+			    cMapID == 109 && textPopup == GetMapNameSafe(105)))
 			{
 				waypointMiddle = waypoint;
 				return;
 			}
 
-			if (cMapID == 70 && textPopup == TileMap.mapNames[71])
+			if (cMapID == 70 && !string.IsNullOrEmpty(textPopup) && textPopup == GetMapNameSafe(71))
 			{
 				waypointRight = waypoint;
 				return;
 			}
 
-			if (waypoint.maxX < 60)
+			if (waypoint.maxX <= 60 || (waypoint.minX <= 36 && waypoint.maxX <= 120))
 			{
 				waypointLeft = waypoint;
 				return;
 			}
 
-			if (waypoint.minX > TileMap.pxw - 60)
+			if (TileMap.pxw > 0 && (waypoint.minX >= TileMap.pxw - 60 || (waypoint.maxX >= TileMap.pxw - 36 && waypoint.minX >= TileMap.pxw - 120)))
 			{
 				waypointRight = waypoint;
 				return;
@@ -247,18 +260,26 @@ namespace Mod
 			waypointMiddle = waypoint;
 		}
 
+		internal static void EnsureWaypointsLoaded()
+		{
+			if (waypointLeft == null && waypointMiddle == null && waypointRight == null && (TileMap.vGo.size() > 0 || TileMap.mapID == 45 || TileMap.mapID == 46))
+			{
+				UpdateWaypointChangeMap();
+			}
+		}
+
 		internal static void UpdateWaypointChangeMap()
 		{
 			waypointLeft = waypointMiddle = waypointRight = null;
 
 			if (TileMap.mapID == 46)
-				waypointRight = new Waypoint(570, 576, 570, 576, true, false, TileMap.mapNames[47]);
+				waypointRight = new Waypoint(570, 576, 570, 576, true, false, GetMapNameSafe(47) ?? "Map 47");
 
 			int vGoSize = TileMap.vGo.size();
 			if (vGoSize == 0)
 			{
 				if (TileMap.mapID == 45)
-					waypointMiddle = new Waypoint(570, 576, 570, 576, true, false, TileMap.mapNames[46]);
+					waypointMiddle = new Waypoint(570, 576, 570, 576, true, false, GetMapNameSafe(46) ?? "Map 46");
 			}
 			for (int i = 0; i < vGoSize; i++)
 			{
@@ -299,19 +320,29 @@ namespace Mod
 		/// <param name="y">Toạ độ y.</param>
 		internal static void TeleportMyChar(int x, int y)
 		{
-			Char.myCharz().currentMovePoint = null;
-			Char.myCharz().cx = x;
-			Char.myCharz().cy = y;
+			y = System.Math.Max(12, y);
+			Char me = Char.myCharz();
+			me.currentMovePoint = null;
+			me.skillPaint = null;
+			Char.ischangingMap = false;
+			if (me.cxSend == x && me.cySend == y)
+			{
+				me.cySend = y + 1;
+			}
+			me.cx = x;
+			me.cy = y;
+			GameEvents.SyncTeleportPose(x, y);
 			Service.gI().charMove();
 
 			if (isUsingTDLT())
 				return;
 
-			Char.myCharz().cx = x;
-			Char.myCharz().cy = y + 1;
+			me.cx = x;
+			me.cy = y + 1;
 			Service.gI().charMove();
-			Char.myCharz().cx = x;
-			Char.myCharz().cy = y;
+			me.cx = x;
+			me.cy = y;
+			GameEvents.SyncTeleportPose(x, y);
 			Service.gI().charMove();
 		}
 

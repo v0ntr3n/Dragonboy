@@ -3317,20 +3317,19 @@ public class Char : IMapObject
 	{
 		InfoDlg.hide();
 		currentMovePoint = null;
-		int num = cx - x;
+		ischangingMap = false;
+		isLockKey = false;
+		myCharz().cxSend = x;
+		myCharz().cySend = y;
 		if (cy - y == 0)
 		{
 			cx = x;
-			ischangingMap = false;
-			isLockKey = false;
 			return;
 		}
 		statusMe = 16;
 		cp2 = x;
 		cp3 = y;
 		cp1 = 0;
-		myCharz().cxSend = x;
-		myCharz().cySend = y;
 	}
 
 	public void updateCharDeadFly()

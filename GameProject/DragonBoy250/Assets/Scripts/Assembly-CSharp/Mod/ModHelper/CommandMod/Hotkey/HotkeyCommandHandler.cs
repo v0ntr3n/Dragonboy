@@ -12,8 +12,12 @@ namespace Mod.ModHelper.CommandMod.Hotkey
 		/// <summary>
 		///     Tải phím tắt mặc định.
 		/// </summary>
+		private static bool _loaded;
+
 		public static void loadDefault()
 		{
+			hotkeyCommands.Clear();
+			_loaded = true;
 			MethodInfo[] methods = CommandUtils.GetMethods();
 
 			for (int i = 0; i < methods.Length; i++)
@@ -58,9 +62,14 @@ namespace Mod.ModHelper.CommandMod.Hotkey
 		/// <returns>true nếu có lệnh được thực hiện thành công.</returns>
 		public static bool handleHotkey(int key)
 		{
+			if (!_loaded || hotkeyCommands.Count == 0)
+			{
+				loadDefault();
+			}
+			int normalizedKey = (key >= 'A' && key <= 'Z') ? (key + 32) : key;
 			foreach (HotkeyCommand h in hotkeyCommands)
 			{
-				if (h.key == key)
+				if (h.key == key || h.key == normalizedKey)
 				{
 					h.execute();
 					return true;

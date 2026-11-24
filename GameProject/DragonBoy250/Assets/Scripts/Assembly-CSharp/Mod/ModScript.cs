@@ -18,9 +18,18 @@ namespace Mod
 			GameEvents.OnGameStart();
 		}
 		
+		private static bool _bootstrapped;
+
 		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
 		static void Init()
 		{
+			if (_bootstrapped)
+				return;
+			_bootstrapped = true;
+			var modHost = new GameObject(nameof(ModScript));
+			modHost.AddComponent<ModScript>();
+			Object.DontDestroyOnLoad(modHost);
+
 			var types = AppDomain.CurrentDomain
 				.GetAssemblies()
 				.SelectMany(a => a.GetTypes())

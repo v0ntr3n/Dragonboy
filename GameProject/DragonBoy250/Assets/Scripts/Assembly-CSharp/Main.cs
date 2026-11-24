@@ -130,6 +130,7 @@ public class Main : MonoBehaviour
 	private void Awake()
 	{
 		mainThreadId = Thread.CurrentThread.ManagedThreadId;
+		GameEvents.OnAwake();
 	}
 
 	private void Start()
@@ -156,6 +157,7 @@ public class Main : MonoBehaviour
 		#endif
 		started = true;
 		StartStallWatchdog();
+		GameEvents.OnGameStart();
 		GameEvents.OnMainStart();
 	}
 
