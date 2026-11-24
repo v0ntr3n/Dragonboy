@@ -140,7 +140,7 @@ namespace Mod.PickMob.Services
 
 		static TypePickItem GetTypePickItem(Char myChar, ItemMap itemMap)
 		{
-			if (itemMap == null || itemMap.template == null)
+			if (itemMap == null || itemMap.template == null || itemMap.status == 2)
 				return TypePickItem.CanNotPickItem;
 
 			if (PickMobConfig.IsItemMe && itemMap.playerId != myChar.charID && itemMap.playerId != -1)
