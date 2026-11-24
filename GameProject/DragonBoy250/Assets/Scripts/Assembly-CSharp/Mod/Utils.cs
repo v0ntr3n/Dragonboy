@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -25,6 +25,9 @@ namespace Mod
 		internal static Waypoint waypointLeft;
 		internal static Waypoint waypointMiddle;
 		internal static Waypoint waypointRight;
+		static int _cachedWaypointMapId = -1;
+		static int _cachedWaypointVGoCount = -1;
+		static long _changingMapSinceMs;
 
 		internal static string username = "";
 		internal static string password = "";
@@ -201,14 +204,25 @@ namespace Mod
 			}
 		}
 
+		static bool PopupMatchesMap(string textPopup, int mapId)
+		{
+			string mapName = GetMapNameSafe(mapId);
+			return !string.IsNullOrEmpty(textPopup) && !string.IsNullOrEmpty(mapName) && string.Equals(textPopup.Trim(), mapName.Trim(), System.StringComparison.OrdinalIgnoreCase);
+		}
+
 		internal static void requestChangeMap(Waypoint waypoint)
 		{
-			if (waypoint.isOffline)
+			if (waypoint == null)
+				return;
+			_changingMapSinceMs = mSystem.currentTimeMillis();
+			if (waypoint.isOffline || TileMap.isTrainingMap())
 			{
 				Service.gI().getMapOffline();
+				Char.ischangingMap = true;
 				return;
 			}
 			Service.gI().requestChangeMap();
+			Char.ischangingMap = true;
 		}
 
 		static void setWaypointChangeMap(Waypoint waypoint)
@@ -218,40 +232,49 @@ namespace Mod
 			int cMapID = TileMap.mapID;
 			string textPopup = getTextPopup(waypoint.popup);
 
-			if (cMapID == 27 && !string.IsNullOrEmpty(textPopup) && textPopup == GetMapNameSafe(53))
+			if (cMapID == 27 && PopupMatchesMap(textPopup, 53))
 				return;
 
-			if (!string.IsNullOrEmpty(textPopup) && (
-			    cMapID == 70 && textPopup == GetMapNameSafe(69) ||
-			    cMapID == 73 && textPopup == GetMapNameSafe(67) ||
-			    cMapID == 110 && textPopup == GetMapNameSafe(106)))
+			if (cMapID == 70 && PopupMatchesMap(textPopup, 69) ||
+			    cMapID == 73 && PopupMatchesMap(textPopup, 67) ||
+			    cMapID == 110 && PopupMatchesMap(textPopup, 106))
 			{
 				waypointLeft = waypoint;
 				return;
 			}
 
-			if (!string.IsNullOrEmpty(textPopup) && (
-			    (cMapID == 106 || cMapID == 107) && textPopup == GetMapNameSafe(110) ||
-			    (cMapID == 105 || cMapID == 108) && textPopup == GetMapNameSafe(109) ||
-			    cMapID == 109 && textPopup == GetMapNameSafe(105)))
+			if ((cMapID == 106 || cMapID == 107) && PopupMatchesMap(textPopup, 110) ||
+			    (cMapID == 105 || cMapID == 108) && PopupMatchesMap(textPopup, 109) ||
+			    cMapID == 109 && PopupMatchesMap(textPopup, 105))
 			{
 				waypointMiddle = waypoint;
 				return;
 			}
 
-			if (cMapID == 70 && !string.IsNullOrEmpty(textPopup) && textPopup == GetMapNameSafe(71))
+			if (cMapID == 70 && PopupMatchesMap(textPopup, 71))
 			{
 				waypointRight = waypoint;
 				return;
 			}
 
-			if (waypoint.maxX <= 60 || (waypoint.minX <= 36 && waypoint.maxX <= 120))
+			if (cMapID >= 54 && cMapID <= 57)
+			{
+				if (waypoint.minX <= 168)
+					waypointLeft = waypoint;
+				else
+					waypointRight = waypoint;
+				return;
+			}
+
+			int mapW = TileMap.pxw > 0 ? TileMap.pxw : TileMap.tmw * TileMap.size;
+			if (waypoint.maxX <= 60 || (waypoint.minX <= 96 && waypoint.maxX <= 168 && !waypoint.isOffline && (mapW <= 0 || waypoint.maxX <= mapW / 3)))
 			{
 				waypointLeft = waypoint;
 				return;
 			}
 
-			if (TileMap.pxw > 0 && (waypoint.minX >= TileMap.pxw - 60 || (waypoint.maxX >= TileMap.pxw - 36 && waypoint.minX >= TileMap.pxw - 120)))
+			if ((!waypoint.isEnter && waypoint.minX >= 400) ||
+			    (mapW > 0 && (waypoint.minX >= mapW - 120 || (waypoint.maxX >= mapW - 84 && !waypoint.isOffline && waypoint.minX >= mapW / 2))))
 			{
 				waypointRight = waypoint;
 				return;
@@ -262,7 +285,8 @@ namespace Mod
 
 		internal static void EnsureWaypointsLoaded()
 		{
-			if (waypointLeft == null && waypointMiddle == null && waypointRight == null && (TileMap.vGo.size() > 0 || TileMap.mapID == 45 || TileMap.mapID == 46))
+			int vGoSize = TileMap.vGo != null ? TileMap.vGo.size() : 0;
+			if (_cachedWaypointMapId != TileMap.mapID || _cachedWaypointVGoCount != vGoSize || (waypointLeft == null && waypointMiddle == null && waypointRight == null && (vGoSize > 0 || TileMap.mapID == 45 || TileMap.mapID == 46)))
 			{
 				UpdateWaypointChangeMap();
 			}
@@ -271,11 +295,13 @@ namespace Mod
 		internal static void UpdateWaypointChangeMap()
 		{
 			waypointLeft = waypointMiddle = waypointRight = null;
+			int vGoSize = TileMap.vGo != null ? TileMap.vGo.size() : 0;
+			_cachedWaypointMapId = TileMap.mapID;
+			_cachedWaypointVGoCount = vGoSize;
 
 			if (TileMap.mapID == 46)
 				waypointRight = new Waypoint(570, 576, 570, 576, true, false, GetMapNameSafe(47) ?? "Map 47");
 
-			int vGoSize = TileMap.vGo.size();
 			if (vGoSize == 0)
 			{
 				if (TileMap.mapID == 45)
@@ -286,6 +312,7 @@ namespace Mod
 				Waypoint waypoint = (Waypoint)TileMap.vGo.elementAt(i);
 				setWaypointChangeMap(waypoint);
 			}
+			EnsureCharAboveVoidOnMapLoad();
 		}
 
 		/// <summary>
@@ -320,15 +347,39 @@ namespace Mod
 		/// <param name="y">Toạ độ y.</param>
 		internal static void TeleportMyChar(int x, int y)
 		{
-			y = System.Math.Max(12, y);
 			Char me = Char.myCharz();
+			if (me == null)
+				return;
+			int mapW = TileMap.pxw > 0 ? TileMap.pxw : TileMap.tmw * TileMap.size;
+			int mapH = TileMap.pxh > 0 ? TileMap.pxh : TileMap.tmh * TileMap.size;
+			if (mapW > 24)
+				x = Mathf.Clamp(x, 12, mapW - 12);
+			else
+				x = System.Math.Max(12, x);
+			if (mapH > 24)
+				y = Mathf.Clamp(y, 12, mapH - 24);
+			else
+				y = System.Math.Max(12, y);
+
 			me.currentMovePoint = null;
+			me.vMovePoints?.removeAllElements();
 			me.skillPaint = null;
+			me.isTeleport = false;
+			me.telePortSkill = false;
+			me.isFlyUp = false;
 			Char.ischangingMap = false;
-			if (me.cxSend == x && me.cySend == y)
-			{
-				me.cySend = y + 1;
-			}
+			Char.isLockKey = false;
+			me.cvx = 0;
+			me.cvy = 0;
+			me.cp1 = 0;
+			me.cp2 = 0;
+			me.cp3 = 0;
+			me.delayFall = 0;
+			if (!TileMap.isInAirMap())
+				me.statusMe = 1;
+
+			me.cxSend = x - 1;
+			me.cySend = y - 1;
 			me.cx = x;
 			me.cy = y;
 			GameEvents.SyncTeleportPose(x, y);
@@ -337,8 +388,9 @@ namespace Mod
 			if (isUsingTDLT())
 				return;
 
+			int nudgeY = (mapH > 36 && y >= mapH - 24) ? (y - 1) : (y + 1);
 			me.cx = x;
-			me.cy = y + 1;
+			me.cy = nudgeY;
 			Service.gI().charMove();
 			me.cx = x;
 			me.cy = y;
@@ -416,11 +468,211 @@ namespace Mod
 			GameCanvas.panel.show();
 		}
 
+		internal static bool TryFindGroundAtColumn(int x, int preferredY, out int groundY)
+		{
+			groundY = 0;
+			int tileSize = TileMap.size > 0 ? TileMap.size : 24;
+			int mapW = TileMap.pxw > 0 ? TileMap.pxw : TileMap.tmw * tileSize;
+			int mapH = TileMap.pxh > 0 ? TileMap.pxh : TileMap.tmh * tileSize;
+			if (mapW <= 0 || mapH <= 0 || x < 0 || x >= mapW)
+				return false;
+
+			int bestDist = int.MaxValue;
+			bool found = false;
+			for (int y = tileSize; y <= mapH - tileSize; y += tileSize)
+			{
+				if (TileMap.tileTypeAt(x, y, 2))
+				{
+					if (preferredY <= 0)
+					{
+						groundY = y;
+						return true;
+					}
+					int dist = System.Math.Abs(y - preferredY);
+					if (dist < bestDist)
+					{
+						bestDist = dist;
+						groundY = y;
+						found = true;
+					}
+				}
+			}
+			return found;
+		}
+
+		internal static void ResolveWaypointTarget(Waypoint waypoint, out int targetX, out int targetY)
+		{
+			int tileSize = TileMap.size > 0 ? TileMap.size : 24;
+			int mapW = TileMap.pxw > 0 ? TileMap.pxw : TileMap.tmw * tileSize;
+			int mapH = TileMap.pxh > 0 ? TileMap.pxh : TileMap.tmh * tileSize;
+			if (waypoint == null)
+			{
+				targetX = 60;
+				targetY = GetYGround(60);
+				return;
+			}
+
+			if ((TileMap.mapID == 45 || TileMap.mapID == 46) && waypoint.minX == 570 && waypoint.maxY >= 500)
+			{
+				targetX = 570;
+				targetY = mapH > tileSize ? System.Math.Min(576, mapH - tileSize) : 552;
+				return;
+			}
+
+			if ((TileMap.mapID == 46 || TileMap.mapID == 47) && waypoint.minY <= 120 && waypoint.maxY <= 150)
+			{
+				targetX = waypoint.minX + (waypoint.maxX - waypoint.minX) / 2;
+				targetY = System.Math.Max(24, (waypoint.minY + waypoint.maxY) / 2);
+				return;
+			}
+
+			int refY = waypoint.maxY > 0 ? waypoint.maxY : System.Math.Max(24, (int)waypoint.minY);
+			if (mapH > tileSize && refY > mapH - tileSize)
+				refY = mapH - tileSize;
+
+			bool isLeftEdge = waypoint.maxX <= 60 || (waypoint.minX <= 96 && waypoint.maxX <= 168 && !waypoint.isOffline && (mapW <= 0 || waypoint.maxX <= mapW / 3));
+			bool isRightEdge = !isLeftEdge && ((!waypoint.isEnter && waypoint.minX >= 400) || (mapW > 0 && waypoint.minX >= mapW - 144));
+
+			int midX = waypoint.minX + (waypoint.maxX - waypoint.minX) / 2;
+			if (mapW > 36)
+				midX = Mathf.Clamp(midX, 18, mapW - 18);
+
+			if (TryFindGroundAtColumn(midX, refY, out int midGroundY) && System.Math.Abs(midGroundY - refY) <= tileSize * 3)
+			{
+				targetX = midX;
+				targetY = midGroundY;
+				return;
+			}
+
+			if (isLeftEdge)
+			{
+				for (int probeX = System.Math.Max(tileSize, (int)waypoint.maxX); probeX <= System.Math.Min(mapW - tileSize, (int)waypoint.maxX + tileSize * 4); probeX += tileSize)
+				{
+					if (TryFindGroundAtColumn(probeX, refY, out int gy) && System.Math.Abs(gy - refY) <= tileSize * 4)
+					{
+						targetX = probeX;
+						targetY = gy;
+						return;
+					}
+				}
+			}
+			else if (isRightEdge && mapW > tileSize * 2)
+			{
+				int startProbe = System.Math.Min(mapW - tileSize, (int)waypoint.minX);
+				for (int probeX = startProbe; probeX >= System.Math.Max(tileSize, startProbe - tileSize * 4); probeX -= tileSize)
+				{
+					if (TryFindGroundAtColumn(probeX, refY, out int gy) && System.Math.Abs(gy - refY) <= tileSize * 4)
+					{
+						targetX = probeX;
+						targetY = gy;
+						return;
+					}
+				}
+			}
+
+			targetX = midX;
+			targetY = refY;
+		}
+
+		internal static void TeleportToSafeEdge(bool leftSide)
+		{
+			int tileSize = TileMap.size > 0 ? TileMap.size : 24;
+			int mapW = TileMap.pxw > 0 ? TileMap.pxw : TileMap.tmw * tileSize;
+			int prefY = Char.myCharz() != null && Char.myCharz().cy > 0 ? Char.myCharz().cy : 0;
+			if (mapW <= tileSize * 4)
+			{
+				int mid = System.Math.Max(24, mapW / 2);
+				TeleportMyChar(mid, GetYGround(mid));
+				return;
+			}
+			if (leftSide)
+			{
+				for (int x = 60; x <= mapW / 2; x += tileSize)
+				{
+					if (TryFindGroundAtColumn(x, prefY, out int gy))
+					{
+						TeleportMyChar(x, gy);
+						return;
+					}
+				}
+				TeleportMyChar(60, GetYGround(60));
+			}
+			else
+			{
+				for (int x = mapW - 60; x >= mapW / 2; x -= tileSize)
+				{
+					if (TryFindGroundAtColumn(x, prefY, out int gy))
+					{
+						TeleportMyChar(x, gy);
+						return;
+					}
+				}
+				TeleportMyChar(mapW - 60, GetYGround(mapW - 60));
+			}
+		}
+
+		internal static void EnsureCharAboveVoidOnMapLoad()
+		{
+			Char me = Char.myCharz();
+			if (me == null || TileMap.isInAirMap())
+				return;
+			int tileSize = TileMap.size > 0 ? TileMap.size : 24;
+			int mapW = TileMap.pxw > 0 ? TileMap.pxw : TileMap.tmw * tileSize;
+			int mapH = TileMap.pxh > 0 ? TileMap.pxh : TileMap.tmh * tileSize;
+			if (mapH <= tileSize)
+				return;
+			bool corrected = false;
+			if (me.isFlyUp)
+			{
+				me.isFlyUp = false;
+				Char.isLockKey = false;
+				if (me.cxFocus > 0 && (mapW <= 0 || me.cxFocus < mapW))
+				{
+					me.cx = me.cxFocus;
+					corrected = true;
+				}
+			}
+			if (mapW > tileSize * 2 && (me.cx < 12 || me.cx > mapW - 12))
+			{
+				me.cx = Mathf.Clamp(me.cx, tileSize, mapW - tileSize);
+				corrected = true;
+			}
+			bool hasGroundAtOrBelow = false;
+			int startRowY = System.Math.Max(tileSize, TileMap.tileYofPixel(me.cy));
+			for (int y = startRowY; y <= mapH - tileSize; y += tileSize)
+			{
+				if (TileMap.tileTypeAt(me.cx, y, 2))
+				{
+					hasGroundAtOrBelow = true;
+					break;
+				}
+			}
+			if (!hasGroundAtOrBelow)
+			{
+				int safeY = GetYGround(me.cx);
+				if (safeY > 0 && safeY < mapH)
+				{
+					me.cy = safeY;
+					me.cvy = 0;
+					me.statusMe = 1;
+					corrected = true;
+				}
+			}
+			if (corrected)
+			{
+				me.cxSend = me.cx - 1;
+				me.cySend = me.cy - 1;
+				GameEvents.SyncTeleportPose(me.cx, me.cy);
+				Service.gI().charMove();
+			}
+		}
+
 		internal static void ChangeMap(Waypoint waypoint)
 		{
 			if (waypoint != null)
 			{
-				TeleportMyChar(waypoint.GetX(), waypoint.GetY());
+				ResolveWaypointTarget(waypoint, out int targetX, out int targetY);
+				TeleportMyChar(targetX, targetY);
 				requestChangeMap(waypoint);
 			}
 		}
@@ -467,18 +719,29 @@ namespace Mod
 		/// <returns>Tung độ y thỏa mãn (x, y) là mặt đất</returns>
 		internal static int GetYGround(int x)
 		{
-			int y = 50;
-			for (int i = 0; i < 30; i++)
+			int tileSize = TileMap.size > 0 ? TileMap.size : 24;
+			int mapW = TileMap.pxw > 0 ? TileMap.pxw : TileMap.tmw * tileSize;
+			int mapH = TileMap.pxh > 0 ? TileMap.pxh : TileMap.tmh * tileSize;
+			int prefY = Char.myCharz() != null && Char.myCharz().cy > 0 ? Char.myCharz().cy : 0;
+
+			if (mapW > tileSize * 2)
+				x = Mathf.Clamp(x, tileSize, mapW - tileSize);
+
+			if (TryFindGroundAtColumn(x, 0, out int directY))
+				return directY;
+
+			for (int offset = tileSize; offset <= tileSize * 8; offset += tileSize)
 			{
-				y += 24;
-				if (TileMap.tileTypeAt(x, y, 2))
-				{
-					if (y % 24 != 0)
-						y -= y % 24;
-					break;
-				}
+				if (x + offset < mapW && TryFindGroundAtColumn(x + offset, prefY, out int rightY))
+					return rightY;
+				if (x - offset >= tileSize && TryFindGroundAtColumn(x - offset, prefY, out int leftY))
+					return leftY;
 			}
-			return y;
+
+			int fallback = prefY > 0 ? prefY : 336;
+			if (mapH > tileSize * 2)
+				return Mathf.Clamp(fallback, tileSize, mapH - tileSize);
+			return System.Math.Max(tileSize, fallback);
 		}
 
 		internal static int Distance(IMapObject mapObject1, IMapObject mapObject2)
@@ -535,6 +798,12 @@ namespace Mod
 
 		internal static bool CanNextMap()
 		{
+			if (Char.ischangingMap && !Char.isLoadingMap && _changingMapSinceMs > 0 && mSystem.currentTimeMillis() - _changingMapSinceMs > 2000L)
+			{
+				Char.ischangingMap = false;
+				Char.isLockKey = false;
+				_changingMapSinceMs = 0L;
+			}
 			return !Char.isLoadingMap && !Char.ischangingMap && !Controller.isStopReadMessage && GameCanvas.currentScreen is not TransportScr;
 		}
 

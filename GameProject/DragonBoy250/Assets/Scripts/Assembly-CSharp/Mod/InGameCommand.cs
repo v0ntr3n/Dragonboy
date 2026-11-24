@@ -35,7 +35,7 @@ namespace Mod
 				return;
 			Utils.EnsureWaypointsLoaded();
 			if (Utils.IsMeInNRDMap() || Utils.waypointLeft == null)
-				Utils.TeleportMyChar(60);
+				Utils.TeleportToSafeEdge(true);
 			else
 				Utils.ChangeMap(Utils.waypointLeft);
 		}
@@ -95,7 +95,7 @@ namespace Mod
 				return;
 			Utils.EnsureWaypointsLoaded();
 			if (Utils.IsMeInNRDMap() || Utils.waypointRight == null)
-				Utils.TeleportMyChar(TileMap.pxw - 60);
+				Utils.TeleportToSafeEdge(false);
 			else
 				Utils.ChangeMap(Utils.waypointRight);
 		}

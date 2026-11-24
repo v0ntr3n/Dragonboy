@@ -1,4 +1,4 @@
-﻿using Mod.Constants;
+using Mod.Constants;
 using Mod.CustomPanel;
 using Mod.R;
 using UnityEngine;
@@ -599,25 +599,24 @@ namespace Mod
 
 		internal static int GetX(this Waypoint waypoint)
 		{
-			if (waypoint.maxX <= 60 || (waypoint.minX <= 36 && waypoint.maxX <= 120))
-				return System.Math.Max(15, (int)waypoint.minX);
-			if (TileMap.pxw > 0 && (waypoint.minX >= TileMap.pxw - 60 || (waypoint.maxX >= TileMap.pxw - 36 && waypoint.minX >= TileMap.pxw - 120)))
-				return System.Math.Min(TileMap.pxw - 15, (int)waypoint.maxX);
-			return waypoint.minX + (waypoint.maxX - waypoint.minX) / 2;
+			Utils.ResolveWaypointTarget(waypoint, out int x, out _);
+			return x;
 		}
 
 		internal static int GetXInsideMap(this Waypoint waypoint)
 		{
-			int margin = TileMap.size * 2;
-
-			return waypoint.maxX < margin ? margin :
-				waypoint.minX > TileMap.pxw - margin ? TileMap.pxw - margin :
-				waypoint.minX + (waypoint.maxX - waypoint.minX) / 2;
+			int margin = System.Math.Max(24, TileMap.size * 2);
+			if (waypoint.maxX <= margin)
+				return margin;
+			if (TileMap.pxw > margin * 2 && (waypoint.minX >= TileMap.pxw - margin || (!waypoint.isEnter && waypoint.minX >= 400)))
+				return System.Math.Min((int)waypoint.minX, TileMap.pxw - margin);
+			return waypoint.minX + (waypoint.maxX - waypoint.minX) / 2;
 		}
 
 		internal static int GetY(this Waypoint waypoint)
 		{
-			return waypoint.maxY > 0 ? waypoint.maxY : System.Math.Max(12, (int)waypoint.minY);
+			Utils.ResolveWaypointTarget(waypoint, out _, out int y);
+			return y;
 		}
 
 		internal static bool IsWearableAndVip(this Item item)
