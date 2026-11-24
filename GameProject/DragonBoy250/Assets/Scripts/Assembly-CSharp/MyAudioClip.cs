@@ -10,13 +10,12 @@ public class MyAudioClip
 
 	public MyAudioClip(string filename)
 	{
-		clip = (AudioClip)Resources.Load(filename);
+		clip = null;
 		name = filename;
 	}
 
 	public void Play()
 	{
-		Main.main.GetComponent<AudioSource>().PlayOneShot(clip);
 		timeStart = mSystem.currentTimeMillis();
 	}
 

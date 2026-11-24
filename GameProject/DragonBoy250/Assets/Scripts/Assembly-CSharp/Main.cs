@@ -233,7 +233,6 @@ public class Main : MonoBehaviour
 			Panel.loadBg();
 			Menu.loadBg();
 			Key.mapKeyPC();
-			SoundMn.gI().loadSound(TileMap.mapID);
 			g.CreateLineMaterial();
 		}
 	}

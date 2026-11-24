@@ -616,12 +616,25 @@ namespace Mod
 			_isInterpolatingPose = false;
 		}
 
+		static void MuteAllGameAudio()
+		{
+			AudioListener.volume = 0f;
+			AudioListener.pause = true;
+			GameCanvas.isPlaySound = false;
+			Sound.isSound = false;
+			Sound.isNotPlay = true;
+			Sound.stopAll = true;
+			SoundMn.isSound = false;
+			SoundMn.volume = 0f;
+		}
+
 		internal static void OnAwake()
 		{
 			if (_awakeInitialized)
 				return;
 			_awakeInitialized = true;
 			EnsureMainThreadRegistered();
+			MuteAllGameAudio();
 			QualitySettings.vSyncCount = 0;
 			Application.targetFrameRate = 60;
 			Application.runInBackground = true;
@@ -636,6 +649,7 @@ namespace Mod
 				return;
 			_gameStartInitialized = true;
 			EnsureMainThreadRegistered();
+			MuteAllGameAudio();
 			QualitySettings.vSyncCount = 0;
 			Application.targetFrameRate = 60;
 			if (Utils.IsMobile())

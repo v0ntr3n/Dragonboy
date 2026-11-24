@@ -155,7 +155,7 @@ public class GameCanvas : IActionListener
 
 	public static MyVector messageServer = new MyVector(string.Empty);
 
-	public static bool isPlaySound = true;
+	public static bool isPlaySound = false;
 
 	static int clearOldData;
 

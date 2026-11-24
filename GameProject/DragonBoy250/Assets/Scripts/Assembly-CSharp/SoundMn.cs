@@ -19,9 +19,9 @@ public class SoundMn
 
 	public static SoundMn gIz;
 
-	public static bool isSound = true;
+	public static bool isSound = false;
 
-	public static float volume = 0.5f;
+	public static float volume = 0f;
 
 	private static int MAX_VOLUME = 10;
 
@@ -123,7 +123,6 @@ public class SoundMn
 
 	public static void init(AssetManager ac)
 	{
-		Sound.setActivity(ac);
 	}
 
 	public static SoundMn gI()
@@ -137,13 +136,6 @@ public class SoundMn
 
 	public void loadSound(int mapID)
 	{
-		Sound.init(new int[3] { AIR_SHIP, RAIN, TAITAONANGLUONG }, new int[39]
-		{
-			GET_ITEM, MOVE, LOW_PUNCH, LOW_KICK, FLY, JUMP, PANEL_OPEN, BUTTON_CLOSE, BUTTON_CLICK, MEDIUM_PUNCH,
-			MEDIUM_KICK, PANEL_OPEN, EAT_PEAN, OPEN_DIALOG, NORMAL_KAME, NAMEK_KAME, XAYDA_KAME, EXPLODE_1, EXPLODE_2, TRAIDAT_KAME,
-			HP_UP, THAIDUONGHASAN, HOISINH, GONG, KHICHAY, BIG_EXPLODE, NAMEK_LAZER, NAMEK_CHARGE, RADAR_CLICK, RADAR_ITEM,
-			FIREWORK, KAMEX10_0, KAMEX10_1, DESTROY_0, DESTROY_1, MAFUBA_0, MAFUBA_1, MAFUBA_2, DESTROY_2
-		});
 	}
 
 	public void getSoundOption()
@@ -242,7 +234,7 @@ public class SoundMn
 			{
 				(!Char.isPaintAura) ? (text2 + mResources.aura_off.Trim()) : (text + mResources.aura_off.Trim()),
 				(!Char.isPaintAura2) ? (text2 + mResources.aura_off_2.Trim()) : (text + mResources.aura_off_2.Trim()),
-				(!GameCanvas.isPlaySound) ? (text2 + mResources.turnOffSound) : (text + mResources.turnOffSound),
+				text2 + mResources.turnOffSound,
 				(mGraphics.zoomLevel <= 1) ? (text2 + mResources.x2Screen) : (text + mResources.x1Screen)
 			};
 			return;
@@ -256,7 +248,7 @@ public class SoundMn
 		{
 			(!Char.isPaintAura) ? (text2 + mResources.aura_off.Trim()) : (text + mResources.aura_off.Trim()),
 			(!Char.isPaintAura2) ? (text2 + mResources.aura_off_2.Trim()) : (text + mResources.aura_off_2.Trim()),
-			(!GameCanvas.isPlaySound) ? (text2 + mResources.turnOffSound) : (text + mResources.turnOffSound),
+			text2 + mResources.turnOffSound,
 			(!GameCanvas.lowGraphic) ? (text2 + mResources.cauhinhthap) : (text + mResources.cauhinhthap),
 			text3
 		};
@@ -264,73 +256,37 @@ public class SoundMn
 
 	public void HP_MPup()
 	{
-		Sound.playSound(HP_UP, 0.5f);
 	}
 
 	public void charPunch(bool isKick, float volumn)
 	{
-		if (!Char.myCharz().me)
-		{
-			volume /= 2f;
-		}
-		if (volumn <= 0f)
-		{
-			volumn = 0.01f;
-		}
-		int num = Res.random(0, 3);
-		if (isKick)
-		{
-			Sound.playSound((num != 0) ? MEDIUM_KICK : LOW_KICK, 0.1f);
-		}
-		else
-		{
-			Sound.playSound((num != 0) ? MEDIUM_PUNCH : LOW_PUNCH, 0.1f);
-		}
-		poolCount++;
 	}
 
 	public void thaiduonghasan()
 	{
-		Sound.playSound(THAIDUONGHASAN, 0.5f);
-		poolCount++;
 	}
 
 	public void rain()
 	{
-		Sound.playMus(RAIN, 0.3f, true);
 	}
 
 	public void gongName()
 	{
-		Sound.playSound(NAMEK_CHARGE, 0.3f);
-		poolCount++;
 	}
 
 	public void gong()
 	{
-		Sound.playSound(GONG, 0.2f);
-		poolCount++;
 	}
 
 	public void getItem()
 	{
-		Sound.playSound(GET_ITEM, 0.3f);
-		poolCount++;
 	}
 
 	public void soundToolOption()
 	{
-		GameCanvas.isPlaySound = !GameCanvas.isPlaySound;
-		if (GameCanvas.isPlaySound)
-		{
-			gI().loadSound(TileMap.mapID);
-			Rms.saveRMSInt("isPlaySound", 1);
-		}
-		else
-		{
-			gI().closeSound();
-			Rms.saveRMSInt("isPlaySound", 0);
-		}
+		GameCanvas.isPlaySound = false;
+		Sound.stopAll = true;
+		Rms.saveRMSInt("isPlaySound", 0);
 		getStrOption();
 	}
 
@@ -437,125 +393,71 @@ public class SoundMn
 	public void closeSound()
 	{
 		Sound.stopAll = true;
-		stopAll();
 	}
 
 	public void openSound()
 	{
-		if (Sound.music == null)
-		{
-			loadSound(0);
-		}
-		Sound.stopAll = false;
+		Sound.stopAll = true;
 	}
 
 	public void bigeExlode()
 	{
-		Sound.playSound(BIG_EXPLODE, 0.5f);
-		poolCount++;
 	}
 
 	public void explode_1()
 	{
-		Sound.playSound(EXPLODE_1, 0.5f);
-		poolCount++;
 	}
 
 	public void explode_2()
 	{
-		Sound.playSound(EXPLODE_1, 0.5f);
-		poolCount++;
 	}
 
 	public void traidatKame()
 	{
-		Sound.playSound(TRAIDAT_KAME, 1f);
-		poolCount++;
 	}
 
 	public void namekKame()
 	{
-		Sound.playSound(NAMEK_KAME, 0.3f);
-		poolCount++;
 	}
 
 	public void nameLazer()
 	{
-		Sound.playSound(NAMEK_LAZER, 0.3f);
-		poolCount++;
 	}
 
 	public void xaydaKame()
 	{
-		Sound.playSound(XAYDA_KAME, 0.3f);
-		poolCount++;
 	}
 
 	public void mobKame(int type)
 	{
-		int id = XAYDA_KAME;
-		if (type == 13)
-		{
-			id = NORMAL_KAME;
-		}
-		Sound.playSound(id, 0.1f);
-		poolCount++;
 	}
 
 	public void charRun(float volumn)
 	{
-		if (!Char.myCharz().me)
-		{
-			volume /= 2f;
-			if (volumn <= 0f)
-			{
-				volumn = 0.01f;
-			}
-		}
-		if (GameCanvas.gameTick % 8 == 0)
-		{
-			Sound.playSound(MOVE, volumn);
-			poolCount++;
-		}
 	}
 
 	public void monkeyRun(float volumn)
 	{
-		if (GameCanvas.gameTick % 8 == 0)
-		{
-			Sound.playSound(KHICHAY, 0.2f);
-			poolCount++;
-		}
 	}
 
 	public void charFall()
 	{
-		Sound.playSound(MOVE, 0.1f);
-		poolCount++;
 	}
 
 	public void charJump()
 	{
-		Sound.playSound(MOVE, 0.2f);
-		poolCount++;
 	}
 
 	public void panelOpen()
 	{
-		Sound.playSound(PANEL_OPEN, 0.5f);
-		poolCount++;
 	}
 
 	public void buttonClose()
 	{
-		Sound.playSound(BUTTON_CLOSE, 0.5f);
-		poolCount++;
 	}
 
 	public void buttonClick()
 	{
-		Sound.playSound(BUTTON_CLICK, 0.5f);
-		poolCount++;
 	}
 
 	public void stopMove()
@@ -564,8 +466,6 @@ public class SoundMn
 
 	public void charFly()
 	{
-		Sound.playSound(FLY, 0.2f);
-		poolCount++;
 	}
 
 	public void stopFly()
@@ -574,36 +474,26 @@ public class SoundMn
 
 	public void openMenu()
 	{
-		Sound.playSound(BUTTON_CLOSE, 0.5f);
-		poolCount++;
 	}
 
 	public void panelClick()
 	{
-		Sound.playSound(PANEL_CLICK, 0.5f);
-		poolCount++;
 	}
 
 	public void eatPeans()
 	{
-		Sound.playSound(EAT_PEAN, 0.5f);
-		poolCount++;
 	}
 
 	public void openDialog()
 	{
-		Sound.playSound(OPEN_DIALOG, 0.5f);
 	}
 
 	public void hoisinh()
 	{
-		Sound.playSound(HOISINH, 0.5f);
-		poolCount++;
 	}
 
 	public void taitao()
 	{
-		Sound.playMus(TAITAONANGLUONG, 0.5f, true);
 	}
 
 	public void taitaoPause()
@@ -612,14 +502,7 @@ public class SoundMn
 
 	public bool isPlayRain()
 	{
-		try
-		{
-			return Sound.isPlayingSound();
-		}
-		catch (Exception)
-		{
-			return false;
-		}
+		return false;
 	}
 
 	public bool isPlayAirShip()
@@ -629,11 +512,6 @@ public class SoundMn
 
 	public void airShip()
 	{
-		cout++;
-		if (cout % 2 == 0)
-		{
-			Sound.playMus(AIR_SHIP, 0.3f, false);
-		}
 	}
 
 	public void pauseAirShip()
@@ -646,7 +524,6 @@ public class SoundMn
 
 	public void stopAll()
 	{
-		Sound.stopAllz();
 	}
 
 	public void backToRegister()
@@ -673,25 +550,17 @@ public class SoundMn
 
 	public void newKame()
 	{
-		poolCount++;
-		if (poolCount % 15 == 0)
-		{
-			Sound.playSound(TRAIDAT_KAME, 0.5f);
-		}
 	}
 
 	public void radarClick()
 	{
-		Sound.playSound(RADAR_CLICK, 0.5f);
 	}
 
 	public void radarItem()
 	{
-		Sound.playSound(RADAR_ITEM, 0.5f);
 	}
 
 	public static void playSound(int x, int y, int id, float volume)
 	{
-		Sound.playSound(id, volume);
 	}
 }

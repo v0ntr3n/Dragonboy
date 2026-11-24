@@ -38,14 +38,7 @@ public class SplashScr : mScreen
 			{
 				GameScr.isPaintChatVip = Rms.loadRMSInt("serverchat") == 0;
 			}
-			if (Rms.loadRMSInt("isPlaySound") != -1)
-			{
-				GameCanvas.isPlaySound = Rms.loadRMSInt("isPlaySound") == 1;
-			}
-			if (GameCanvas.isPlaySound)
-			{
-				SoundMn.gI().loadSound(TileMap.mapID);
-			}
+			GameCanvas.isPlaySound = false;
 			SoundMn.gI().getStrOption();
 			ServerListScreen.loadIP();
 		}

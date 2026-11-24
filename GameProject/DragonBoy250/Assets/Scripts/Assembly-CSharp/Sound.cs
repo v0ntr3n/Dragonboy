@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Threading;
 using UnityEngine;
 
 public class Sound
@@ -13,11 +12,11 @@ public class Sound
 
 	public static int timestart;
 
-	public static bool isSound = true;
+	public static bool isSound = false;
 
-	public static bool isNotPlay;
+	public static bool isNotPlay = true;
 
-	public static bool stopAll;
+	public static bool stopAll = true;
 
 	public static AudioSource SoundWater;
 
@@ -105,21 +104,6 @@ public class Sound
 
 	public static void stop()
 	{
-		if (player == null)
-		{
-			return;
-		}
-		for (int i = 0; i < player.Length; i++)
-		{
-			if (player[i] != null)
-			{
-				AudioSource audioSource = player[i].GetComponent<AudioSource>();
-				if (audioSource != null)
-				{
-					audioSource.Pause();
-				}
-			}
-		}
 	}
 
 	public static bool isPlaying()
@@ -129,342 +113,115 @@ public class Sound
 
 	public static void init()
 	{
-		if (SoundBGLoop != null)
-		{
-			return;
-		}
-		GameObject gameObject = new GameObject();
-		gameObject.name = "Audio Player";
-		gameObject.transform.position = Vector3.zero;
-		if (UnityEngine.Object.FindFirstObjectByType<AudioListener>() == null)
-		{
-			gameObject.AddComponent<AudioListener>();
-		}
-		SoundBGLoop = gameObject.AddComponent<AudioSource>();
 	}
 
 	public static void init(int[] musicID, int[] sID)
 	{
-		if (player == null && music == null)
-		{
-			init();
-			l1 = musicID.Length;
-			player = new GameObject[musicID.Length + sID.Length];
-			music = new AudioClip[musicID.Length + sID.Length];
-			for (int i = 0; i < player.Length; i++)
-			{
-				string fileName = ((i >= l1) ? ("/sound/" + (i - l1)) : ("/music/" + i));
-				getAssetSoundFile(fileName, i);
-			}
-		}
 	}
 
 	public static void playSound(int id, float volume)
 	{
-		play(id + l1, volume);
 	}
 
 	public static void playSound1(int id, float volume)
 	{
-		play(id, volume);
 	}
 
 	public static void getAssetSoundFile(string fileName, int pos)
 	{
-		stop(pos);
-		string empty = string.Empty;
-		empty = Main.res + fileName;
-		load(empty, pos);
 	}
 
 	public static void stopAllz()
 	{
-		if (music != null)
-		{
-			for (int i = 0; i < music.Length; i++)
-			{
-				stop(i);
-			}
-		}
-		for (int j = 0; j < l1; j++)
-		{
-			sTopSoundBG(j);
-		}
 	}
 
 	public static void stopAllBg()
 	{
-		if (music != null)
-		{
-			for (int i = 0; i < music.Length; i++)
-			{
-				stop(i);
-			}
-		}
-		sTopSoundBG(0);
-		sTopSoundRun();
-		stopSoundNatural(0);
 	}
 
 	public static void update()
 	{
-		while (_mainThreadQueue.TryDequeue(out Action action))
+		while (_mainThreadQueue.TryDequeue(out _))
 		{
-			if (action == null)
-			{
-				continue;
-			}
-			try
-			{
-				action();
-			}
-			catch (Exception ex)
-			{
-				Debug.LogException(ex);
-			}
 		}
 	}
 
 	public static void stopMusic(int x)
 	{
-		if (GameCanvas.isPlaySound)
-		{
-			stop(x);
-		}
 	}
 
 	public static void play(int id, float volume)
 	{
-		if (!isNotPlay && GameCanvas.isPlaySound)
-		{
-			start(volume, id);
-		}
 	}
 
 	public static void playSoundRun(int id, float volume)
 	{
-		if (GameCanvas.isPlaySound && !(SoundRun == null) && music != null && id >= 0 && id < music.Length)
-		{
-			AudioSource audioSource = SoundRun.GetComponent<AudioSource>();
-			if (audioSource != null)
-			{
-				audioSource.loop = true;
-				audioSource.clip = music[id];
-				audioSource.volume = volume;
-				audioSource.Play();
-			}
-		}
 	}
 
 	public static void sTopSoundRun()
 	{
-		if (SoundRun != null)
-		{
-			AudioSource audioSource = SoundRun.GetComponent<AudioSource>();
-			if (audioSource != null)
-			{
-				audioSource.Stop();
-			}
-		}
 	}
 
 	public static bool isPlayingSound()
 	{
-		if (SoundRun == null)
-		{
-			return false;
-		}
-		AudioSource audioSource = SoundRun.GetComponent<AudioSource>();
-		return audioSource != null && audioSource.isPlaying;
+		return false;
 	}
 
 	public static void playSoundNatural(int id, float volume, bool isLoop)
 	{
-		if (GameCanvas.isPlaySound && !(SoundWater == null) && music != null && id >= 0 && id < music.Length)
-		{
-			AudioSource audioSource = SoundWater.GetComponent<AudioSource>();
-			if (audioSource != null)
-			{
-				audioSource.loop = isLoop;
-				audioSource.clip = music[id];
-				audioSource.volume = volume;
-				audioSource.Play();
-			}
-		}
 	}
 
 	public static void stopSoundNatural(int id)
 	{
-		if (SoundWater != null)
-		{
-			AudioSource audioSource = SoundWater.GetComponent<AudioSource>();
-			if (audioSource != null)
-			{
-				audioSource.Stop();
-			}
-		}
 	}
 
 	public static bool isPlayingSoundatural(int id)
 	{
-		if (SoundWater == null)
-		{
-			return false;
-		}
-		AudioSource audioSource = SoundWater.GetComponent<AudioSource>();
-		return audioSource != null && audioSource.isPlaying;
+		return false;
 	}
 
 	public static void playMus(int type, float vl, bool loop)
 	{
-		if (!isNotPlay)
-		{
-			vl -= 0.3f;
-			if (vl <= 0f)
-			{
-				vl = 0.01f;
-			}
-			playSoundBGLoop(type, vl);
-		}
 	}
 
 	public static void playSoundBGLoop(int id, float volume)
 	{
-		if (GameCanvas.isPlaySound)
-		{
-			if (id == SoundMn.AIR_SHIP)
-			{
-				playSound1(id, volume + 0.2f);
-			}
-			else if (!(SoundBGLoop == null) && !isPlayingSoundBG(id) && music != null && id >= 0 && id < music.Length)
-			{
-				AudioSource audioSource = SoundBGLoop.GetComponent<AudioSource>();
-				if (audioSource != null)
-				{
-					audioSource.loop = true;
-					audioSource.clip = music[id];
-					audioSource.volume = volume;
-					audioSource.Play();
-				}
-			}
-		}
 	}
 
 	public static void sTopSoundBG(int id)
 	{
-		if (SoundBGLoop != null)
-		{
-			AudioSource audioSource = SoundBGLoop.GetComponent<AudioSource>();
-			if (audioSource != null)
-			{
-				audioSource.Stop();
-			}
-		}
 	}
 
 	public static bool isPlayingSoundBG(int id)
 	{
-		if (SoundBGLoop == null)
-		{
-			return false;
-		}
-		AudioSource audioSource = SoundBGLoop.GetComponent<AudioSource>();
-		return audioSource != null && audioSource.isPlaying;
+		return false;
 	}
 
 	public static void load(string filename, int pos)
 	{
-		if (Main.IsMainThread())
-		{
-			__load(filename, pos);
-		}
-		else
-		{
-			_load(filename, pos);
-		}
-	}
-
-	private static void _load(string filename, int pos)
-	{
-		_mainThreadQueue.Enqueue(() => __load(filename, pos));
-	}
-
-	private static void __load(string filename, int pos)
-	{
-		if (music != null && pos >= 0 && pos < music.Length)
-		{
-			music[pos] = (AudioClip)Resources.Load(filename, typeof(AudioClip));
-		}
-		GameObject cam = GameObject.Find("Main Camera");
-		if (cam != null)
-		{
-			AudioSource src = cam.GetComponent<AudioSource>();
-			if (src == null)
-			{
-				src = cam.AddComponent<AudioSource>();
-			}
-			if (player != null && pos >= 0 && pos < player.Length)
-			{
-				player[pos] = cam;
-			}
-		}
 	}
 
 	public static void start(float volume, int pos)
 	{
-		if (Main.IsMainThread())
-		{
-			__start(volume, pos);
-		}
-		else
-		{
-			_start(volume, pos);
-		}
 	}
 
 	public static void _start(float volume, int pos)
 	{
-		_mainThreadQueue.Enqueue(() => __start(volume, pos));
 	}
 
 	public static void __start(float volume, int pos)
 	{
-		if (player != null && music != null && pos >= 0 && pos < player.Length && pos < music.Length && !(player[pos] == null))
-		{
-			AudioSource audioSource = player[pos].GetComponent<AudioSource>();
-			if (audioSource != null && music[pos] != null)
-			{
-				audioSource.PlayOneShot(music[pos], volume);
-			}
-		}
 	}
 
 	public static void stop(int pos)
 	{
-		if (Main.IsMainThread())
-		{
-			__stop(pos);
-		}
-		else
-		{
-			_stop(pos);
-		}
 	}
 
 	public static void _stop(int pos)
 	{
-		_mainThreadQueue.Enqueue(() => __stop(pos));
 	}
 
 	public static void __stop(int pos)
 	{
-		if (player != null && pos >= 0 && pos < player.Length && player[pos] != null)
-		{
-			AudioSource audioSource = player[pos].GetComponent<AudioSource>();
-			if (audioSource != null)
-			{
-				audioSource.Stop();
-			}
-		}
 	}
 }
